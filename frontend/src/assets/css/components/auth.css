@@ -1,0 +1,75 @@
+/* Logo centrado arriba */
+.logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.auth-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  animation: fadeInUp 0.5s ease;
+}
+
+/* Separador */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.divider span {
+  padding: 0 10px;
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+/* Botón de Google */
+.google-btn {
+  background: white;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.google-btn:hover {
+  background: #f8f9fa;
+  border-color: #dadce0;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Ajuste para el título */
+.auth-card h2 {
+  text-align: center;
+  font-size: 28px;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.auth-card h3 {
+  text-align: center;
+  color: var(--text-light);
+  margin-bottom: 30px;
+  font-weight: 500;
+  font-size: 16px;
+}

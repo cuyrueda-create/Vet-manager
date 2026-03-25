@@ -1,0 +1,16 @@
+:root {
+  --primary-color: #0066b3;      /* Azul principal */
+  --primary-dark: #004c8c;        /* Azul oscuro */
+  --primary-light: #3d8fd9;       /* Azul claro */
+  --secondary-color: #00a3e0;     /* Azul secundario */
+  --success-color: #10b981;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --dark-color: #1f2937;
+  --light-color: #ffffff;         /* Blanco puro */
+  --text-color: #1e293b;          /* Texto oscuro */
+  --text-light: #64748b;          /* Texto gris */
+  --border-color: #e2e8f0;
+  --background-light: #f8fafc;    /* Fondo gris claro */
+  --white: #ffffff;               /* Blanco */
+}
