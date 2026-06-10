@@ -1,7 +1,7 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from config import settings
+from backend.app.config import settings
 
 async def send_reset_password_email(to_email: str, nombre: str, reset_token: str):
     """Envía correo de recuperación de contraseña"""

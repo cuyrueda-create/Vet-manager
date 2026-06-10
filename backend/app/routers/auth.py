@@ -5,14 +5,14 @@ from sqlalchemy import text
 from datetime import timedelta
 import secrets
 
-from database import get_db
-from models import Usuario
-from schemas import (
+from backend.app.database import get_db
+from backend.app.models.models import Usuario
+from backend.app.schemas.schemas import (
     UsuarioCreate, UsuarioLogin, UsuarioResponse, 
     Token, PasswordResetRequest, PasswordReset
 )
-from auth import verify_password, get_password_hash, create_access_token, decode_token
-from utils.email import send_reset_password_email
+from backend.app.routers.auth import verify_password, get_password_hash, create_access_token, decode_token
+from backend.app.utils.email import send_reset_password_email
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 

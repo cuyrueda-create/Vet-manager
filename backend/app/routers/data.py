@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
 
-from database import get_db
-from models import Usuario
-from schemas import MascotaResponse, CitaResponse
-from auth import decode_token
+from backend.app.database import get_db
+from backend.app.models.models import Usuario
+from backend.app.schemas.schemas import MascotaResponse, CitaResponse
+from backend.app.routers.auth import decode_token
 from fastapi.security import OAuth2PasswordBearer
 
 router = APIRouter(prefix="/data", tags=["Datos"])
