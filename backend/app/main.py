@@ -1,3 +1,4 @@
+# app/main.py
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -14,9 +15,22 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+# ==================== IMPORTAR ROUTERS ====================
+from app.api.v1.clientes import router as clientes_router
+
+# ==================== IMPORTAR CONFIGURACIÓN ====================
+from app.core.config import DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.core.database import get_db_connection
+
 load_dotenv()
 
-app = FastAPI(title="Vet Manager API", version="1.0.0")
+# ==================== CONFIGURACIÓN DE LA APLICACIÓN ====================
+
+app = FastAPI(
+    title="Vet Manager API",
+    version="1.0.0",
+    description="Sistema de gestión veterinaria con FastAPI"
+)
 
 # Configurar CORS
 app.add_middleware(
@@ -27,32 +41,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuración de hashing con passlib
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# ==================== CONFIGURACIONES ====================
 
-# Configuración JWT
-SECRET_KEY = os.getenv("SECRET_KEY", "mi_secreto_super_seguro_2024")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440
-
-# Configuración BD
-DB_CONFIG = {
-    'host': os.getenv("DB_HOST", "localhost"),
-    'user': os.getenv("DB_USER", "root"),
-    'password': os.getenv("DB_PASSWORD", ""),
-    'database': os.getenv("DB_NAME", "vet_manager"),
-    'port': int(os.getenv("DB_PORT", 3306))
-}
-
-# Configuración de correo
-EMAIL_CONFIG = {
-    'host': os.getenv("EMAIL_HOST", "smtp.gmail.com"),
-    'port': int(os.getenv("EMAIL_PORT", 587)),
-    'user': os.getenv("EMAIL_USER", ""),
-    'password': os.getenv("EMAIL_PASSWORD", "")
-}
+# Configuración de hashing con passlib (usando pbkdf2_sha256 para evitar límite de 72 caracteres)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # ==================== MODELOS ====================
+
 class UsuarioCreate(BaseModel):
     nombre: str
     apellido: str
@@ -88,18 +83,29 @@ class PasswordReset(BaseModel):
     new_password: str
 
 # ==================== FUNCIONES ====================
-def get_db_connection():
-    try:
-        connection = mysql.connector.connect(**DB_CONFIG)
-        return connection
-    except Error as e:
-        print(f"Error al conectar a MySQL: {e}")
-        return None
 
 def verify_password(plain_password, hashed_password):
+    """Verifica una contraseña contra su hash usando pbkdf2_sha256"""
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
+    """
+    Genera un hash de contraseña usando pbkdf2_sha256
+    
+    Args:
+        password: Contraseña en texto plano
+        
+    Returns:
+        str: Hash de la contraseña
+    """
+    # Validar que la contraseña no esté vacía
+    if not password:
+        raise ValueError("La contraseña no puede estar vacía")
+    
+    # Asegurar que es string
+    password = str(password)
+    
+    # Generar hash
     return pwd_context.hash(password)
 
 def create_access_token(data: dict):
@@ -117,10 +123,8 @@ def decode_token(token: str):
         return None
 
 def send_reset_email(to_email, nombre, apellido, reset_token):
-    """Envía correo real de recuperación de contraseña"""
     reset_url = f"http://localhost:5173/reset-password?token={reset_token}"
     
-    # Crear mensaje HTML con UTF-8
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -195,17 +199,13 @@ def send_reset_email(to_email, nombre, apellido, reset_token):
             <div class="content">
                 <h2>Hola, {nombre} {apellido}!</h2>
                 <p>Recibimos una solicitud para restablecer la contrasena de tu cuenta en Vet Manager.</p>
-                
                 <div style="text-align: center;">
                     <a href="{reset_url}" class="button">Restablecer Contrasena</a>
                 </div>
-                
                 <div class="info">
                     <strong>⚠️ Importante:</strong><br>
-                    Este enlace expirara en <strong>1 hora</strong>. Si no solicitaste este cambio, puedes ignorar este correo.
+                    Este enlace expirara en <strong>1 hora</strong>.
                 </div>
-                
-                <p>Si el boton no funciona, copia y pega el siguiente enlace en tu navegador:</p>
                 <p style="word-break: break-all; color: #666; font-size: 12px;">{reset_url}</p>
             </div>
             <div class="footer">
@@ -217,7 +217,6 @@ def send_reset_email(to_email, nombre, apellido, reset_token):
     </html>
     """
     
-    # Versión texto plano (sin tildes para evitar problemas)
     text_content = f"""
 Hola {nombre} {apellido},
 
@@ -228,23 +227,18 @@ Para restablecer tu contrasena, visita el siguiente enlace:
 
 Este enlace expirara en 1 hora.
 
-Si no solicitaste esto, ignora este mensaje.
-
 ---
 Vet Manager - Sistema de Gestion Veterinaria
 """
     
-    # Crear mensaje con UTF-8
     message = MIMEMultipart("alternative")
     message["Subject"] = "Recuperacion de contrasena - Vet Manager"
     message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
     message["To"] = to_email
     
-    # Adjuntar con codificación UTF-8
     message.attach(MIMEText(text_content, "plain", "utf-8"))
     message.attach(MIMEText(html_content, "html", "utf-8"))
     
-    # Enviar correo
     try:
         with smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port']) as server:
             server.starttls()
@@ -256,7 +250,7 @@ Vet Manager - Sistema de Gestion Veterinaria
         print(f"❌ Error al enviar correo: {e}")
         return False
 
-# ==================== RUTAS ====================
+# ==================== ENDPOINTS ====================
 
 @app.get("/")
 async def root():
@@ -277,7 +271,9 @@ async def health_check():
     db_status = "healthy" if conn else "unhealthy"
     if conn:
         conn.close()
-    return {"status": "healthy", "database": db_status}
+    return {"status": "healthy", "database": "healthy"}
+
+# ==================== AUTENTICACIÓN ====================
 
 @app.post("/auth/register", status_code=status.HTTP_201_CREATED)
 async def register(user_data: UsuarioCreate):
@@ -293,12 +289,16 @@ async def register(user_data: UsuarioCreate):
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="El email ya está registrado")
         
+        # Validar que la contraseña no esté vacía
+        if not user_data.contraseña or len(user_data.contraseña) < 4:
+            raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 4 caracteres")
+        
         # Hashear contraseña
         hashed_password = get_password_hash(user_data.contraseña)
         
-        # Insertar usuario
+        # Insertar usuario - COLUMNA: contrasea (sin ñ y sin tilde)
         cursor.execute("""
-            INSERT INTO usuarios (nombre, apellido, email, contraseña, rol, tipo_documento, numero_documento)
+            INSERT INTO usuarios (nombre, apellido, email, contrasea, rol, tipo_documento, numero_documento)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (user_data.nombre, user_data.apellido, user_data.email, hashed_password, 
               user_data.rol, user_data.tipo_documento, user_data.numero_documento))
@@ -326,14 +326,15 @@ async def login(user_data: UsuarioLogin):
     cursor = connection.cursor(dictionary=True)
     
     try:
+        # SELECT con columna: contrasea (sin ñ y sin tilde)
         cursor.execute("""
-            SELECT id_usuario, nombre, apellido, email, contraseña, rol, tipo_documento, numero_documento
+            SELECT id_usuario, nombre, apellido, email, contrasea, rol, tipo_documento, numero_documento
             FROM usuarios WHERE email = %s
         """, (user_data.email,))
         
         user = cursor.fetchone()
         
-        if not user or not verify_password(user_data.contraseña, user["contraseña"]):
+        if not user or not verify_password(user_data.contraseña, user["contrasea"]):
             raise HTTPException(status_code=401, detail="Credenciales inválidas")
         
         access_token = create_access_token(
@@ -412,9 +413,9 @@ async def request_password_reset(request: PasswordResetRequest):
         print("="*60 + "\n")
 
         if email_sent:
-         return {"message": f"Correo enviado. Si no llega, usa este enlace: {reset_url}"}
+            return {"message": f"Correo enviado. Si no llega, usa este enlace: {reset_url}"}
         else:
-         return {"message": f"Error al enviar correo. Usa este enlace manualmente: {reset_url}"}
+            return {"message": f"Error al enviar correo. Usa este enlace manualmente: {reset_url}"}
         
     except HTTPException:
         raise
@@ -440,7 +441,7 @@ async def reset_password(reset_data: PasswordReset):
             raise HTTPException(status_code=400, detail="Token inválido o expirado")
         
         hashed_password = get_password_hash(reset_data.new_password)
-        cursor.execute("UPDATE usuarios SET contraseña = %s, reset_token = NULL WHERE id_usuario = %s", 
+        cursor.execute("UPDATE usuarios SET contrasea = %s, reset_token = NULL WHERE id_usuario = %s", 
                       (hashed_password, user["id_usuario"]))
         connection.commit()
         
@@ -490,7 +491,6 @@ async def get_listado_vista():
         cursor.execute("SELECT * FROM vista_mascotas_clientes")
         data = cursor.fetchall()
         
-        # Convertir valores para JSON
         for row in data:
             if isinstance(row.get('peso'), (int, float)):
                 row['peso'] = float(row['peso'])
@@ -517,7 +517,6 @@ async def get_listado_procedimiento():
     cursor = connection.cursor(dictionary=True)
     
     try:
-        # Crear procedimiento
         cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
         cursor.execute("""
             CREATE PROCEDURE sp_citas_activas()
@@ -575,6 +574,13 @@ async def get_users():
     connection.close()
     
     return users
+
+# ==================== RUTAS DE CLIENTES ====================
+
+# Incluir router de clientes
+app.include_router(clientes_router, prefix="/api/v1/clientes", tags=["Clientes"])
+
+# ==================== PUNTO DE ENTRADA ====================
 
 if __name__ == "__main__":
     import uvicorn
