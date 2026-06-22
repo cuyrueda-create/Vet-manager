@@ -1,28 +1,27 @@
-# Usar una imagen ligera de Python
-FROM python:3.11-alpine
+# backend/Dockerfile
+FROM python:3.11-slim
 
-# Configurar variables de entorno para Python
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias
-RUN apk add --no-cache gcc musl-dev libffi-dev
+# Instalar dependencias del sistema necesarias para mysql-connector
+RUN apt-get update && apt-get install -y \
+    gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar los requerimientos antes del código (para aprovechar la caché de Docker)
+# Copiar requirements.txt primero (para aprovechar caché de Docker)
 COPY requirements.txt .
+
+# Instalar dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar todo el contenido de la carpeta backend al contenedor
+# Copiar el resto del código
 COPY . .
 
-# Por seguridad: Correr la aplicación con un usuario sin privilegios root
-RUN adduser -D appuser
-USER appuser
+# Exponer el puerto que usa FastAPI
+EXPOSE 5000
 
-# Exponer el puerto por donde escucha tu API (por ejemplo, el 8000)
-EXPOSE 8000
-
-# Comando para ejecutar tu backend con Uvicorn (usando la ruta correcta app.main)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando para ejecutar la aplicación
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]

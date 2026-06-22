@@ -1,0 +1,7 @@
+{
+  "nombre": "Test",
+  "apellido": "User",
+  "email": "test@test.com",
+  "contrasena": "1234",
+  "rol": "asistente"
+}

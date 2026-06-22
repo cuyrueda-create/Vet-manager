@@ -1,5 +1,24 @@
-__pycache__/
+# backend/.dockerignore
+__pycache__
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
 .env
+.venv
+venv
+env
 .git
 .gitignore
+README.md
+.vscode
+.idea
+*.log
+*.db
+*.sqlite3
+.DS_Store
