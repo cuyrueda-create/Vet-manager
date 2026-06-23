@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Vet Manager</string>
+    <string name="login_button">Iniciar Sesión</string>
+</resources>
