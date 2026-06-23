@@ -10,15 +10,16 @@ import retrofit2.http.POST;
 import retrofit2.http.Header;
 
 public interface ApiService {
-    // Login
+
+    // 🔐 Login
+    @POST("auth/login")
+    Call<LoginResponse> login(@Body LoginRequest request);
+
+    // 📝 Registro
     @POST("auth/register")
     Call<RegisterResponse> register(@Body RegisterRequest request);
 
-    // Registro
-    @POST("auth/register")
-    Call<RegisterResponse> register(@Body RegisterRequest request);
-
-    // Lista de clientes
+    // 📋 Lista de clientes (requiere token)
     @GET("api/v1/clientes/")
     Call<List<Cliente>> getClientes(@Header("Authorization") String token);
 
@@ -26,7 +27,7 @@ public interface ApiService {
 
     class LoginRequest {
         public String email;
-        public String contraseña;
+        public String contraseña;   // ← CON TILDE
     }
 
     class LoginResponse {
@@ -39,7 +40,7 @@ public interface ApiService {
         public String nombre;
         public String apellido;
         public String email;
-        public String contraseña;
+        public String contraseña;   // ← CON TILDE
         public String rol;
     }
 
