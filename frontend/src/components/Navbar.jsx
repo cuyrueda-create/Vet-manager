@@ -1,36 +1,49 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import logo from '../assets/images/VetManager_Logo_Solo.png';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
 
-  const nombreCompleto = user ? `${user.nombre} ${user.apellido || ''}` : 'Usuario';
+  const links = [
+    { to: '/inicio', label: 'Inicio', icon: '🏠' },
+    { to: '/clientes', label: 'Clientes', icon: '👥' },
+    { to: '/mascotas', label: 'Mascotas', icon: '🐾' },
+    { to: '/citas', label: 'Citas', icon: '📅' },
+  ];
 
   return (
     <nav className="navbar">
       <div className="navbar-content">
-        <Link to="/dashboard" className="navbar-logo">
-          <img src={logo} alt="Vet Manager" />
+        <Link to="/inicio" className="navbar-logo">
+          <img src="/images/logo.png" alt="Vet Manager" />
           <span>Vet Manager</span>
         </Link>
         <div className="navbar-links">
-          <Link to="/dashboard">Inicio</Link>
-          <Link to="/listado-vista">Vista SQL</Link>
-          <Link to="/listado-procedimiento">Procedimiento</Link>
-          <div className="user-info">
-            <span className="user-name">👋 {nombreCompleto}</span>
-            <button onClick={handleLogout} className="logout-btn">
-              🚪 Cerrar sesión
-            </button>
-          </div>
+          {links.map(link => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
+            >
+              {link.label}
+            </Link>
+          ))}
+          {user && (
+            <div className="user-info">
+              <span className="user-name">{user.nombre}</span>
+              <button onClick={handleLogout} className="logout-btn">
+                Cerrar Sesión
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </nav>

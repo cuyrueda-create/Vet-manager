@@ -1,18 +1,20 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import './assets/css/index.css';
 import Inicio from './pages/Inicio';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import RecuperarPassword from './pages/RecuperarPassword';
 import ResetPassword from './pages/ResetPassword';
+import ConfirmarEmail from './pages/ConfirmarEmail';
 import Dashboard from './pages/Dashboard';
-import ListadoVista from './pages/ListadoVista';
-import ListadoProcedimiento from './pages/ListadoProcedimiento';
+import ClientesPage from './pages/ClientesPage';
+import MascotasPage from './pages/MascotasPage';
+import CitasPage from './pages/CitasPage';
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  
   if (loading) {
     return (
       <div className="loading-container">
@@ -21,38 +23,23 @@ const PrivateRoute = ({ children }) => {
       </div>
     );
   }
-  
   return user ? children : <Navigate to="/login" />;
 };
 
 function AppRoutes() {
   return (
     <Routes>
-      {/* Ruta principal - Landing Page */}
       <Route path="/" element={<Inicio />} />
-      
-      {/* Rutas de autenticación */}
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
       <Route path="/recuperar-password" element={<RecuperarPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      
-      {/* Rutas protegidas (requieren login) */}
-      <Route path="/dashboard" element={
-        <PrivateRoute>
-          <Dashboard />
-        </PrivateRoute>
-      } />
-      <Route path="/listado-vista" element={
-        <PrivateRoute>
-          <ListadoVista />
-        </PrivateRoute>
-      } />
-      <Route path="/listado-procedimiento" element={
-        <PrivateRoute>
-          <ListadoProcedimiento />
-        </PrivateRoute>
-      } />
+      <Route path="/confirmar-email" element={<ConfirmarEmail />} />
+      <Route path="/inicio" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      <Route path="/dashboard" element={<Navigate to="/inicio" replace />} />
+      <Route path="/clientes" element={<PrivateRoute><ClientesPage /></PrivateRoute>} />
+      <Route path="/mascotas" element={<PrivateRoute><MascotasPage /></PrivateRoute>} />
+      <Route path="/citas" element={<PrivateRoute><CitasPage /></PrivateRoute>} />
     </Routes>
   );
 }
