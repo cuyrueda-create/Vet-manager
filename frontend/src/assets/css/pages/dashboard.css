@@ -1,30 +1,198 @@
 .dashboard {
   min-height: 100vh;
   background: var(--background-light);
+  position: relative;
+}
+
+.dashboard::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(rgba(0,102,179,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-content {
+  position: relative;
+  z-index: 1;
 }
 
 .dashboard-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 32px 24px;
 }
 
 .welcome-section {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  background: linear-gradient(135deg, var(--primary-color), #004c8c, #003366);
   color: white;
-  padding: 40px;
-  border-radius: 24px;
-  margin-bottom: 40px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 102, 179, 0.2);
+  padding: 40px 44px;
+  border-radius: 16px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 20px rgba(0, 102, 179, 0.25);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-.welcome-section h1 {
-  font-size: 32px;
-  margin-bottom: 10px;
+.welcome-section::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 400px;
+  height: 400px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 50%;
 }
 
-.welcome-section p {
-  font-size: 16px;
+.welcome-section::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: 30%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 50%;
+}
+
+.welcome-text {
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-text h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.welcome-text p {
+  font-size: 15px;
   opacity: 0.9;
+}
+
+.welcome-pets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.welcome-dog {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-fallback {
+  font-size: 38px;
+  position: absolute;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.welcome-pets.img-failed .welcome-dog {
+  display: none;
+}
+
+.welcome-pets.img-failed .welcome-fallback {
+  opacity: 1;
+}
+
+/* ============================================ */
+/* CARDS                                        */
+/* ============================================ */
+
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 32px;
+}
+
+.cards-container .card {
+  background: white;
+  border-radius: 14px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.cards-container .card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--card-color, var(--primary-color));
+  border-radius: 14px 14px 0 0;
+}
+
+.cards-container .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+.card-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.cards-container .card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-color);
+  margin-bottom: 8px;
+}
+
+.cards-container .card p {
+  color: var(--text-light);
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.cards-container .card .btn-primary {
+  width: 100%;
+}
+
+/* ============================================ */
+/* RECENT CITAS SECTION                         */
+/* ============================================ */
+
+.recent-section {
+  margin-top: 40px;
+}
+
+.recent-section h2 {
+  color: var(--text-color);
+  margin-bottom: 16px;
+  font-size: 20px;
+  font-weight: 700;
 }

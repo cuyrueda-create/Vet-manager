@@ -1,226 +1,391 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import logo from '../assets/images/VetManager_Logo_Solo.png';
+
+const getPasswordStrength = (pwd) => {
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (pwd.length >= 12) score++;
+  if (/[a-z]/.test(pwd)) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/\d/.test(pwd)) score++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+  return Math.min(score, 5);
+};
+
+const strengthConfig = {
+  0: { label: '', color: 'transparent', width: '0%' },
+  1: { label: 'Muy débil', color: '#ef4444', width: '20%' },
+  2: { label: 'Débil', color: '#f97316', width: '40%' },
+  3: { label: 'Media', color: '#eab308', width: '60%' },
+  4: { label: 'Fuerte', color: '#22c55e', width: '80%' },
+  5: { label: 'Muy segura', color: '#16a34a', width: '100%' },
+};
+
+const formatTelefono = (value) => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length > 10) return digits.slice(0, 10);
+  return digits;
+};
 
 const Registro = () => {
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
     email: '',
+    telefono: '',
+    direccion: '',
     contraseña: '',
-    confirmPassword: '',
-    rol: 'asistente',
-    tipo_documento: '',
-    numero_documento: ''
+    confirmarContraseña: '',
   });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  const { register } = useAuth();
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  const strength = useMemo(() => getPasswordStrength(formData.contraseña), [formData.contraseña]);
+  const current = strengthConfig[strength];
+  const passwordsMatch = formData.contraseña === formData.confirmarContraseña;
+  const canSubmit = formData.contraseña && formData.confirmarContraseña && passwordsMatch && strength >= 3 && !loading && !success;
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    if (name === 'telefono') {
+      setFormData({ ...formData, telefono: formatTelefono(value) });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    
-    if (!formData.nombre.trim()) {
-      setError('El nombre es obligatorio');
-      return;
-    }
-    
-    if (!formData.apellido.trim()) {
-      setError('El apellido es obligatorio');
-      return;
-    }
-    
-    if (!formData.email.trim()) {
-      setError('El email es obligatorio');
-      return;
-    }
-    
-    if (formData.contraseña.length < 4) {
-      setError('La contraseña debe tener al menos 4 caracteres');
-      return;
-    }
-    
-    if (formData.contraseña !== formData.confirmPassword) {
+
+    if (formData.contraseña !== formData.confirmarContraseña) {
       setError('Las contraseñas no coinciden');
       return;
     }
-    
+
+    if (!/^3\d{9}$/.test(formData.telefono)) {
+      setError('El teléfono debe ser un número colombiano válido (10 dígitos, empieza con 3)');
+      return;
+    }
+
     setLoading(true);
-    
     const result = await register({
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
+      telefono: `+57${formData.telefono}`,
+      direccion: formData.direccion,
       contraseña: formData.contraseña,
-      rol: formData.rol,
-      tipo_documento: formData.tipo_documento,
-      numero_documento: formData.numero_documento
     });
-    
-    if (result.success) {
-      setSuccess('✅ Usuario registrado exitosamente. Redirigiendo al login...');
-      setTimeout(() => navigate('/login'), 2000);
-    } else {
-      setError(result.message);
-    }
-    
     setLoading(false);
+
+    if (result.success) {
+      setSuccess(result.message || 'Registro exitoso. Revisa tu correo para confirmar tu cuenta.');
+    } else {
+      setError(result.message || 'Error al registrar usuario');
+    }
   };
 
-  const handleGoogleRegister = () => {
-    window.open('https://accounts.google.com/signup', '_blank');
-  };
+  if (success) {
+    return (
+      <Layout>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.92)',
+          padding: '48px 40px',
+          borderRadius: '16px',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+          width: '100%',
+          maxWidth: '450px',
+          textAlign: 'center',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>📧</div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e', marginBottom: 12 }}>
+            ¡Casi listo!
+          </h2>
+          <p style={{ color: '#6b7280', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            {success}
+          </p>
+          <Link to="/login" style={{
+            display: 'inline-block',
+            padding: '12px 32px',
+            background: 'linear-gradient(135deg, #0066b3 0%, #004c8c 100%)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '8px',
+            fontWeight: 600
+          }}>
+            Ir a iniciar sesión
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="logo-container">
-          <img src={logo} alt="Vet Manager" className="auth-logo" />
-        </div>
-        
-        <h2>Vet Manager</h2>
-        <h3>Crear Cuenta</h3>
-        
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-        
+    <Layout>
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.92)',
+        padding: '48px 40px',
+        borderRadius: '16px',
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+        width: '100%',
+        maxWidth: '450px',
+        textAlign: 'center',
+        backdropFilter: 'blur(4px)'
+      }}>
+        <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1a1a2e', marginBottom: 8 }}>
+          Crear Cuenta
+        </h2>
+        <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 32 }}>
+          Regístrate para empezar
+        </p>
+
+        {error && (
+          <div style={{
+            background: '#fee2e2',
+            color: '#991b1b',
+            padding: '12px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          <div className="form-row" style={{ display: 'flex', gap: '15px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Nombre</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Nombre</label>
               <input
                 type="text"
                 name="nombre"
+                placeholder="Tu nombre"
                 value={formData.nombre}
                 onChange={handleChange}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '1.5px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: 15,
+                  background: 'white'
+                }}
                 required
-                placeholder="Juan"
               />
             </div>
-            
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Apellido</label>
+            <div style={{ textAlign: 'left' }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Apellido</label>
               <input
                 type="text"
                 name="apellido"
+                placeholder="Tu apellido"
                 value={formData.apellido}
                 onChange={handleChange}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '1.5px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: 15,
+                  background: 'white'
+                }}
                 required
-                placeholder="Pérez"
               />
             </div>
           </div>
-          
-          <div className="form-group">
-            <label>Correo electrónico</label>
+
+          <div style={{ marginTop: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Correo electrónico</label>
             <input
               type="email"
               name="email"
+              placeholder="correo@ejemplo.com"
               value={formData.email}
               onChange={handleChange}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: 15,
+                background: 'white'
+              }}
               required
-              placeholder="ejemplo@correo.com"
             />
           </div>
-          
-          <div className="form-row" style={{ display: 'flex', gap: '15px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Tipo documento</label>
-              <select name="tipo_documento" value={formData.tipo_documento} onChange={handleChange}>
-                <option value="">Seleccionar</option>
-                <option value="CC">Cédula Ciudadanía</option>
-                <option value="TI">Tarjeta Identidad</option>
-                <option value="CE">Cédula Extranjería</option>
-                <option value="Pasaporte">Pasaporte</option>
-              </select>
-            </div>
-            
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>N° Documento</label>
+
+          <div style={{ marginTop: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Teléfono</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{
+                padding: '12px 12px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: 15,
+                background: '#f3f4f6',
+                color: '#6b7280',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center'
+              }}>+57</span>
               <input
-                type="text"
-                name="numero_documento"
-                value={formData.numero_documento}
+                type="tel"
+                name="telefono"
+                placeholder="300 123 4567"
+                value={formData.telefono}
                 onChange={handleChange}
-                placeholder="12345678"
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  border: '1.5px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: 15,
+                  background: 'white'
+                }}
+                required
               />
             </div>
           </div>
-          
-          <div className="form-group">
-            <label>Rol</label>
-            <select name="rol" value={formData.rol} onChange={handleChange}>
-              <option value="asistente">Asistente</option>
-              <option value="veterinario">Veterinario</option>
-              <option value="admin">Administrador</option>
-            </select>
+
+          <div style={{ marginTop: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Dirección</label>
+            <input
+              type="text"
+              name="direccion"
+              placeholder="Calle, número, ciudad"
+              value={formData.direccion}
+              onChange={handleChange}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: 15,
+                background: 'white'
+              }}
+              required
+            />
           </div>
-          
-          <div className="form-group">
-            <label>Contraseña</label>
+
+          <div style={{ marginTop: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Contraseña</label>
             <input
               type="password"
               name="contraseña"
+              placeholder="Ingresa tu contraseña"
               value={formData.contraseña}
               onChange={handleChange}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: 15,
+                background: 'white'
+              }}
               required
-              placeholder="Mínimo 4 caracteres"
+              minLength={8}
             />
+
+            {formData.contraseña && (
+              <>
+                <div style={{
+                  marginTop: 8,
+                  height: 6,
+                  borderRadius: 4,
+                  background: '#e5e7eb',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: current.width,
+                    background: current.color,
+                    borderRadius: 4,
+                    transition: 'all 0.3s ease'
+                  }} />
+                </div>
+                <p style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: current.color,
+                  fontWeight: 600,
+                  textAlign: 'right'
+                }}>
+                  {current.label}
+                </p>
+              </>
+            )}
           </div>
-          
-          <div className="form-group">
-            <label>Confirmar contraseña</label>
+
+          <div style={{ marginTop: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Confirmar Contraseña</label>
             <input
               type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
+              name="confirmarContraseña"
               placeholder="Repite tu contraseña"
+              value={formData.confirmarContraseña}
+              onChange={handleChange}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: 15,
+                background: 'white'
+              }}
+              required
             />
+            {formData.confirmarContraseña && !passwordsMatch && (
+              <p style={{ marginTop: 4, fontSize: 12, color: '#ef4444', fontWeight: 500 }}>
+                Las contraseñas no coinciden
+              </p>
+            )}
           </div>
-          
-          <button type="submit" disabled={loading}>
+
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            style={{
+              width: '100%',
+              padding: '14px',
+              marginTop: '24px',
+              background: !canSubmit
+                ? '#94a3b8'
+                : 'linear-gradient(135deg, #0066b3 0%, #004c8c 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: canSubmit ? 'pointer' : 'not-allowed',
+              opacity: canSubmit ? 1 : 0.6
+            }}
+          >
             {loading ? 'Registrando...' : 'Registrarse'}
           </button>
+
+          {strength < 3 && formData.contraseña && (
+            <p style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+              La contraseña debe ser al menos Media para registrarte
+            </p>
+          )}
         </form>
-        
-        <div className="divider">
-          <span>o</span>
-        </div>
-        
-        <button 
-          type="button" 
-          className="google-btn"
-          onClick={handleGoogleRegister}
-        >
-          <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-          </svg>
-          Registrarse con Google
-        </button>
-        
-        <div className="auth-links">
-          <Link to="/login">¿Ya tienes cuenta? Inicia sesión</Link>
+
+        <div style={{ marginTop: 16 }}>
+          <Link to="/login" style={{ color: '#0066b3', textDecoration: 'none', fontSize: 14 }}>
+            ¿Ya tienes cuenta? Inicia sesión
+          </Link>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

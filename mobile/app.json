@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Vet Manager",
+    "slug": "vet-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vetmanager.app"
+    },
+    "android": {
+      "package": "com.vetmanager.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0066b3",
+        "foregroundImage": "./assets/icon.png"
+      }
+    },
+    "extra": {
+      "apiUrl": "http://10.0.2.2:5000"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}
