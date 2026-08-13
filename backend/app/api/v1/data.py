@@ -23,6 +23,7 @@ async def get_listado_vista():
                 m.sexo,
                 m.edad,
                 m.peso,
+                m.id_usuario,
                 c.id_cliente,
                 c.nombre AS cliente_nombre,
                 c.apellido AS cliente_apellido,
@@ -31,7 +32,8 @@ async def get_listado_vista():
             FROM mascotas m
             INNER JOIN clientes c ON m.id_cliente = c.id_cliente
             LEFT JOIN citas ct ON m.id_mascota = ct.id_mascota
-            GROUP BY m.id_mascota, c.id_cliente
+            GROUP BY m.id_mascota, m.nombre, m.especie, m.raza, m.sexo, m.edad, m.peso, m.id_usuario,
+                     c.id_cliente, c.nombre, c.apellido, c.telefono
             ORDER BY m.nombre
         """)
         
@@ -65,31 +67,36 @@ async def get_listado_procedimiento():
     cursor = connection.cursor(dictionary=True)
     
     try:
-        # Crear procedimiento
-        cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
-        cursor.execute("""
-            CREATE PROCEDURE sp_citas_activas()
-            BEGIN
-                SELECT 
-                    c.id_cita,
-                    m.nombre AS mascota_nombre,
-                    CONCAT(cl.nombre, ' ', cl.apellido) AS cliente_nombre,
-                    c.fecha,
-                    c.hora,
-                    s.nombre AS servicio_nombre,
-                    c.estado,
-                    CONCAT(u.nombre, ' ', u.apellido) AS veterinario_nombre
-                FROM citas c
-                INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
-                INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
-                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
-                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-                WHERE c.estado = 'programada'
-                    AND CONCAT(c.fecha, ' ', c.hora) >= NOW()
-                ORDER BY c.fecha ASC, c.hora ASC
-                LIMIT 20;
-            END
-        """)
+        try:
+            cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
+            cursor.execute("""
+                CREATE PROCEDURE sp_citas_activas()
+                BEGIN
+                    SELECT 
+                        c.id_cita,
+                        m.nombre AS mascota_nombre,
+                        CONCAT(cl.nombre, ' ', cl.apellido) AS cliente_nombre,
+                        c.fecha,
+                        c.hora,
+                        s.nombre AS servicio_nombre,
+                        c.estado,
+                        CONCAT(u.nombre, ' ', u.apellido) AS veterinario_nombre
+                    FROM citas c
+                    INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+                    INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+                    INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                    INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                    WHERE c.estado = 'programada'
+                        AND CONCAT(c.fecha, ' ', c.hora) >= NOW()
+                    ORDER BY c.fecha ASC, c.hora ASC
+                    LIMIT 20;
+                END
+            """)
+            connection.commit()
+        except Exception as create_error:
+            # El usuario de BD puede carecer de permisos para crear rutinas
+            # (p. ej. con binlog activo y sin SUPER). Se usa la existente.
+            print(f"⚠️ No se recreó el procedimiento almacenado: {create_error}")
         
         cursor.callproc('sp_citas_activas')
         

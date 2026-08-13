@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
+import Icon from '../components/Icon';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -21,17 +22,18 @@ const Dashboard = () => {
   }, []);
 
   const quickLinks = [
-    { to: '/citas', icon: '📅', title: 'Nueva Cita', desc: 'Agendar atención para una mascota', color: '#0066b3' },
-    { to: '/clientes', icon: '👥', title: 'Clientes', desc: 'Administrar dueños de mascotas', color: '#10b981' },
-    { to: '/mascotas', icon: '🐾', title: 'Mascotas', desc: 'Ver y gestionar pacientes', color: '#f59e0b' },
+    { to: '/citas', icon: 'calendar', title: 'Nueva Cita', desc: 'Agendar atención para una mascota', color: '#0066b3' },
+    { to: '/clientes', icon: 'users', title: 'Clientes', desc: 'Administrar dueños de mascotas', color: '#10b981' },
+    { to: '/mascotas', icon: 'paw', title: 'Mascotas', desc: 'Ver y gestionar pacientes', color: '#f59e0b' },
   ];
 
   const statDefs = [
-    { key: 'clientes', label: 'Clientes', icon: '👥', bg: '#e0f2fe', color: '#0066b3' },
-    { key: 'mascotas', label: 'Mascotas', icon: '🐾', bg: '#fef3c7', color: '#d97706' },
-    { key: 'citas', label: 'Total Citas', icon: '📅', bg: '#d1fae5', color: '#059669' },
-    { key: 'citas_pendientes', label: 'Pendientes', icon: '⏳', bg: '#fce7f3', color: '#db2777' },
-    { key: 'servicios', label: 'Servicios', icon: '⚕️', bg: '#ede9fe', color: '#7c3aed' },
+    { key: 'clientes', label: 'Clientes', icon: 'users', bg: '#e0f2fe', color: '#0066b3' },
+    { key: 'mascotas', label: 'Mascotas', icon: 'paw', bg: '#fef3c7', color: '#d97706' },
+    { key: 'citas', label: 'Total Citas', icon: 'calendar', bg: '#d1fae5', color: '#059669' },
+    { key: 'citas_pendientes', label: 'Pendientes', icon: 'clock', bg: '#fce7f3', color: '#db2777' },
+    { key: 'citas_hoy', label: 'Citas Hoy', icon: 'calendar', bg: '#fff7ed', color: '#ea580c' },
+    { key: 'servicios', label: 'Servicios', icon: 'settings', bg: '#ede9fe', color: '#7c3aed' },
   ];
 
   return (
@@ -43,7 +45,7 @@ const Dashboard = () => {
             <img src="/images/perroygato.png" alt="" className="welcome-dog"
               onError={e => { e.target.style.display = 'none'; e.target.parentNode.classList.add('img-failed'); }}
             />
-            <span className="welcome-fallback">🐶🐱</span>
+            <span className="welcome-fallback"><Icon name="paw" size={40} /></span>
           </div>
           <div className="welcome-text">
             <h1>Bienvenido, {user?.nombre || 'Usuario'}</h1>
@@ -55,7 +57,7 @@ const Dashboard = () => {
           <div className="stats-bar">
             {statDefs.map(s => (
               <div key={s.key} className="stat-card" style={{ '--stat-bg': s.bg, '--stat-color': s.color }}>
-                <span className="stat-icon">{s.icon}</span>
+                <span className="stat-icon"><Icon name={s.icon} size={22} /></span>
                 <span className="stat-number">{stats[s.key] ?? 0}</span>
                 <span className="stat-label">{s.label}</span>
               </div>
@@ -67,7 +69,7 @@ const Dashboard = () => {
           {quickLinks.map((link, i) => (
             <Link key={i} to={link.to} style={{ textDecoration: 'none' }}>
               <div className="card" style={{ '--card-color': link.color }}>
-                <div className="card-icon">{link.icon}</div>
+                <div className="card-icon"><Icon name={link.icon} size={26} /></div>
                 <h3>{link.title}</h3>
                 <p>{link.desc}</p>
                 <span className="btn-primary">Ir a {link.title}</span>

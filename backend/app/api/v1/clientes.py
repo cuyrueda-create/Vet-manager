@@ -1,8 +1,9 @@
 # backend/app/api/v1/clientes.py
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from app.core.database import get_db_connection
+from app.core.auth import get_current_user
 
 router = APIRouter()
 
@@ -40,7 +41,7 @@ class ClienteResponse(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @router.get("/")
-async def get_clientes():
+async def get_clientes(current_user: dict = Depends(get_current_user)):
     """
     Obtener todos los clientes activos
     
@@ -54,13 +55,22 @@ async def get_clientes():
     cursor = connection.cursor(dictionary=True)
     
     try:
-        cursor.execute("""
-            SELECT id_cliente, nombre, apellido, email, telefono, direccion, 
-                   tipo_documento, numero_documento, is_active
-            FROM clientes
-            WHERE is_active = 1
-            ORDER BY nombre, apellido
-        """)
+        if current_user["rol"] == "admin":
+            cursor.execute("""
+                SELECT id_cliente, nombre, apellido, email, telefono, direccion, 
+                       tipo_documento, numero_documento, is_active
+                FROM clientes
+                WHERE is_active = 1
+                ORDER BY nombre, apellido
+            """)
+        else:
+            cursor.execute("""
+                SELECT id_cliente, nombre, apellido, email, telefono, direccion, 
+                       tipo_documento, numero_documento, is_active
+                FROM clientes
+                WHERE is_active = 1 AND id_usuario = %s
+                ORDER BY nombre, apellido
+            """, (current_user["id_usuario"],))
         clientes = cursor.fetchall()
         return clientes
     except Exception as e:
@@ -70,7 +80,7 @@ async def get_clientes():
         connection.close()
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_cliente(cliente: ClienteCreate):
+async def create_cliente(cliente: ClienteCreate, current_user: dict = Depends(get_current_user)):
     """
     Crear un nuevo cliente
     
@@ -101,10 +111,11 @@ async def create_cliente(cliente: ClienteCreate):
         
         # Insertar cliente
         cursor.execute("""
-            INSERT INTO clientes (nombre, apellido, email, telefono, direccion, tipo_documento, numero_documento)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO clientes (nombre, apellido, email, telefono, direccion, tipo_documento, numero_documento, id_usuario)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (cliente.nombre, cliente.apellido, cliente.email, cliente.telefono, 
-              cliente.direccion, cliente.tipo_documento, cliente.numero_documento))
+              cliente.direccion, cliente.tipo_documento, cliente.numero_documento,
+              current_user["id_usuario"]))
         
         connection.commit()
         cliente_id = cursor.lastrowid
@@ -123,7 +134,7 @@ async def create_cliente(cliente: ClienteCreate):
         connection.close()
 
 @router.get("/{cliente_id}")
-async def get_cliente(cliente_id: int):
+async def get_cliente(cliente_id: int, current_user: dict = Depends(get_current_user)):
     """
     Obtener un cliente por su ID
     
@@ -142,7 +153,7 @@ async def get_cliente(cliente_id: int):
     try:
         cursor.execute("""
             SELECT id_cliente, nombre, apellido, email, telefono, direccion,
-                   tipo_documento, numero_documento, is_active
+                   tipo_documento, numero_documento, is_active, id_usuario
             FROM clientes
             WHERE id_cliente = %s
         """, (cliente_id,))
@@ -150,6 +161,10 @@ async def get_cliente(cliente_id: int):
         cliente = cursor.fetchone()
         
         if not cliente:
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+        
+        # Un usuario solo puede ver los clientes que él registró
+        if current_user["rol"] != "admin" and cliente.get("id_usuario") != current_user["id_usuario"]:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         return cliente
@@ -162,7 +177,7 @@ async def get_cliente(cliente_id: int):
         connection.close()
 
 @router.put("/{cliente_id}")
-async def update_cliente(cliente_id: int, cliente: ClienteUpdate):
+async def update_cliente(cliente_id: int, cliente: ClienteUpdate, current_user: dict = Depends(get_current_user)):
     """
     Actualizar un cliente existente
     
@@ -181,8 +196,13 @@ async def update_cliente(cliente_id: int, cliente: ClienteUpdate):
     
     try:
         # Verificar que el cliente existe
-        cursor.execute("SELECT id_cliente FROM clientes WHERE id_cliente = %s", (cliente_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id_cliente, id_usuario FROM clientes WHERE id_cliente = %s", (cliente_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+        # Un usuario solo puede actualizar los clientes que él registró
+        if current_user["rol"] != "admin" and row.get("id_usuario") != current_user["id_usuario"]:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         # Construir query de actualización dinámica
@@ -248,7 +268,7 @@ async def update_cliente(cliente_id: int, cliente: ClienteUpdate):
         connection.close()
 
 @router.delete("/{cliente_id}")
-async def delete_cliente(cliente_id: int):
+async def delete_cliente(cliente_id: int, current_user: dict = Depends(get_current_user)):
     """
     Eliminar un cliente (soft delete)
     
@@ -266,10 +286,14 @@ async def delete_cliente(cliente_id: int):
     
     try:
         # Verificar que el cliente existe
-        cursor.execute("SELECT id_cliente, is_active FROM clientes WHERE id_cliente = %s", (cliente_id,))
+        cursor.execute("SELECT id_cliente, id_usuario, is_active FROM clientes WHERE id_cliente = %s", (cliente_id,))
         cliente = cursor.fetchone()
         
         if not cliente:
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+        # Un usuario solo puede eliminar los clientes que él registró
+        if current_user["rol"] != "admin" and cliente.get("id_usuario") != current_user["id_usuario"]:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         # Verificar si ya está eliminado

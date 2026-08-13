@@ -1,16 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
+import Icon from '../components/Icon';
+import Modal from '../components/Modal';
+import { useAuth } from '../contexts/AuthContext';
 
 const ListadoVista = () => {
+  const { user } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({ total: 0, especies: 0, citas: 0 });
+  const [generando, setGenerando] = useState(false);
+  const [mensaje, setMensaje] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [tipoReporte, setTipoReporte] = useState('datos');
+  const [descripcion, setDescripcion] = useState('');
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const generarReporte = async () => {
+    if (data.length === 0) {
+      setMensaje({ tipo: 'error', texto: 'No hay datos para generar el reporte' });
+      return;
+    }
+    try {
+      setGenerando(true);
+      setMensaje('');
+      const response = await api.post('/api/reportes', {
+        tipo: 'vista_sql',
+        contenido: {
+          fecha_generado: new Date().toISOString(),
+          total_registros: data.length,
+          estadisticas: stats,
+          registros: data,
+        },
+      });
+      setMensaje({ tipo: 'exito', texto: response.data?.message || 'Reporte generado correctamente' });
+    } catch (error) {
+      setMensaje({ tipo: 'error', texto: error.response?.data?.detail || error.response?.data?.message || 'Error al generar el reporte' });
+    } finally {
+      setGenerando(false);
+    }
+  };
+
+  const guardarReporte = async (e) => {
+    e.preventDefault();
+    if (tipoReporte === 'problema' && descripcion.trim().length < 5) {
+      setMensaje({ tipo: 'error', texto: 'Describe el problema con al menos 5 caracteres' });
+      return;
+    }
+    try {
+      setGenerando(true);
+      setMensaje('');
+      const contenido = tipoReporte === 'problema'
+        ? {
+            tipo: 'problema_web',
+            fecha: new Date().toISOString(),
+            usuario: user ? `${user.nombre} ${user.apellido}` : 'Desconocido',
+            descripcion: descripcion.trim(),
+          }
+        : {
+            fecha_generado: new Date().toISOString(),
+            total_registros: data.length,
+            estadisticas: stats,
+            registros: data,
+          };
+      const response = await api.post('/api/reportes', {
+        tipo: tipoReporte === 'problema' ? 'problema_web' : 'vista_sql',
+        contenido,
+      });
+      setMensaje({ tipo: 'exito', texto: response.data?.message || 'Reporte guardado correctamente' });
+      setShowModal(false);
+      setDescripcion('');
+    } catch (error) {
+      setMensaje({ tipo: 'error', texto: error.response?.data?.detail || error.response?.data?.message || 'Error al guardar el reporte' });
+    } finally {
+      setGenerando(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -132,7 +202,7 @@ const ListadoVista = () => {
       <div>
         <Navbar />
         <div className="error-container">
-          <div className="error-icon">⚠️</div>
+          <div className="error-icon"><Icon name="x" size={28} /></div>
           <h3>Error al cargar los datos</h3>
           <p>{error}</p>
           <button onClick={fetchData} className="btn-retry">
@@ -150,22 +220,42 @@ const ListadoVista = () => {
     <div>
       <Navbar />
       <div className="listado-container">
-        <div className="page-header">
-          <h1>📊 Listado mediante Vista SQL</h1>
-          <p className="subtitle">Datos obtenidos desde la vista de base de datos</p>
+        <div className="reporte-hero">
+          <div className="reporte-hero-content">
+            <h1><Icon name="chart" size={28} /> Reporte</h1>
+            <p className="subtitle">Datos de mascotas y clientes obtenidos desde la base de datos</p>
+          </div>
+          <div className="report-actions">
+            <button
+              onClick={() => setShowModal(true)}
+              className="btn-generar-reporte"
+              disabled={data.length === 0}
+            >
+              <Icon name="document" size={16} /> Generar reporte
+            </button>
+          </div>
         </div>
+
+        {mensaje && (
+          <div className={`report-msg-banner ${mensaje.tipo === 'exito' ? 'exito' : 'error'}`}>
+            {mensaje.texto}
+          </div>
+        )}
 
         {data.length > 0 && (
           <div className="stats-bar">
-            <div className="stat-card">
+            <div className="stat-card stat-azul">
+              <span className="stat-icon"><Icon name="clipboard" size={24} /></span>
               <span className="stat-number">{stats.total}</span>
               <span className="stat-label">Total de registros</span>
             </div>
-            <div className="stat-card">
+            <div className="stat-card stat-verde">
+              <span className="stat-icon"><Icon name="paw" size={24} /></span>
               <span className="stat-number">{stats.especies}</span>
               <span className="stat-label">Especies diferentes</span>
             </div>
-            <div className="stat-card">
+            <div className="stat-card stat-naranja">
+              <span className="stat-icon"><Icon name="calendar" size={24} /></span>
               <span className="stat-number">{stats.citas}</span>
               <span className="stat-label">Total de citas</span>
             </div>
@@ -173,6 +263,50 @@ const ListadoVista = () => {
         )}
 
         {renderDataTable()}
+
+        <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
+          <div className="report-modal">
+            <h2>Generar reporte</h2>
+            <div className="report-tipo-opciones">
+              <button
+                type="button"
+                className={`report-tipo-btn${tipoReporte === 'datos' ? ' active' : ''}`}
+                onClick={() => setTipoReporte('datos')}
+              >
+                <Icon name="chart" size={20} />
+                <span><strong>Datos del reporte</strong><small>Guarda la información actual de la vista</small></span>
+              </button>
+              <button
+                type="button"
+                className={`report-tipo-btn${tipoReporte === 'problema' ? ' active' : ''}`}
+                onClick={() => setTipoReporte('problema')}
+              >
+                <Icon name="x" size={20} />
+                <span><strong>Problema de la web</strong><small>Reporta un error o inconveniente del sistema</small></span>
+              </button>
+            </div>
+            {tipoReporte === 'problema' && (
+              <div className="form-field">
+                <label>Describe el problema</label>
+                <textarea
+                  className="report-textarea"
+                  value={descripcion}
+                  onChange={e => setDescripcion(e.target.value)}
+                  placeholder="Ej. Al guardar una cita aparece un error de conexión..."
+                  rows={5}
+                />
+              </div>
+            )}
+            <div className="report-modal-actions">
+              <button type="button" className="btn-cancel-action" onClick={() => setShowModal(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-submit" onClick={guardarReporte} disabled={generando}>
+                {generando ? 'Guardando...' : 'Guardar reporte'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );

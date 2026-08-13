@@ -22,8 +22,8 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient colors={['#0066b3', '#004c8c', '#002d5a']} style={StyleSheet.absoluteFill} />
+    <View style={{ flex: 1, backgroundColor: '#0b1120' }}>
+      <LinearGradient colors={['rgba(0,102,179,0.82)', 'rgba(0,76,140,0.75)', 'rgba(0,45,90,0.70)']} style={StyleSheet.absoluteFill} />
       <Image source={require('../../assets/images/huellas.png')} style={[StyleSheet.absoluteFill, { opacity: 0.07 }]} resizeMode="repeat" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">

@@ -21,14 +21,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-      const res = await api.post('/auth/login', formData.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      const res = await api.post('/auth/login', { email, contraseña: password });
       const data = res.data;
-      const userData = { token: data.access_token, nombre: data.nombre || email };
+      const userData = { token: data.access_token, ...data.user };
       await AsyncStorage.setItem('token', data.access_token);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
@@ -39,13 +34,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      if (error.response) {
+        const detail = error.response.data?.detail;
+        if (Array.isArray(detail)) {
+          const msgs = detail.map(d => d.msg).join('. ');
+          return { success: false, message: msgs };
+        }
+        return { success: false, message: detail || `Error ${error.response.status}: error al registrar` };
+      }
+      return { success: false, message: error.message || 'Error de conexión al servidor' };
+    }
+  };
+
   const logout = async () => {
     await AsyncStorage.multiRemove(['token', 'user']);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
+import Icon from '../components/Icon';
 
 const CitasPage = () => {
   const [citas, setCitas] = useState([]);
@@ -16,6 +17,18 @@ const CitasPage = () => {
     id_consultorio: '', fecha: '', hora: ''
   });
   const [saving, setSaving] = useState(false);
+  const [petSearch, setPetSearch] = useState('');
+  const [showPetDropdown, setShowPetDropdown] = useState(false);
+
+  const filteredMascotas = useMemo(() => {
+    if (!petSearch.trim()) return mascotas;
+    const q = petSearch.toLowerCase();
+    return mascotas.filter(m =>
+      m.nombre?.toLowerCase().includes(q) ||
+      m.cliente_nombre?.toLowerCase().includes(q) ||
+      m.cliente_apellido?.toLowerCase().includes(q)
+    );
+  }, [mascotas, petSearch]);
 
   const loadCitas = () => {
     setLoading(true);
@@ -47,12 +60,17 @@ const CitasPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.id_mascota) {
+      setError('Selecciona una mascota en el buscador');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       await api.post('/api/citas', form);
       setShowForm(false);
       setForm({ id_mascota: '', id_usuario_vet: '', id_servicio: '',     id_consultorio: '', fecha: '', hora: '' });
+      setPetSearch('');
       loadCitas();
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al crear cita');
@@ -102,14 +120,36 @@ const CitasPage = () => {
               <div className="form-grid">
                 <div className="form-field">
                   <label>Mascota</label>
-                  <select name="id_mascota" value={form.id_mascota} onChange={handleChange} required>
-                    <option value="">Seleccionar...</option>
-                    {mascotas.map(m => (
-                      <option key={m.id_mascota} value={m.id_mascota}>
-                        {m.nombre} - {m.cliente_nombre} {m.cliente_apellido}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Escribe el nombre de la mascota..."
+                      value={petSearch}
+                      onChange={e => { setPetSearch(e.target.value); setForm({ ...form, id_mascota: '' }); setShowPetDropdown(true); }}
+                      onFocus={() => setShowPetDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowPetDropdown(false), 200)}
+                      autoComplete="off"
+                    />
+                    {showPetDropdown && petSearch.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '0 0 8px 8px', maxHeight: 200, overflowY: 'auto', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                        {mascotas.length === 0 ? (
+                          <div style={{ padding: 10, color: '#94a3b8', fontSize: 13 }}>No tienes mascotas registradas. Registra una en la sección Mascotas primero.</div>
+                        ) : filteredMascotas.length === 0 ? (
+                          <div style={{ padding: 10, color: '#94a3b8', fontSize: 13 }}>No se encontraron mascotas</div>
+                        ) : filteredMascotas.map(m => (
+                          <div key={m.id_mascota}
+                            onClick={() => { setPetSearch(m.nombre); setForm({ ...form, id_mascota: m.id_mascota }); setShowPetDropdown(false); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}
+                            onMouseEnter={e => e.target.style.background = '#f1f5f9'}
+                            onMouseLeave={e => e.target.style.background = 'white'}
+                          >
+                            <strong>{m.nombre}</strong> ({m.especie}{m.raza ? `, ${m.raza}` : ''})<br />
+                            <span style={{ fontSize: 12, color: '#64748b' }}>Dueño: {m.cliente_nombre} {m.cliente_apellido}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="form-field">
                   <label>Veterinario</label>
@@ -125,7 +165,7 @@ const CitasPage = () => {
                   <select name="id_servicio" value={form.id_servicio} onChange={handleChange} required>
                     <option value="">Seleccionar...</option>
                     {servicios.map(s => (
-                      <option key={s.id_servicio} value={s.id_servicio}>{s.nombre} - ${s.precio}</option>
+                      <option key={s.id_servicio} value={s.id_servicio}>{s.nombre} (${Number(s.precio).toLocaleString('es-CO')})</option>
                     ))}
                   </select>
                 </div>
@@ -195,16 +235,16 @@ const CitasPage = () => {
                       <div className="action-group">
                         {c.estado === 'programada' && (
                           <>
-                            <button onClick={() => handleStatus(c.id_cita, 'realizada')} className="btn-done">
-                              ✓
+                            <button onClick={() => handleStatus(c.id_cita, 'realizada')} className="btn-done btn-symbol" title="Marcar como realizada">
+                              <Icon name="check" size={14} />
                             </button>
-                            <button onClick={() => handleStatus(c.id_cita, 'cancelada')} className="btn-cancel-action">
-                              ✗
+                            <button onClick={() => handleStatus(c.id_cita, 'cancelada')} className="btn-cancel-action btn-symbol" title="Cancelar cita">
+                              <Icon name="x" size={14} />
                             </button>
                           </>
                         )}
-                        <button onClick={() => handleDelete(c.id_cita)} className="btn-delete">
-                          🗑
+                        <button onClick={() => handleDelete(c.id_cita)} className="btn-delete btn-symbol" title="Eliminar">
+                          <Icon name="trash" size={14} />
                         </button>
                       </div>
                     </td>

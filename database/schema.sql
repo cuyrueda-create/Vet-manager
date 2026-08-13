@@ -38,10 +38,13 @@ CREATE TABLE IF NOT EXISTS clientes (
     id_cliente INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(60) NOT NULL,
     apellido VARCHAR(60) NOT NULL,
-    telefono VARCHAR(20),
+    email VARCHAR(100) UNIQUE,
+    telefono VARCHAR(20) UNIQUE,
     direccion VARCHAR(150),
     tipo_documento VARCHAR(20),
-    numero_documento VARCHAR(30)
+    numero_documento VARCHAR(30),
+    id_usuario INT NULL,
+    is_active BOOLEAN DEFAULT TRUE
 );
 
 INSERT INTO clientes (nombre, apellido, telefono, direccion, tipo_documento, numero_documento) VALUES
@@ -62,6 +65,7 @@ INSERT INTO clientes (nombre, apellido, telefono, direccion, tipo_documento, num
 CREATE TABLE IF NOT EXISTS mascotas (
     id_mascota INT AUTO_INCREMENT PRIMARY KEY,
     id_cliente INT NOT NULL,
+    id_usuario INT NULL,
     nombre VARCHAR(60) NOT NULL,
     especie VARCHAR(40) NOT NULL,
     raza VARCHAR(40),
@@ -69,7 +73,8 @@ CREATE TABLE IF NOT EXISTS mascotas (
     edad INT,
     peso DECIMAL(5,2),
     observaciones TEXT,
-    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 );
 
 INSERT INTO mascotas (id_cliente, nombre, especie, raza, sexo, edad, peso, observaciones) VALUES
@@ -140,6 +145,7 @@ CREATE TABLE IF NOT EXISTS citas (
     fecha DATE NOT NULL,
     hora TIME NOT NULL,
     estado ENUM('programada','realizada','cancelada') DEFAULT 'programada',
+    id_usuario INT NULL,
     FOREIGN KEY (id_mascota) REFERENCES mascotas(id_mascota),
     FOREIGN KEY (id_usuario_vet) REFERENCES usuarios(id_usuario),
     FOREIGN KEY (id_servicio) REFERENCES servicios(id_servicio),
@@ -397,6 +403,7 @@ SELECT
     m.sexo,
     m.edad,
     m.peso,
+    m.id_usuario,
     c.id_cliente,
     c.nombre AS cliente_nombre,
     c.apellido AS cliente_apellido,
@@ -405,7 +412,8 @@ SELECT
 FROM mascotas m
 INNER JOIN clientes c ON m.id_cliente = c.id_cliente
 LEFT JOIN citas ct ON m.id_mascota = ct.id_mascota
-GROUP BY m.id_mascota, c.id_cliente
+GROUP BY m.id_mascota, m.nombre, m.especie, m.raza, m.sexo, m.edad, m.peso, m.id_usuario, 
+         c.id_cliente, c.nombre, c.apellido, c.telefono
 ORDER BY m.nombre;
 
 -- ==============================================

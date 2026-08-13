@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
+import Icon from '../components/Icon';
 
 const ClientesPage = () => {
   const [clientes, setClientes] = useState([]);
@@ -45,9 +46,9 @@ const ClientesPage = () => {
                 <div className="client-info">
                   <h3>{c.nombre} {c.apellido}</h3>
                   <div className="client-contact">
-                    {c.telefono && <span>📱 {c.telefono}</span>}
-                    {c.email && <span>✉️ {c.email}</span>}
-                    {c.direccion && <span>📍 {c.direccion}</span>}
+                    {c.telefono && <span><Icon name="phone" size={13} /> {c.telefono}</span>}
+                    {c.email && <span><Icon name="mail" size={13} /> {c.email}</span>}
+                    {c.direccion && <span><Icon name="pin" size={13} /> {c.direccion}</span>}
                   </div>
                 </div>
                 {c.tipo_documento && (

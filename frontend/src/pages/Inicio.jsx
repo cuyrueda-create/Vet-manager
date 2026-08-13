@@ -1,19 +1,29 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import Modal from '../components/Modal';
+import LoginModal from '../components/LoginModal';
+import RegisterModal from '../components/RegisterModal';
+import RecuperarPasswordModal from '../components/RecuperarPasswordModal';
 import CONTACTO from '../config/contacto';
 
 const Inicio = () => {
+  const [modal, setModal] = useState(null);
+
+  const openLogin = () => setModal('login');
+  const openRegister = () => setModal('register');
+  const openRecuperar = () => setModal('recuperar');
+  const closeModal = () => setModal(null);
+
   return (
     <div className="landing-page">
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link to="/" className="landing-logo">
-            <img src="/images/logo.png" alt={CONTACTO.nombre} />
-            <span>{CONTACTO.nombre}</span>
-          </Link>
-          <nav className="landing-nav-links">
-            <Link to="/login" className="btn-outline">Iniciar Sesión</Link>
-            <Link to="/registro" className="btn-primary-nav">Registrarse</Link>
+          <img src="/images/logo.png" alt={CONTACTO.nombre} className="header-logo"
+            onError={e => { e.target.style.display = 'none'; }}
+          />
+          <span className="header-brand">{CONTACTO.nombre}</span>
+          <nav className="header-nav">
+            <button onClick={openLogin} className="header-btn-outline">Iniciar Sesión</button>
+            <button onClick={openRegister} className="header-btn-primary">Registrarse</button>
           </nav>
         </div>
       </header>
@@ -21,21 +31,19 @@ const Inicio = () => {
       <section className="landing-hero">
         <div className="landing-hero-inner">
           <div className="landing-hero-text">
-            <h1>Bienvenido a <span>{CONTACTO.nombre}</span></h1>
-            <p>Sistema de gestión veterinaria inteligente. Administra pacientes, citas, historiales clínicos y más, todo en un solo lugar.</p>
+            <h1>{CONTACTO.nombre}</h1>
+            <p className="hero-tagline">Software profesional para clínicas veterinarias, estéticas y tiendas de mascotas.</p>
             <div className="landing-hero-buttons">
-              <Link to="/registro" className="btn-hero-primary">Comenzar ahora</Link>
-              <Link to="/login" className="btn-hero-secondary">Iniciar Sesión</Link>
+              <button onClick={openRegister} className="btn-hero-primary">Comenzar ahora</button>
+              <button onClick={openLogin} className="btn-hero-secondary">Iniciar Sesión</button>
             </div>
           </div>
           <div className="landing-hero-image">
-            <div className="hero-pets">
-              <div className="hero-img-wrap">
-                <img src="/images/perro.png" alt="Mascota" className="hero-pet-img"
-                  onError={e => { e.target.style.display = 'none'; e.target.parentNode.classList.add('img-failed'); }}
-                />
-                <span className="hero-fallback-emojis">🐶</span>
-              </div>
+            <div className="hero-img-wrap">
+              <img src="/images/perro.png" alt="Mascota" className="hero-pet-img"
+                onError={e => { e.target.style.display = 'none'; e.target.parentNode.classList.add('img-failed'); }}
+              />
+              <span className="hero-fallback-emojis">🐶</span>
             </div>
           </div>
         </div>
@@ -44,6 +52,7 @@ const Inicio = () => {
       <section className="landing-features">
         <div className="landing-features-inner">
           <h2>Todo lo que necesitas para tu clínica</h2>
+          <p className="features-sub">Gestiona tu clínica de forma inteligente con nuestras herramientas todo-en-uno.</p>
           <div className="features-grid">
             {[
               { icon: '📅', title: 'Agenda de Citas', desc: 'Organiza y programa citas de forma sencilla con recordatorios automáticos.' },
@@ -62,21 +71,107 @@ const Inicio = () => {
       </section>
 
       <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="footer-brand">
-            <h4>{CONTACTO.nombre}</h4>
-            <p>Sistema de gestión veterinaria</p>
+        <div className="footer-grid">
+          <div className="footer-col">
+            <div className="footer-logo-wrap">
+              <img src="/images/logo.png" alt={CONTACTO.nombre} className="footer-logo"
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            </div>
+            <h4 className="footer-brand-name">{CONTACTO.nombre}</h4>
+            <p className="footer-desc">Software profesional para clínicas veterinarias, estéticas y tiendas de mascotas.</p>
           </div>
-          <div className="footer-contact">
-            <p>📧 {CONTACTO.email}</p>
-            <p>📱 {CONTACTO.telefono}</p>
-            <p>📍 {CONTACTO.ubicacion}</p>
+
+          <div className="footer-col">
+            <h4>Contacto</h4>
+            <a href={`https://wa.me/${CONTACTO.telefono.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="footer-link">💬 Chat por WhatsApp</a>
+            <div className="footer-schedule">
+              <p>🕐 Lun - Vie: 8:00 - 18:00</p>
+              <p>🕐 Sáb: 8:00 - 14:00</p>
+            </div>
+          </div>
+
+          <div className="footer-col">
+            <h4>Enlaces</h4>
+            <button onClick={openLogin} className="footer-link-btn">Iniciar Sesión</button>
+            <button onClick={() => setModal('terminos')} className="footer-link-btn">Términos de Servicio</button>
+            <button onClick={() => setModal('privacidad')} className="footer-link-btn">Aviso de Privacidad</button>
+            <button onClick={() => setModal('datos')} className="footer-link-btn">Eliminación de Datos</button>
+          </div>
+
+          <div className="footer-col">
+            <h4>Acerca de</h4>
+            <p className="footer-text">{CONTACTO.nombre} es un sistema de gestión veterinaria diseñado para facilitar la administración de clínicas, estéticas y tiendas de mascotas.</p>
+            <h4 className="footer-social-title">Redes Sociales</h4>
+            <div className="footer-social">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social-link" title="Facebook">📘</a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="social-link" title="Instagram">📸</a>
+              <a href="https://wa.me/${CONTACTO.telefono.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener noreferrer" className="social-link" title="WhatsApp">💬</a>
+            </div>
           </div>
         </div>
         <div className="footer-bottom">
           <p>© {CONTACTO.anio} {CONTACTO.nombre}. Todos los derechos reservados.</p>
         </div>
       </footer>
+
+      {/* Modals */}
+      <Modal isOpen={modal === 'login'} onClose={closeModal}>
+        <LoginModal onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
+      </Modal>
+      <Modal isOpen={modal === 'register'} onClose={closeModal}>
+        <RegisterModal onClose={closeModal} onOpenLogin={() => setModal('login')} />
+      </Modal>
+      <Modal isOpen={modal === 'recuperar'} onClose={closeModal}>
+        <RecuperarPasswordModal onClose={closeModal} onOpenLogin={() => setModal('login')} />
+      </Modal>
+
+      {/* Terms / Privacy / Data Deletion modals */}
+      <Modal isOpen={modal === 'terminos'} onClose={closeModal}>
+        <div className="legal-modal">
+          <h2>Términos de Servicio</h2>
+          <div className="legal-content">
+            <p>Al utilizar {CONTACTO.nombre}, aceptas los siguientes términos y condiciones:</p>
+            <ol>
+              <li><strong>Uso del sistema:</strong> El sistema de gestión veterinaria está diseñado exclusivamente para uso administrativo y clínico dentro de la entidad registrada. El acceso no autorizado está prohibido.</li>
+              <li><strong>Privacidad de datos:</strong> Toda la información de pacientes, clientes y personal médico es confidencial y será tratada conforme a la legislación vigente de protección de datos personales.</li>
+              <li><strong>Responsabilidad del usuario:</strong> Cada usuario es responsable de mantener la confidencialidad de sus credenciales de acceso.</li>
+              <li><strong>Registro de información:</strong> Los datos ingresados en el sistema deben ser verídicos y precisos.</li>
+              <li><strong>Disponibilidad del servicio:</strong> Se realizarán esfuerzos razonables para mantener el sistema operativo, pero no se garantiza disponibilidad ininterrumpida.</li>
+              <li><strong>Modificaciones:</strong> Nos reservamos el derecho de actualizar estos términos en cualquier momento.</li>
+            </ol>
+          </div>
+        </div>
+      </Modal>
+      <Modal isOpen={modal === 'privacidad'} onClose={closeModal}>
+        <div className="legal-modal">
+          <h2>Aviso de Privacidad</h2>
+          <div className="legal-content">
+            <p>En {CONTACTO.nombre}, nos comprometemos a proteger tu privacidad. Este aviso explica cómo recopilamos, usamos y protegemos tu información personal.</p>
+            <ol>
+              <li><strong>Información recopilada:</strong> Recopilamos datos como nombre, correo electrónico, teléfono y dirección necesarios para la prestación de nuestros servicios.</li>
+              <li><strong>Uso de la información:</strong> Tus datos se utilizan únicamente para la gestión de servicios veterinarios, facturación y comunicación relacionada con el servicio.</li>
+              <li><strong>Protección de datos:</strong> Implementamos medidas de seguridad técnicas y organizativas para proteger tu información contra acceso no autorizado.</li>
+              <li><strong>Derechos del usuario:</strong> Puedes solicitar el acceso, rectificación, cancelación u oposición al tratamiento de tus datos en cualquier momento.</li>
+              <li><strong>Compartir información:</strong> No compartimos tus datos personales con terceros sin tu consentimiento explícito, excepto cuando sea requerido por ley.</li>
+            </ol>
+          </div>
+        </div>
+      </Modal>
+      <Modal isOpen={modal === 'datos'} onClose={closeModal}>
+        <div className="legal-modal">
+          <h2>Eliminación de Datos</h2>
+          <div className="legal-content">
+            <p>Puedes solicitar la eliminación de tus datos personales de nuestros sistemas en cualquier momento.</p>
+            <ol>
+              <li><strong>Solicitud:</strong> Para solicitar la eliminación de tus datos, envía un correo a <a href={`mailto:${CONTACTO.email}`}>{CONTACTO.email}</a> con el asunto "Eliminación de datos".</li>
+              <li><strong>Proceso:</strong> Procesaremos tu solicitud en un plazo máximo de 15 días hábiles.</li>
+              <li><strong>Confirmación:</strong> Recibirás un correo de confirmación una vez que tus datos hayan sido eliminados.</li>
+              <li><strong>Excepciones:</strong> Podremos retener cierta información cuando sea requerido por obligaciones legales o regulatorias.</li>
+            </ol>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
