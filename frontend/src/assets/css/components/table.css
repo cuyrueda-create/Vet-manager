@@ -73,6 +73,71 @@
   color: #991b1b;
 }
 
+.badge-info {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 4px;
+  box-sizing: border-box;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 102, 179, 0.1);
+}
+
+select.edit-input {
+  padding: 6px 8px;
+}
+
+.btn-edit {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: opacity 0.2s;
+}
+
+.btn-edit:hover {
+  opacity: 0.8;
+}
+
+.btn-icon {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.btn-icon:hover {
+  opacity: 0.8;
+}
+
+.btn-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+}
+
 @media (max-width: 768px) {
   .table-container {
     overflow-x: auto;

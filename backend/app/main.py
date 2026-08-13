@@ -1,5 +1,5 @@
 # app/main.py
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -17,6 +17,10 @@ from email.mime.multipart import MIMEMultipart
 
 # ==================== IMPORTAR ROUTERS ====================
 from app.api.v1.clientes import router as clientes_router
+from app.api.v1.admin import router as admin_router
+
+# ==================== IMPORTAR DEPENDENCIAS ====================
+from app.core.auth import get_current_user, require_admin
 
 # ==================== IMPORTAR CONFIGURACIÓN ====================
 from app.core.config import DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -48,6 +52,7 @@ def migrate_usuarios_table():
         "ALTER TABLE usuarios ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
         "ALTER TABLE usuarios ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
         "ALTER TABLE usuarios ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+        "ALTER TABLE mascotas ADD COLUMN id_usuario INT NULL",
     ]
     for sql in migrations:
         try:
@@ -55,6 +60,46 @@ def migrate_usuarios_table():
             print(f"✅ Columna agregada: {sql.split()[3]}")
         except:
             pass
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def migrate_clientes_table():
+    """Agrega columnas faltantes a la tabla clientes (email, is_active, id_usuario)"""
+    conn = get_db_connection()
+    if not conn:
+        print("⚠️ No se pudo conectar a la BD para migración de clientes")
+        return
+    cursor = conn.cursor()
+    migrations = [
+        "ALTER TABLE clientes ADD COLUMN email VARCHAR(100) NULL",
+        "ALTER TABLE clientes ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE clientes ADD COLUMN id_usuario INT NULL",
+        "ALTER TABLE clientes ADD UNIQUE INDEX uq_clientes_email (email)",
+        "ALTER TABLE clientes ADD UNIQUE INDEX uq_clientes_telefono (telefono)",
+    ]
+    for sql in migrations:
+        try:
+            cursor.execute(sql)
+            print(f"✅ Columna agregada: {sql.split()[3]}")
+        except:
+            pass
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def migrate_citas_table():
+    """Agrega columna de creador a la tabla citas"""
+    conn = get_db_connection()
+    if not conn:
+        print("⚠️ No se pudo conectar a la BD para migración de citas")
+        return
+    cursor = conn.cursor()
+    try:
+        cursor.execute("ALTER TABLE citas ADD COLUMN id_usuario INT NULL")
+        print("✅ Columna agregada: id_usuario (citas)")
+    except:
+        pass
     conn.commit()
     cursor.close()
     conn.close()
@@ -85,6 +130,8 @@ def hash_existing_passwords():
 def startup():
     print("🔧 Ejecutando migraciones...")
     migrate_usuarios_table()
+    migrate_clientes_table()
+    migrate_citas_table()
     hash_existing_passwords()
     print("✅ Migraciones completadas")
 
@@ -139,6 +186,29 @@ class PasswordResetRequest(BaseModel):
 class PasswordReset(BaseModel):
     token: str
     new_password: str
+
+class UsuarioUpdateMe(BaseModel):
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    email: Optional[EmailStr] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    tipo_documento: Optional[str] = None
+    numero_documento: Optional[str] = None
+
+class ChangePassword(BaseModel):
+    contraseña_actual: str
+    nueva_contraseña: str
+
+class MascotaCreate(BaseModel):
+    id_cliente: int
+    nombre: str
+    especie: str
+    raza: Optional[str] = None
+    sexo: str = "Desconocido"
+    edad: Optional[int] = None
+    peso: Optional[float] = None
+    observaciones: Optional[str] = None
 
 # ==================== FUNCIONES ====================
 
@@ -298,7 +368,7 @@ Vet Manager - Sistema de Gestion Veterinaria
     message.attach(MIMEText(html_content, "html", "utf-8"))
     
     try:
-        with smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port']) as server:
+        with smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port'], timeout=15) as server:
             server.starttls()
             server.login(EMAIL_CONFIG['user'], EMAIL_CONFIG['password'])
             server.send_message(message)
@@ -417,7 +487,7 @@ Vet Manager - Sistema de Gestion Veterinaria
     message.attach(MIMEText(html_content, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port']) as server:
+        with smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port'], timeout=15) as server:
             server.starttls()
             server.login(EMAIL_CONFIG['user'], EMAIL_CONFIG['password'])
             server.send_message(message)
@@ -478,11 +548,14 @@ async def register(user_data: UsuarioCreate):
         confirm_token_expires = datetime.utcnow() + timedelta(hours=24)
         
         # Insertar usuario - COLUMNA: contrasea (sin ñ y sin tilde)
+        # El rol siempre es 'asistente' en el registro público: los roles
+        # admin/veterinario solo se asignan desde el módulo de administración
         cursor.execute("""
             INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol, tipo_documento, numero_documento, confirm_token, reset_token_expires)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, 'asistente', %s, %s, %s, %s)
         """, (user_data.nombre, user_data.apellido, user_data.email, user_data.telefono, 
-              user_data.direccion, hashed_password, user_data.rol, user_data.tipo_documento, 
+              user_data.direccion, hashed_password, 
+              user_data.tipo_documento, 
               user_data.numero_documento, confirm_token, confirm_token_expires))
         
         connection.commit()
@@ -562,6 +635,133 @@ async def login(user_data: UsuarioLogin):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al iniciar sesión: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.get("/auth/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a base de datos")
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email, telefono, direccion, rol,
+                   tipo_documento, numero_documento, is_active
+            FROM usuarios WHERE id_usuario = %s
+        """, (current_user["id_usuario"],))
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.put("/auth/me")
+async def update_me(data: UsuarioUpdateMe, current_user: dict = Depends(get_current_user)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a base de datos")
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        fields = []
+        values = []
+
+        if data.nombre is not None:
+            fields.append("nombre = %s")
+            values.append(data.nombre)
+
+        if data.apellido is not None:
+            fields.append("apellido = %s")
+            values.append(data.apellido)
+
+        if data.email is not None:
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE email = %s AND id_usuario != %s",
+                           (data.email, current_user["id_usuario"]))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="Email ya registrado por otro usuario")
+            fields.append("email = %s")
+            values.append(data.email)
+
+        if data.telefono is not None:
+            fields.append("telefono = %s")
+            values.append(data.telefono)
+
+        if data.direccion is not None:
+            fields.append("direccion = %s")
+            values.append(data.direccion)
+
+        if data.tipo_documento is not None:
+            fields.append("tipo_documento = %s")
+            values.append(data.tipo_documento)
+
+        if data.numero_documento is not None:
+            fields.append("numero_documento = %s")
+            values.append(data.numero_documento)
+
+        if not fields:
+            return {"message": "No se enviaron campos para actualizar", "user": current_user}
+
+        values.append(current_user["id_usuario"])
+        cursor.execute(f"UPDATE usuarios SET {', '.join(fields)} WHERE id_usuario = %s", values)
+        connection.commit()
+
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email, telefono, direccion, rol,
+                   tipo_documento, numero_documento, is_active
+            FROM usuarios WHERE id_usuario = %s
+        """, (current_user["id_usuario"],))
+        user = cursor.fetchone()
+
+        return {"message": "Perfil actualizado exitosamente", "user": user}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.post("/auth/change-password")
+async def change_password(data: ChangePassword, current_user: dict = Depends(get_current_user)):
+    if not data.nueva_contraseña or len(data.nueva_contraseña) < 8:
+        raise HTTPException(status_code=400, detail="La nueva contraseña debe tener al menos 8 caracteres")
+
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a base de datos")
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT contrasea FROM usuarios WHERE id_usuario = %s", (current_user["id_usuario"],))
+        user = cursor.fetchone()
+        if not user or not verify_password(data.contraseña_actual, user["contrasea"]):
+            raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+
+        hashed = get_password_hash(data.nueva_contraseña)
+        cursor.execute("UPDATE usuarios SET contrasea = %s WHERE id_usuario = %s",
+                       (hashed, current_user["id_usuario"]))
+        connection.commit()
+        return {"message": "Contraseña actualizada exitosamente"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     finally:
         cursor.close()
         connection.close()
@@ -698,7 +898,7 @@ async def reset_password(reset_data: PasswordReset):
 # ==================== RUTAS DE DATOS ====================
 
 @app.get("/data/vista")
-async def get_listado_vista():
+async def get_listado_vista(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
@@ -716,6 +916,7 @@ async def get_listado_vista():
                 m.sexo,
                 m.edad,
                 m.peso,
+                m.id_usuario,
                 c.id_cliente,
                 c.nombre AS cliente_nombre,
                 c.apellido AS cliente_apellido,
@@ -724,11 +925,15 @@ async def get_listado_vista():
             FROM mascotas m
             INNER JOIN clientes c ON m.id_cliente = c.id_cliente
             LEFT JOIN citas ct ON m.id_mascota = ct.id_mascota
-            GROUP BY m.id_mascota, c.id_cliente
+            GROUP BY m.id_mascota, m.nombre, m.especie, m.raza, m.sexo, m.edad, m.peso, m.id_usuario,
+                     c.id_cliente, c.nombre, c.apellido, c.telefono
             ORDER BY m.nombre
         """)
         
-        cursor.execute("SELECT * FROM vista_mascotas_clientes")
+        if current_user["rol"] == "admin":
+            cursor.execute("SELECT * FROM vista_mascotas_clientes")
+        else:
+            cursor.execute("SELECT * FROM vista_mascotas_clientes WHERE id_usuario = %s", (current_user["id_usuario"],))
         data = cursor.fetchall()
         
         for row in data:
@@ -749,7 +954,7 @@ async def get_listado_vista():
         connection.close()
 
 @app.get("/data/procedimiento")
-async def get_listado_procedimiento():
+async def get_listado_procedimiento(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
@@ -757,36 +962,52 @@ async def get_listado_procedimiento():
     cursor = connection.cursor(dictionary=True)
     
     try:
-        cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
-        cursor.execute("""
-            CREATE PROCEDURE sp_citas_activas()
-            BEGIN
-                SELECT 
-                    c.id_cita,
-                    m.nombre AS mascota_nombre,
-                    CONCAT(cl.nombre, ' ', cl.apellido) AS cliente_nombre,
-                    c.fecha,
-                    c.hora,
-                    s.nombre AS servicio_nombre,
-                    c.estado,
-                    CONCAT(u.nombre, ' ', u.apellido) AS veterinario_nombre
-                FROM citas c
-                INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
-                INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
-                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
-                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-                WHERE c.estado = 'programada'
-                    AND CONCAT(c.fecha, ' ', c.hora) >= NOW()
-                ORDER BY c.fecha ASC, c.hora ASC
-                LIMIT 20;
-            END
-        """)
+        try:
+            cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
+            cursor.execute("""
+                CREATE PROCEDURE sp_citas_activas()
+                BEGIN
+                    SELECT 
+                        c.id_cita,
+                        m.nombre AS mascota_nombre,
+                        CONCAT(cl.nombre, ' ', cl.apellido) AS cliente_nombre,
+                        c.fecha,
+                        c.hora,
+                        s.nombre AS servicio_nombre,
+                        c.estado,
+                        CONCAT(u.nombre, ' ', u.apellido) AS veterinario_nombre
+                    FROM citas c
+                    INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+                    INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+                    INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                    INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                    WHERE c.estado = 'programada'
+                        AND CONCAT(c.fecha, ' ', c.hora) >= NOW()
+                    ORDER BY c.fecha ASC, c.hora ASC
+                    LIMIT 20;
+                END
+            """)
+            connection.commit()
+        except Exception as create_error:
+            # El usuario de BD puede carecer de permisos para crear rutinas
+            # (p. ej. con binlog activo y sin SUPER). Se usa la existente.
+            print(f"⚠️ No se recreó el procedimiento almacenado: {create_error}")
         
         cursor.callproc('sp_citas_activas')
         
         data = []
         for result in cursor.stored_results():
             data = result.fetchall()
+        
+        # Los usuarios solo ven las citas que les corresponden:
+        # veterinario -> las asignadas, asistente -> las que creó
+        if current_user["rol"] != "admin":
+            if current_user["rol"] == "veterinario":
+                cursor.execute("SELECT id_cita FROM citas WHERE id_usuario_vet = %s", (current_user["id_usuario"],))
+            else:
+                cursor.execute("SELECT id_cita FROM citas WHERE id_usuario = %s", (current_user["id_usuario"],))
+            allowed = {row["id_cita"] for row in cursor.fetchall()}
+            data = [row for row in data if row.get("id_cita") in allowed]
         
         return {
             "success": True,
@@ -802,46 +1023,78 @@ async def get_listado_procedimiento():
         connection.close()
 
 @app.get("/users")
-async def get_users():
+async def get_users(current_user: dict = Depends(require_admin)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
-    
+
     cursor = connection.cursor(dictionary=True)
-    cursor.execute("SELECT id_usuario, nombre, apellido, email, rol FROM usuarios")
+    cursor.execute("SELECT id_usuario, nombre, apellido, email, rol, is_active FROM usuarios")
     users = cursor.fetchall()
     cursor.close()
     connection.close()
-    
+
     return users
 
 # ==================== DASHBOARD STATS ====================
 
 @app.get("/api/stats")
-async def get_stats():
+async def get_stats(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
         stats = {}
-        cursor.execute("SELECT COUNT(*) AS total FROM clientes")
+        is_admin = current_user["rol"] == "admin"
+
+        if is_admin:
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes")
+        else:
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE id_usuario = %s", (current_user["id_usuario"],))
         stats["clientes"] = cursor.fetchone()["total"]
-        cursor.execute("SELECT COUNT(*) AS total FROM mascotas")
+
+        if is_admin:
+            cursor.execute("SELECT COUNT(*) AS total FROM mascotas")
+        else:
+            cursor.execute("SELECT COUNT(*) AS total FROM mascotas WHERE id_usuario = %s", (current_user["id_usuario"],))
         stats["mascotas"] = cursor.fetchone()["total"]
-        cursor.execute("SELECT COUNT(*) AS total FROM citas")
-        stats["citas"] = cursor.fetchone()["total"]
+
+        if current_user["rol"] == "veterinario":
+            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario_vet = %s", (current_user["id_usuario"],))
+            stats["citas"] = cursor.fetchone()["total"]
+            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario_vet = %s AND estado = 'programada'", (current_user["id_usuario"],))
+            stats["citas_pendientes"] = cursor.fetchone()["total"]
+            cursor.execute("""
+                SELECT COUNT(*) AS total FROM citas 
+                WHERE id_usuario_vet = %s AND estado = 'programada' AND fecha >= CURDATE()
+            """, (current_user["id_usuario"],))
+            stats["citas_hoy"] = cursor.fetchone()["total"]
+        elif current_user["rol"] == "asistente":
+            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario = %s", (current_user["id_usuario"],))
+            stats["citas"] = cursor.fetchone()["total"]
+            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario = %s AND estado = 'programada'", (current_user["id_usuario"],))
+            stats["citas_pendientes"] = cursor.fetchone()["total"]
+            cursor.execute("""
+                SELECT COUNT(*) AS total FROM citas 
+                WHERE id_usuario = %s AND estado = 'programada' AND fecha >= CURDATE()
+            """, (current_user["id_usuario"],))
+            stats["citas_hoy"] = cursor.fetchone()["total"]
+        else:
+            cursor.execute("SELECT COUNT(*) AS total FROM citas")
+            stats["citas"] = cursor.fetchone()["total"]
+            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE estado = 'programada'")
+            stats["citas_pendientes"] = cursor.fetchone()["total"]
+            cursor.execute("""
+                SELECT COUNT(*) AS total FROM citas 
+                WHERE estado = 'programada' AND fecha >= CURDATE()
+            """)
+            stats["citas_hoy"] = cursor.fetchone()["total"]
+
         cursor.execute("SELECT COUNT(*) AS total FROM servicios")
         stats["servicios"] = cursor.fetchone()["total"]
         cursor.execute("SELECT COUNT(*) AS total FROM usuarios")
         stats["usuarios"] = cursor.fetchone()["total"]
-        cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE estado = 'programada'")
-        stats["citas_pendientes"] = cursor.fetchone()["total"]
-        cursor.execute("""
-            SELECT COUNT(*) AS total FROM citas 
-            WHERE estado = 'programada' AND fecha >= CURDATE()
-        """)
-        stats["citas_hoy"] = cursor.fetchone()["total"]
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
@@ -850,30 +1103,73 @@ async def get_stats():
         connection.close()
 
 @app.get("/api/citas")
-async def get_citas():
+async def get_citas(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute("""
-            SELECT c.id_cita,
-                   DATE_FORMAT(c.fecha, '%Y-%m-%d') AS fecha,
-                   TIME_FORMAT(c.hora, '%H:%i:%s') AS hora,
-                   c.estado,
-                   m.id_mascota, m.nombre AS mascota_nombre, m.especie,
-                   cl.id_cliente, cl.nombre AS cliente_nombre, cl.apellido AS cliente_apellido,
-                   s.id_servicio, s.nombre AS servicio_nombre, s.precio,
-                   u.id_usuario AS id_veterinario, u.nombre AS vet_nombre, u.apellido AS vet_apellido,
-                   con.id_consultorio, con.nombre AS consultorio_nombre
-            FROM citas c
-            INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
-            INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
-            INNER JOIN servicios s ON c.id_servicio = s.id_servicio
-            INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-            INNER JOIN consultorio con ON c.id_consultorio = con.id_consultorio
-            ORDER BY c.fecha DESC, c.hora DESC
-        """)
+        if current_user["rol"] == "veterinario":
+            cursor.execute("""
+                SELECT c.id_cita,
+                       DATE_FORMAT(c.fecha, '%Y-%m-%d') AS fecha,
+                       TIME_FORMAT(c.hora, '%H:%i') AS hora,
+                       c.estado,
+                       m.id_mascota, m.nombre AS mascota_nombre, m.especie,
+                       cl.id_cliente, cl.nombre AS cliente_nombre, cl.apellido AS cliente_apellido,
+                       s.id_servicio, s.nombre AS servicio_nombre, s.precio,
+                       u.id_usuario AS id_veterinario, u.nombre AS vet_nombre, u.apellido AS vet_apellido,
+                       con.id_consultorio, con.nombre AS consultorio_nombre
+                FROM citas c
+                INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+                INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                INNER JOIN consultorio con ON c.id_consultorio = con.id_consultorio
+                WHERE c.id_usuario_vet = %s
+                ORDER BY c.fecha DESC, c.hora DESC
+            """, (current_user["id_usuario"],))
+        elif current_user["rol"] == "asistente":
+            cursor.execute("""
+                SELECT c.id_cita,
+                       DATE_FORMAT(c.fecha, '%Y-%m-%d') AS fecha,
+                       TIME_FORMAT(c.hora, '%H:%i') AS hora,
+                       c.estado,
+                       m.id_mascota, m.nombre AS mascota_nombre, m.especie,
+                       cl.id_cliente, cl.nombre AS cliente_nombre, cl.apellido AS cliente_apellido,
+                       s.id_servicio, s.nombre AS servicio_nombre, s.precio,
+                       u.id_usuario AS id_veterinario, u.nombre AS vet_nombre, u.apellido AS vet_apellido,
+                       con.id_consultorio, con.nombre AS consultorio_nombre
+                FROM citas c
+                INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+                INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                INNER JOIN consultorio con ON c.id_consultorio = con.id_consultorio
+                WHERE c.id_usuario = %s
+                ORDER BY c.fecha DESC, c.hora DESC
+            """, (current_user["id_usuario"],))
+        else:
+            cursor.execute("""
+                SELECT c.id_cita,
+                       DATE_FORMAT(c.fecha, '%Y-%m-%d') AS fecha,
+                       TIME_FORMAT(c.hora, '%H:%i') AS hora,
+                       c.estado,
+                       m.id_mascota, m.nombre AS mascota_nombre, m.especie,
+                       cl.id_cliente, cl.nombre AS cliente_nombre, cl.apellido AS cliente_apellido,
+                       s.id_servicio, s.nombre AS servicio_nombre, s.precio,
+                       u.id_usuario AS id_veterinario, u.nombre AS vet_nombre, u.apellido AS vet_apellido,
+                       con.id_consultorio, con.nombre AS consultorio_nombre,
+                       uc.nombre AS creador_nombre, uc.apellido AS creador_apellido
+                FROM citas c
+                INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+                INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                INNER JOIN consultorio con ON c.id_consultorio = con.id_consultorio
+                INNER JOIN usuarios uc ON c.id_usuario = uc.id_usuario
+                ORDER BY c.fecha DESC, c.hora DESC
+            """)
         return cursor.fetchall()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
@@ -881,24 +1177,26 @@ async def get_citas():
         cursor.close()
         connection.close()
 
-@app.post("/api/citas", status_code=201)
-async def create_cita(data: dict):
+@app.post("/api/reportes", status_code=201)
+async def generar_reporte(data: dict, current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        required = ["id_mascota", "id_usuario_vet", "id_servicio", "id_consultorio", "fecha", "hora"]
-        for field in required:
-            if field not in data:
-                raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+        tipo = data.get("tipo") or "vista_sql"
+        contenido = data.get("contenido")
+        if contenido is None:
+            raise HTTPException(status_code=400, detail="Falta el contenido del reporte")
+        
+        import json
         cursor.execute("""
-            INSERT INTO citas (id_mascota, id_usuario_vet, id_servicio, id_consultorio, fecha, hora, estado)
-            VALUES (%s, %s, %s, %s, %s, %s, 'programada')
-        """, (data["id_mascota"], data["id_usuario_vet"], data["id_servicio"],
-              data["id_consultorio"], data["fecha"], data["hora"]))
+            INSERT INTO reportes (tipo, fecha_generado, generado_por, contenido)
+            VALUES (%s, NOW(), %s, %s)
+        """, (tipo, current_user["id_usuario"], json.dumps(contenido, ensure_ascii=False)))
         connection.commit()
-        return {"message": "Cita creada exitosamente", "id_cita": cursor.lastrowid}
+        
+        return {"message": "Reporte generado y guardado correctamente", "id_reporte": cursor.lastrowid}
     except HTTPException:
         raise
     except Exception as e:
@@ -908,16 +1206,91 @@ async def create_cita(data: dict):
         cursor.close()
         connection.close()
 
-@app.put("/api/citas/{cita_id}")
-async def update_cita(cita_id: int, data: dict):
+@app.get("/api/reportes")
+async def listar_reportes(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT id_cita FROM citas WHERE id_cita = %s", (cita_id,))
-        if not cursor.fetchone():
+        if current_user["rol"] == "admin":
+            cursor.execute("""
+                SELECT r.id_reporte, r.tipo, DATE_FORMAT(r.fecha_generado, '%Y-%m-%d %H:%i') AS fecha_generado,
+                       r.generado_por, u.nombre AS usuario_nombre, u.apellido AS usuario_apellido,
+                       r.contenido
+                FROM reportes r
+                INNER JOIN usuarios u ON r.generado_por = u.id_usuario
+                ORDER BY r.fecha_generado DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT r.id_reporte, r.tipo, DATE_FORMAT(r.fecha_generado, '%Y-%m-%d %H:%i') AS fecha_generado,
+                       r.generado_por, u.nombre AS usuario_nombre, u.apellido AS usuario_apellido,
+                       r.contenido
+                FROM reportes r
+                INNER JOIN usuarios u ON r.generado_por = u.id_usuario
+                WHERE r.generado_por = %s
+                ORDER BY r.fecha_generado DESC
+            """, (current_user["id_usuario"],))
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.post("/api/citas", status_code=201)
+async def create_cita(data: dict, current_user: dict = Depends(get_current_user)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        required = ["id_mascota", "id_usuario_vet", "id_servicio", "id_consultorio", "fecha", "hora"]
+        for field in required:
+            if field not in data or data[field] in (None, ""):
+                raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+        cursor.execute("""
+            INSERT INTO citas (id_mascota, id_usuario_vet, id_servicio, id_consultorio, fecha, hora, estado, id_usuario)
+            VALUES (%s, %s, %s, %s, %s, %s, 'programada', %s)
+        """, (data["id_mascota"], data["id_usuario_vet"], data["id_servicio"],
+              data["id_consultorio"], data["fecha"], data["hora"], current_user["id_usuario"]))
+        connection.commit()
+        return {"message": "Cita creada exitosamente", "id_cita": cursor.lastrowid}
+    except HTTPException:
+        raise
+    except mysql.connector.Error as e:
+        connection.rollback()
+        if e.errno == 1452:
+            raise HTTPException(status_code=400, detail="Datos inválidos: verifica que la mascota, el veterinario, el servicio y el consultorio existan")
+        raise HTTPException(status_code=400, detail=f"Error en la base de datos: {e.msg}")
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.put("/api/citas/{cita_id}")
+async def update_cita(cita_id: int, data: dict, current_user: dict = Depends(get_current_user)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id_cita, id_usuario, id_usuario_vet FROM citas WHERE id_cita = %s", (cita_id,))
+        cita = cursor.fetchone()
+        if not cita:
             raise HTTPException(status_code=404, detail="Cita no encontrada")
+
+        # Control de acceso: admin todo; veterinario lo asignado; asistente solo lo creado
+        if current_user["rol"] != "admin":
+            if current_user["rol"] == "veterinario":
+                if cita["id_usuario_vet"] != current_user["id_usuario"] and cita["id_usuario"] != current_user["id_usuario"]:
+                    raise HTTPException(status_code=403, detail="No tienes permisos sobre esta cita")
+            elif cita["id_usuario"] != current_user["id_usuario"]:
+                raise HTTPException(status_code=403, detail="No tienes permisos sobre esta cita")
+
         fields = []
         values = []
         for key in ["fecha", "hora", "estado", "id_servicio", "id_consultorio"]:
@@ -940,15 +1313,25 @@ async def update_cita(cita_id: int, data: dict):
         connection.close()
 
 @app.delete("/api/citas/{cita_id}")
-async def delete_cita(cita_id: int):
+async def delete_cita(cita_id: int, current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT id_cita FROM citas WHERE id_cita = %s", (cita_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id_cita, id_usuario, id_usuario_vet FROM citas WHERE id_cita = %s", (cita_id,))
+        cita = cursor.fetchone()
+        if not cita:
             raise HTTPException(status_code=404, detail="Cita no encontrada")
+
+        # Control de acceso: igual que en actualización
+        if current_user["rol"] != "admin":
+            if current_user["rol"] == "veterinario":
+                if cita["id_usuario_vet"] != current_user["id_usuario"] and cita["id_usuario"] != current_user["id_usuario"]:
+                    raise HTTPException(status_code=403, detail="No tienes permisos sobre esta cita")
+            elif cita["id_usuario"] != current_user["id_usuario"]:
+                raise HTTPException(status_code=403, detail="No tienes permisos sobre esta cita")
+
         cursor.execute("DELETE FROM citas WHERE id_cita = %s", (cita_id,))
         connection.commit()
         return {"message": "Cita eliminada exitosamente"}
@@ -962,18 +1345,27 @@ async def delete_cita(cita_id: int):
         connection.close()
 
 @app.get("/api/mascotas")
-async def get_mascotas():
+async def get_mascotas(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute("""
-            SELECT m.*, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
-            FROM mascotas m
-            INNER JOIN clientes c ON m.id_cliente = c.id_cliente
-            ORDER BY m.nombre
-        """)
+        if current_user["rol"] == "admin":
+            cursor.execute("""
+                SELECT m.*, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
+                FROM mascotas m
+                INNER JOIN clientes c ON m.id_cliente = c.id_cliente
+                ORDER BY m.nombre
+            """)
+        else:
+            cursor.execute("""
+                SELECT m.*, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
+                FROM mascotas m
+                INNER JOIN clientes c ON m.id_cliente = c.id_cliente
+                WHERE m.id_usuario = %s
+                ORDER BY m.nombre
+            """, (current_user["id_usuario"],))
         return cursor.fetchall()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
@@ -981,8 +1373,37 @@ async def get_mascotas():
         cursor.close()
         connection.close()
 
+@app.post("/api/mascotas", status_code=status.HTTP_201_CREATED)
+async def create_mascota(mascota: MascotaCreate, current_user: dict = Depends(get_current_user)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id_cliente FROM clientes WHERE id_cliente = %s", (mascota.id_cliente,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+        cursor.execute("""
+            INSERT INTO mascotas (id_cliente, id_usuario, nombre, especie, raza, sexo, edad, peso, observaciones)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (mascota.id_cliente, current_user["id_usuario"], mascota.nombre, mascota.especie,
+              mascota.raza, mascota.sexo, mascota.edad, mascota.peso, mascota.observaciones))
+
+        connection.commit()
+        mascota_id = cursor.lastrowid
+        return {"message": "Mascota registrada exitosamente", "id_mascota": mascota_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 @app.get("/api/servicios")
-async def get_servicios():
+async def get_servicios(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
@@ -997,7 +1418,7 @@ async def get_servicios():
         connection.close()
 
 @app.get("/api/consultorios")
-async def get_consultorios():
+async def get_consultorios(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
@@ -1012,7 +1433,7 @@ async def get_consultorios():
         connection.close()
 
 @app.get("/api/veterinarios")
-async def get_veterinarios():
+async def get_veterinarios(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión")
@@ -1031,8 +1452,9 @@ async def get_veterinarios():
 
 # ==================== RUTAS DE CLIENTES ====================
 
-# Incluir router de clientes
+# Incluir routers
 app.include_router(clientes_router, prefix="/api/v1/clientes", tags=["Clientes"])
+app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
 
 # ==================== PUNTO DE ENTRADA ====================
 

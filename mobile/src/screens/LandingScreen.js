@@ -12,22 +12,24 @@ const features = [
 export default function LandingScreen({ navigation }) {
   return (
     <ScrollView style={styles.container} bounces={false}>
-      <LinearGradient colors={['#0066b3', '#004c8c', '#002d5a']} style={styles.hero}>
-        <View style={styles.heroContent}>
-          <Image source={require('../../assets/images/perro.png')} style={styles.heroImg} />
-          <Text style={styles.brand}>Vet Manager</Text>
-          <Text style={styles.tagline}>Gestión veterinaria simple y eficiente</Text>
-          <Text style={styles.sub}>Administra tu clínica veterinaria desde cualquier lugar</Text>
-          <View style={styles.heroBtns}>
-            <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('Registro')}>
-              <Text style={styles.btnPrimaryText}>Comenzar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.btnSecondaryText}>Iniciar Sesión</Text>
-            </TouchableOpacity>
+      <View style={styles.heroWrapper}>
+        <LinearGradient colors={['rgba(0,102,179,0.82)', 'rgba(0,76,140,0.75)', 'rgba(0,45,90,0.70)']} style={styles.hero}>
+          <View style={styles.heroContent}>
+            <Image source={require('../../assets/images/perro.png')} style={styles.heroImg} />
+            <Text style={styles.brand}>Vet Manager</Text>
+            <Text style={styles.tagline}>Gestión veterinaria simple y eficiente</Text>
+            <Text style={styles.sub}>Administra tu clínica veterinaria desde cualquier lugar</Text>
+            <View style={styles.heroBtns}>
+              <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('Registro')}>
+                <Text style={styles.btnPrimaryText}>Comenzar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.btnSecondaryText}>Iniciar Sesión</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
+      </View>
 
       <View style={styles.featuresSection}>
         <Text style={styles.sectionTitle}>¿Qué ofrecemos?</Text>
@@ -55,6 +57,7 @@ export default function LandingScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f8' },
+  heroWrapper: { backgroundColor: '#0b1120' },
   hero: { paddingTop: 80, paddingBottom: 60, paddingHorizontal: 24 },
   heroContent: { alignItems: 'center' },
   heroImg: { width: 120, height: 120, borderRadius: 60, marginBottom: 20, borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)' },

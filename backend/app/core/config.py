@@ -8,7 +8,9 @@ DB_CONFIG = {
     'user': os.getenv("DB_USER", "root"),
     'password': os.getenv("DB_PASSWORD", ""),
     'database': os.getenv("DB_NAME", "vet_manager"),
-    'port': int(os.getenv("DB_PORT", 3306))
+    'port': int(os.getenv("DB_PORT", 3306)),
+    'charset': 'utf8',
+    'use_unicode': True
 }
 
 EMAIL_CONFIG = {
@@ -20,4 +22,4 @@ EMAIL_CONFIG = {
 
 SECRET_KEY = os.getenv("SECRET_KEY", "mi_secreto_super_seguro_2024")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440 
+ACCESS_TOKEN_EXPIRE_MINUTES = 43200

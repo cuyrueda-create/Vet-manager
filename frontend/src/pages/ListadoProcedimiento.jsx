@@ -16,15 +16,13 @@ const ListadoProcedimiento = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await api.get('/data/procedimiento');
       console.log('Respuesta del servidor (procedimiento):', response.data);
-      
+
       if (response.data && response.data.success) {
         setData(response.data.data || []);
         setInfo({
-          user_id: response.data.user_id,
-          rol_verificado: response.data.rol_verificado,
           total: response.data.total || 0
         });
       } else {
@@ -32,7 +30,7 @@ const ListadoProcedimiento = () => {
       }
     } catch (error) {
       console.error('Error detallado:', error);
-      
+
       if (error.response) {
         setError(error.response.data?.detail || error.response.data?.message || `Error ${error.response.status}: ${error.response.statusText}`);
       } else if (error.request) {
@@ -45,49 +43,51 @@ const ListadoProcedimiento = () => {
     }
   };
 
+  const estadoBadge = (estado) => {
+    if (estado === 'programada') return 'badge-warning';
+    if (estado === 'realizada') return 'badge-success';
+    return 'badge-danger';
+  };
+
   const renderDataTable = () => {
     if (!data || data.length === 0) {
       return (
         <div className="empty-state">
           <p>No hay citas activas disponibles</p>
-          <p className="info-text">Las citas pendientes aparecerán aquí cuando las agendes</p>
+          <p className="info-text">Las citas programadas futuras aparecerán aquí cuando las agendes</p>
         </div>
       );
     }
-
-    const columns = ['cita_id', 'mascota_nombre', 'dueno_nombre', 'fecha', 'motivo', 'estado', 'horas_restantes'];
 
     return (
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th>ID Cita</th>
+              <th>#</th>
               <th>Mascota</th>
-              <th>Dueño</th>
+              <th>Cliente</th>
+              <th>Servicio</th>
+              <th>Veterinario</th>
               <th>Fecha</th>
-              <th>Motivo</th>
+              <th>Hora</th>
               <th>Estado</th>
-              <th>Horas Restantes</th>
             </tr>
           </thead>
           <tbody>
             {data.map((item, index) => (
-              <tr key={index}>
-                <td>{item.cita_id || '-'}</td>
+              <tr key={item.id_cita || index}>
+                <td>{item.id_cita || '-'}</td>
                 <td><strong>{item.mascota_nombre || '-'}</strong></td>
-                <td>{item.dueno_nombre || '-'}</td>
-                <td>{item.fecha ? new Date(item.fecha).toLocaleString() : '-'}</td>
-                <td>{item.motivo || '-'}</td>
+                <td>{item.cliente_nombre || '-'}</td>
+                <td>{item.servicio_nombre || '-'}</td>
+                <td>{item.veterinario_nombre || '-'}</td>
+                <td>{item.fecha ? String(item.fecha).split('T')[0] : '-'}</td>
+                <td>{item.hora ? String(item.hora).slice(0, 5) : '-'}</td>
                 <td>
-                  <span className={`badge ${item.estado === 'pendiente' ? 'badge-warning' : 'badge-success'}`}>
-                    {item.estado || 'pendiente'}
+                  <span className={`badge ${estadoBadge(item.estado)}`}>
+                    {item.estado || '-'}
                   </span>
-                </td>
-                <td>
-                  {item.horas_restantes !== undefined && item.horas_restantes !== null 
-                    ? `${item.horas_restantes} horas` 
-                    : '-'}
                 </td>
               </tr>
             ))}
@@ -138,19 +138,11 @@ const ListadoProcedimiento = () => {
           <p className="subtitle">Datos obtenidos desde el procedimiento almacenado con validación</p>
         </div>
 
-        {info.user_id && (
+        {info.total && (
           <div className="stats-bar">
             <div className="stat-card">
               <span className="stat-number">{info.total}</span>
-              <span className="stat-label">Citas activas</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-number">{info.rol_verificado || 'usuario'}</span>
-              <span className="stat-label">Rol verificado</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-number">#{info.user_id}</span>
-              <span className="stat-label">ID Usuario</span>
+              <span className="stat-label">Citas activas programadas</span>
             </div>
           </div>
         )}

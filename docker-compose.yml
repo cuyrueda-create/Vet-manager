@@ -11,6 +11,7 @@ services:
       MYSQL_DATABASE: vet_manager
       MYSQL_USER: vet_user
       MYSQL_PASSWORD: vet_pass
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     ports:
       - "3307:3306"
     volumes:
@@ -66,6 +67,8 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+    volumes:
+      - ./frontend/dist:/app/dist
     networks:
       - vet_network
 

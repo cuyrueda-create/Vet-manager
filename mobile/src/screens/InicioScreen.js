@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axiosConfig';
 
@@ -12,7 +12,7 @@ const statDefs = [
 ];
 
 export default function InicioScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentCitas, setRecentCitas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,9 @@ export default function InicioScreen({ navigation }) {
           <Text style={styles.welcomeTitle}>Bienvenido, {user?.nombre || 'Usuario'}</Text>
           <Text style={styles.welcomeSub}>Panel de control</Text>
         </View>
+        <TouchableOpacity onPress={() => Alert.alert('Cerrar Sesión', '¿Estás seguro?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Cerrar Sesión', style: 'destructive', onPress: logout }])} style={styles.logoutBtn}>
+          <Text style={styles.logoutIcon}>🚪</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -109,4 +112,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 12 },
   citaRow: { backgroundColor: 'white', borderRadius: 10, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 2, elevation: 1 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  logoutIcon: { fontSize: 20 },
 });
