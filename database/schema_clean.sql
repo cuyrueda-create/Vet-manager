@@ -9,13 +9,19 @@ CREATE TABLE usuarios (
     apellido VARCHAR(60) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     contraseña VARCHAR(200) NOT NULL,
-    rol ENUM('admin','veterinario','asistente') NOT NULL,
+    rol ENUM('admin','veterinario','asistente','user') NOT NULL DEFAULT 'asistente',
     tipo_documento VARCHAR(20),
-    numero_documento VARCHAR(30)
+    numero_documento VARCHAR(30),
+    nombre_negocio VARCHAR(150),
+    direccion_negocio VARCHAR(200),
+    especialidad VARCHAR(50),
+    anos_experiencia INT,
+    created_by INT NULL,
+    FOREIGN KEY (created_by) REFERENCES usuarios(id_usuario)
 );
 
 INSERT INTO usuarios (nombre, apellido, email, contraseña, rol, tipo_documento, numero_documento) VALUES
-('Juan','Gomez','juan@vet.com','1234','admin','CC','1001'),
+('Luis','Cuy','cuyrueda@gmail.com','1234','admin','CC','1011'),
 ('Maria','Lopez','maria@vet.com','1234','veterinario','CC','1002'),
 ('Carlos','Perez','carlos@vet.com','1234','veterinario','CC','1003'),
 ('Ana','Ruiz','ana@vet.com','1234','asistente','TI','1004'),
@@ -282,6 +288,33 @@ INSERT INTO agenda (id_cita,recordatorio,nota) VALUES
 (8,'2025-02-08 16:30:00','pendiente'),
 (9,'2025-02-09 12:00:00','tratamiento'),
 (10,'2025-02-10 11:00:00','control');
+
+-- FACTURAS
+CREATE TABLE facturas (
+    id_factura INT AUTO_INCREMENT PRIMARY KEY,
+    numero VARCHAR(20) UNIQUE NOT NULL,
+    id_cliente INT NOT NULL,
+    id_usuario INT NOT NULL,
+    id_cita INT NULL,
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+    iva DECIMAL(12,2) NOT NULL DEFAULT 0,
+    total DECIMAL(12,2) NOT NULL DEFAULT 0,
+    estado ENUM('emitida','anulada') DEFAULT 'emitida',
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_cita) REFERENCES citas(id_cita)
+);
+
+CREATE TABLE factura_detalle (
+    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+    id_factura INT NOT NULL,
+    descripcion VARCHAR(200) NOT NULL,
+    cantidad INT NOT NULL DEFAULT 1,
+    precio_unitario DECIMAL(12,2) NOT NULL,
+    subtotal DECIMAL(12,2) NOT NULL,
+    FOREIGN KEY (id_factura) REFERENCES facturas(id_factura)
+);
 
 -- VISTA
 CREATE OR REPLACE VIEW vista_mascotas_clientes AS

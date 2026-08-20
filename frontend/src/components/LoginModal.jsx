@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { homePath } from './RoleGuard';
 
-const LoginModal = ({ onClose, onOpenRegister, onOpenRecuperar }) => {
-  const { login } = useAuth();
+const LoginModal = ({ onClose, onOpenRegister, onOpenRecuperar, allowedRoles }) => {
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,8 +19,15 @@ const LoginModal = ({ onClose, onOpenRegister, onOpenRecuperar }) => {
     const result = await login(email, password);
     setLoading(false);
     if (result.success) {
+      const stored = JSON.parse(localStorage.getItem('user') || 'null');
+      if (allowedRoles && stored && !allowedRoles.includes(stored.rol)) {
+        logout();
+        const rolLabel = stored.rol === 'user' ? 'cliente' : stored.rol;
+        setError(`Esta cuenta (${rolLabel}) no puede ingresar por este portal. Usa el portal correspondiente a tu perfil.`);
+        return;
+      }
       onClose();
-      navigate('/inicio');
+      navigate(homePath(stored));
     } else {
       setError(result.message);
     }

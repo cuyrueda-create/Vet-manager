@@ -10,7 +10,6 @@ const Inicio = () => {
 
   const openLogin = () => setModal('login');
   const openRegister = () => setModal('register');
-  const openRecuperar = () => setModal('recuperar');
   const closeModal = () => setModal(null);
 
   return (
@@ -117,7 +116,7 @@ const Inicio = () => {
 
       {/* Modals */}
       <Modal isOpen={modal === 'login'} onClose={closeModal}>
-        <LoginModal onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
+        <LoginModal allowedRoles={['user']} onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
       </Modal>
       <Modal isOpen={modal === 'register'} onClose={closeModal}>
         <RegisterModal onClose={closeModal} onOpenLogin={() => setModal('login')} />
@@ -126,7 +125,7 @@ const Inicio = () => {
         <RecuperarPasswordModal onClose={closeModal} onOpenLogin={() => setModal('login')} />
       </Modal>
 
-      {/* Terms / Privacy / Data Deletion modals */}
+      {/* Modals legales */}
       <Modal isOpen={modal === 'terminos'} onClose={closeModal}>
         <div className="legal-modal">
           <h2>Términos de Servicio</h2>

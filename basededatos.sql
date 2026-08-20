@@ -17,16 +17,22 @@ CREATE TABLE IF NOT EXISTS usuarios (
     telefono VARCHAR(20) NULL,
     direccion VARCHAR(150) NULL,
     contraseÃ±a VARCHAR(200) NOT NULL,
-    rol ENUM('admin','veterinario','asistente') NOT NULL,
+rol ENUM('admin','veterinario','asistente','user') NOT NULL DEFAULT 'asistente',
     tipo_documento VARCHAR(20),
     numero_documento VARCHAR(30),
+    nombre_negocio VARCHAR(150),
+    direccion_negocio VARCHAR(200),
+    especialidad VARCHAR(50),
+    anos_experiencia INT,
     reset_token VARCHAR(255) NULL,
     confirm_token VARCHAR(255) NULL,
-    is_active BOOLEAN DEFAULT TRUE,
+is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_by INT NULL,
     INDEX idx_email (email),
-    INDEX idx_rol (rol)
+    INDEX idx_rol (rol),
+    FOREIGN KEY (created_by) REFERENCES usuarios(id_usuario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== CLIENTES ====================
@@ -223,7 +229,7 @@ CREATE TABLE IF NOT EXISTS historial_clinico (
 
 -- USUARIOS (contraseÃ±a hasheada de "1234")
 INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contraseÃ±a, rol, tipo_documento, numero_documento) VALUES
-('Juan','GÃ³mez','juan@vet.com','3111111111','Cra 10 #20-30','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','admin','CC','1001'),
+('Luis','Cuy','cuyrueda@gmail.com','3200000000','Cra 1 #1-01','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','admin','CC','1011'),
 ('MarÃ­a','LÃ³pez','maria@vet.com','3122222222','Cll 5 #15-22','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1002'),
 ('Carlos','PÃ©rez','carlos@vet.com','3133333333','Cra 45 #12-08','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1003'),
 ('Ana','Ruiz','ana@vet.com','3144444444','Cll 90 #22-34','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','asistente','TI','1004'),
@@ -376,6 +382,33 @@ INSERT INTO agenda (id_cita,recordatorio,nota) VALUES
 (8,'2025-02-08 16:30:00','pendiente'),
 (9,'2025-02-09 12:00:00','tratamiento'),
 (10,'2025-02-10 11:00:00','control');
+
+-- ==================== FACTURAS ====================
+CREATE TABLE IF NOT EXISTS facturas (
+    id_factura INT AUTO_INCREMENT PRIMARY KEY,
+    numero VARCHAR(20) UNIQUE NOT NULL,
+    id_cliente INT NOT NULL,
+    id_usuario INT NOT NULL,
+    id_cita INT NULL,
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+    iva DECIMAL(12,2) NOT NULL DEFAULT 0,
+    total DECIMAL(12,2) NOT NULL DEFAULT 0,
+    estado ENUM('emitida','anulada') DEFAULT 'emitida',
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_cita) REFERENCES citas(id_cita) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS factura_detalle (
+    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+    id_factura INT NOT NULL,
+    descripcion VARCHAR(200) NOT NULL,
+    cantidad INT NOT NULL DEFAULT 1,
+    precio_unitario DECIMAL(12,2) NOT NULL,
+    subtotal DECIMAL(12,2) NOT NULL,
+    FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 

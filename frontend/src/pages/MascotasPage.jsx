@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
-import { useAuth } from '../contexts/AuthContext';
 import Icon from '../components/Icon';
 
 const MascotasPage = () => {
-  const { user } = useAuth();
   const [mascotas, setMascotas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +56,7 @@ const MascotasPage = () => {
       setCreatingOwner(true);
       setError('');
       const r = await api.post('/api/v1/clientes/', { nombre, apellido });
-      const nuevo = r.data;
+      const nuevo = { id_cliente: r.data.id_cliente, nombre, apellido };
       setClientes(prev => [...prev, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre)));
       selectOwner(nuevo);
     } catch (err) {
@@ -96,6 +94,17 @@ const MascotasPage = () => {
       setError(err.response?.data?.detail || 'Error al registrar mascota');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const eliminarMascota = async (m) => {
+    if (!window.confirm(`¿Eliminar a ${m.nombre}? Se eliminarán también sus citas e historial clínico. Esta acción no se puede deshacer.`)) return;
+    setError('');
+    try {
+      await api.delete(`/api/mascotas/${m.id_mascota}`);
+      loadMascotas();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al eliminar la mascota');
     }
   };
 
@@ -245,6 +254,9 @@ const MascotasPage = () => {
                   <span>Dueño</span>
                   <strong>{m.cliente_nombre} {m.cliente_apellido}</strong>
                 </div>
+                <button className="pet-delete" title="Eliminar" onClick={() => eliminarMascota(m)}>
+                  <Icon name="trash" size={16} />
+                </button>
               </div>
             ))}
           </div>
