@@ -28,7 +28,7 @@ const formatTelefono = (value) => {
 };
 
 const RegisterModal = ({ onClose, onOpenLogin }) => {
-  const { register } = useAuth();
+  const { registerUser, logout } = useAuth();
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -40,13 +40,13 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
     aceptaTerminos: false,
   });
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const strength = useMemo(() => getPasswordStrength(formData.contraseña), [formData.contraseña]);
   const current = strengthConfig[strength];
   const passwordsMatch = formData.contraseña === formData.confirmarContraseña;
-  const canSubmit = formData.contraseña && formData.confirmarContraseña && passwordsMatch && strength >= 3 && formData.aceptaTerminos && !loading && !success;
+  const canSubmit = formData.contraseña && formData.confirmarContraseña && passwordsMatch && strength >= 3 && formData.aceptaTerminos && !loading;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -62,7 +62,6 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
 
     if (formData.contraseña !== formData.confirmarContraseña) {
       setError('Las contraseñas no coinciden');
@@ -80,7 +79,7 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
     }
 
     setLoading(true);
-    const result = await register({
+    const result = await registerUser({
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
@@ -91,7 +90,8 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
     setLoading(false);
 
     if (result.success) {
-      setSuccess(result.message || 'Registro exitoso. Revisa tu correo para confirmar tu cuenta.');
+      logout();
+      setSuccess(result.message || 'Cuenta creada exitosamente.');
     } else {
       setError(result.message || 'Error al registrar usuario');
     }
@@ -99,18 +99,24 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
 
   if (success) {
     return (
-      <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>📧</div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e', marginBottom: 12 }}>
-          ¡Casi listo!
-        </h2>
-        <p style={{ color: '#6b7280', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-          {success}
-        </p>
-        <button onClick={() => { onClose(); }} className="btn-primary modal-btn-primary">
-          Ir a iniciar sesión
-        </button>
-      </div>
+      <>
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+          <h2 className="auth-modal-title">¡Cuenta creada!</h2>
+          <p style={{ color: '#6b7280', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            {success}
+            <br />Ahora inicia sesión con tu correo y contraseña para continuar.
+          </p>
+          <button onClick={onOpenLogin} className="btn-primary modal-btn-primary">
+            Iniciar Sesión
+          </button>
+          <div className="modal-auth-links">
+            <button className="modal-link-btn" onClick={onClose}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -186,7 +192,7 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
         </div>
 
         <button type="submit" disabled={!canSubmit} className="btn-primary modal-btn-primary" style={{ opacity: canSubmit ? 1 : 0.6 }}>
-          {loading ? 'Registrando...' : 'Registrarse'}
+          {loading ? 'Registrando...' : 'Registrarme como cliente'}
         </button>
 
         {strength < 3 && formData.contraseña && (

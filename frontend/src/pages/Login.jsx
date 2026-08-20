@@ -118,8 +118,14 @@ const Login = () => {
           </Link>
         </div>
         <div style={{ marginTop: 8 }}>
-          <Link to="/registro" style={{ color: '#0066b3', textDecoration: 'none', fontSize: 14 }}>
-            Crear cuenta nueva
+          <Link to="/registro-usuario" style={{ color: '#0066b3', textDecoration: 'none', fontSize: 14 }}>
+            ¿No tienes cuenta? Regístrate aquí
+          </Link>
+        </div>
+        <div style={{ marginTop: 16, fontSize: 12, color: '#6b7280' }}>
+          ¿Eres administrador?{' '}
+          <Link to="/registro-admin" style={{ color: '#0066b3', textDecoration: 'none', fontWeight: 600 }}>
+            Regístrate como admin
           </Link>
         </div>
       </div>

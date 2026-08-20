@@ -29,26 +29,35 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const links = [
-    { to: '/inicio', label: 'Inicio', icon: 'home' },
-    { to: '/clientes', label: 'Clientes', icon: 'users' },
-    { to: '/mascotas', label: 'Mascotas', icon: 'paw' },
-    { to: '/citas', label: 'Citas', icon: 'calendar' },
-    { to: '/citas-activas', label: 'Citas Activas', icon: 'clock' },
-    { to: '/reporte-vista', label: 'Reporte', icon: 'chart' },
-    { to: '/perfil', label: 'Mi Perfil', icon: 'user' },
-    ...(user?.rol === 'admin' ? [
-      { to: '/historial-citas', label: 'Historial de Citas', icon: 'history' },
-      { to: '/admin', label: 'Admin', icon: 'settings' },
-    ] : []),
-  ];
+  const isAdmin = user?.rol === 'admin';
+
+  const links = isAdmin
+    ? [
+        { to: '/admin/dashboard', label: 'Dashboard', icon: 'home' },
+        { to: '/admin/citas', label: 'Citas', icon: 'calendar' },
+        { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
+        { to: '/clientes', label: 'Clientes', icon: 'users' },
+        { to: '/mascotas', label: 'Mascotas', icon: 'paw' },
+        { to: '/facturas', label: 'Facturas', icon: 'document' },
+        { to: '/reporte-vista', label: 'Reporte', icon: 'chart' },
+        { to: '/perfil', label: 'Mi Perfil', icon: 'user' },
+      ]
+    : [
+        { to: '/usuario/dashboard', label: 'Mis Citas', icon: 'calendar' },
+        { to: '/usuario/nueva-cita', label: 'Nueva Cita', icon: 'plus' },
+        { to: '/clientes', label: 'Clientes', icon: 'users' },
+        { to: '/mascotas', label: 'Mascotas', icon: 'paw' },
+        { to: '/facturas', label: 'Facturas', icon: 'document' },
+        { to: '/reporte-vista', label: 'Reporte', icon: 'chart' },
+        { to: '/perfil', label: 'Mi Perfil', icon: 'user' },
+      ];
 
   return (
     <nav className="navbar" ref={navRef}>
       <div className="navbar-content">
         <Link to="/inicio" className="navbar-logo">
           <img src="/images/logo.png" alt="Vet Manager" />
-          <span>Vet Manager</span>
+          <span>{isAdmin ? 'Vet-Manager Admin' : 'Vet-Manager'}</span>
         </Link>
         <div className="navbar-right">
           {user && (

@@ -37,6 +37,24 @@
   margin-right: auto;
 }
 
+.header-brand-tag {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #d97706;
+  border-radius: 999px;
+  padding: 2px 10px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.hero-admin-suffix {
+  font-style: normal;
+  font-size: 0.6em;
+  color: #d97706;
+}
+
 .header-nav {
   display: flex;
   gap: 10px;

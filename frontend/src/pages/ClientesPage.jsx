@@ -8,12 +8,27 @@ const ClientesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadClientes = () => {
     api.get('/api/v1/clientes/')
       .then(r => setClientes(r.data || []))
       .catch(() => setError('Error al cargar clientes'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadClientes();
   }, []);
+
+  const eliminarCliente = async (c) => {
+    if (!window.confirm(`¿Eliminar a ${c.nombre} ${c.apellido}? También se eliminarán sus mascotas, citas e historial clínico. Esta acción no se puede deshacer.`)) return;
+    setError('');
+    try {
+      await api.delete(`/api/v1/clientes/${c.id_cliente}`);
+      loadClientes();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al eliminar el cliente');
+    }
+  };
 
   return (
     <div>
@@ -56,6 +71,9 @@ const ClientesPage = () => {
                     <span>{c.tipo_documento} {c.numero_documento}</span>
                   </div>
                 )}
+                <button className="client-delete" title="Eliminar" onClick={() => eliminarCliente(c)}>
+                  <Icon name="trash" size={16} />
+                </button>
               </div>
             ))}
           </div>

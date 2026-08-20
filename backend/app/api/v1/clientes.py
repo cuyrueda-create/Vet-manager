@@ -57,19 +57,21 @@ async def get_clientes(current_user: dict = Depends(get_current_user)):
     try:
         if current_user["rol"] == "admin":
             cursor.execute("""
-                SELECT id_cliente, nombre, apellido, email, telefono, direccion, 
-                       tipo_documento, numero_documento, is_active
-                FROM clientes
-                WHERE is_active = 1
-                ORDER BY nombre, apellido
+                SELECT c.id_cliente, c.nombre, c.apellido, c.email, c.telefono, c.direccion,
+                       c.tipo_documento, c.numero_documento, c.is_active, c.id_usuario,
+                       (SELECT COUNT(*) FROM mascotas m WHERE m.id_cliente = c.id_cliente) AS num_mascotas
+                FROM clientes c
+                WHERE c.is_active = 1
+                ORDER BY c.nombre, c.apellido
             """)
         else:
             cursor.execute("""
-                SELECT id_cliente, nombre, apellido, email, telefono, direccion, 
-                       tipo_documento, numero_documento, is_active
-                FROM clientes
-                WHERE is_active = 1 AND id_usuario = %s
-                ORDER BY nombre, apellido
+                SELECT c.id_cliente, c.nombre, c.apellido, c.email, c.telefono, c.direccion,
+                       c.tipo_documento, c.numero_documento, c.is_active, c.id_usuario,
+                       (SELECT COUNT(*) FROM mascotas m WHERE m.id_cliente = c.id_cliente) AS num_mascotas
+                FROM clientes c
+                WHERE c.is_active = 1 AND c.id_usuario = %s
+                ORDER BY c.nombre, c.apellido
             """, (current_user["id_usuario"],))
         clientes = cursor.fetchall()
         return clientes
@@ -300,10 +302,19 @@ async def delete_cliente(cliente_id: int, current_user: dict = Depends(get_curre
         if cliente.get("is_active") == 0:
             raise HTTPException(status_code=400, detail="El cliente ya está eliminado")
         
-        # Verificar si tiene mascotas asociadas
-        cursor.execute("SELECT id_mascota FROM mascotas WHERE id_cliente = %s LIMIT 1", (cliente_id,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="No se puede eliminar: el cliente tiene mascotas asociadas")
+        # Eliminar las mascotas del cliente (con sus citas e historial clínico)
+        cursor.execute("SELECT id_mascota FROM mascotas WHERE id_cliente = %s", (cliente_id,))
+        for mascota in cursor.fetchall():
+            mascota_id = mascota["id_mascota"]
+            cursor.execute("SELECT id_cita FROM citas WHERE id_mascota = %s", (mascota_id,))
+            for cita in cursor.fetchall():
+                cita_id = cita["id_cita"]
+                cursor.execute("DELETE FROM agenda WHERE id_cita = %s", (cita_id,))
+                cursor.execute("UPDATE historial_clinico SET id_cita = NULL WHERE id_cita = %s", (cita_id,))
+                cursor.execute("UPDATE facturas SET id_cita = NULL WHERE id_cita = %s", (cita_id,))
+                cursor.execute("DELETE FROM citas WHERE id_cita = %s", (cita_id,))
+            cursor.execute("DELETE FROM historial_clinico WHERE id_mascota = %s", (mascota_id,))
+            cursor.execute("DELETE FROM mascotas WHERE id_mascota = %s", (mascota_id,))
         
         # Soft delete (actualizar is_active a 0)
         cursor.execute("UPDATE clientes SET is_active = 0 WHERE id_cliente = %s", (cliente_id,))
