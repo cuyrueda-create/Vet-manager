@@ -114,7 +114,7 @@ const AdminLanding = () => {
 
       {/* Modals */}
       <Modal isOpen={modal === 'login'} onClose={closeModal}>
-        <LoginModal allowedRoles={['admin', 'veterinario', 'asistente']} onClose={closeModal} onOpenRegister={() => setModal('admin')} onOpenRecuperar={() => setModal('recuperar')} />
+        <LoginModal allowedRoles={['administrador', 'veterinario']} onClose={closeModal} onOpenRegister={() => setModal('admin')} onOpenRecuperar={() => setModal('recuperar')} />
       </Modal>
       <Modal isOpen={modal === 'admin'} onClose={closeModal}>
         <RegisterAdminModal onClose={closeModal} onOpenLogin={() => setModal('login')} />

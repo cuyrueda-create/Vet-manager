@@ -68,8 +68,6 @@ services:
       - "5173:5173"
     depends_on:
       - backend
-    volumes:
-      - ./frontend/dist:/app/dist
     networks:
       - vet_network
 

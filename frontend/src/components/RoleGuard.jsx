@@ -4,7 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const homePath = (user) => {
   if (!user) return '/';
-  return user.rol === 'admin' ? '/admin/dashboard' : '/usuario/dashboard';
+  if (user.rol === 'administrador') return '/admin/dashboard';
+  if (user.rol === 'veterinario') return '/veterinario/dashboard';
+  if (user.rol === 'recepcionista') return '/recepcion/dashboard';
+  return '/usuario/dashboard';
 };
 
 const Loading = () => (
@@ -18,8 +21,29 @@ export const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
   if (!user) return <Navigate to="/" replace />;
-  // Un usuario normal jamás debe entrar al panel admin
-  if (user.rol !== 'admin') return <Navigate to="/usuario/dashboard" replace />;
+  if (user.rol === 'veterinario') return <Navigate to="/veterinario/dashboard" replace />;
+  if (user.rol === 'recepcionista') return <Navigate to="/recepcion/dashboard" replace />;
+  if (user.rol !== 'administrador') return <Navigate to="/usuario/dashboard" replace />;
+  return children;
+};
+
+export const VeterinarioRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (!user) return <Navigate to="/" replace />;
+  if (user.rol === 'administrador') return <Navigate to="/admin/dashboard" replace />;
+  if (user.rol === 'recepcionista') return <Navigate to="/recepcion/dashboard" replace />;
+  if (user.rol !== 'veterinario') return <Navigate to="/usuario/dashboard" replace />;
+  return children;
+};
+
+export const RecepcionRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (!user) return <Navigate to="/" replace />;
+  if (user.rol === 'administrador') return <Navigate to="/admin/dashboard" replace />;
+  if (user.rol === 'veterinario') return <Navigate to="/veterinario/dashboard" replace />;
+  if (user.rol !== 'recepcionista') return <Navigate to="/usuario/dashboard" replace />;
   return children;
 };
 
@@ -27,8 +51,17 @@ export const UsuarioRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
   if (!user) return <Navigate to="/" replace />;
-  // Un admin tiene más privilegios: entra al panel admin
-  if (user.rol === 'admin') return <Navigate to="/admin/dashboard" replace />;
+  if (user.rol === 'administrador') return <Navigate to="/admin/dashboard" replace />;
+  if (user.rol === 'veterinario') return <Navigate to="/veterinario/dashboard" replace />;
+  if (user.rol === 'recepcionista') return <Navigate to="/recepcion/dashboard" replace />;
+  return children;
+};
+
+export const StaffRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (!user) return <Navigate to="/" replace />;
+  if (user.rol === 'usuario') return <Navigate to="/usuario/dashboard" replace />;
   return children;
 };
 

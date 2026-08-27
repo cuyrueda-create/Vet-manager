@@ -34,6 +34,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         connection.close()
 
 async def require_admin(current_user: dict = Depends(get_current_user)):
-    if current_user["rol"] != "admin":
+    if current_user["rol"] != "administrador":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de administrador")
+    return current_user
+
+async def require_recepcionista(current_user: dict = Depends(get_current_user)):
+    if current_user["rol"] != "recepcionista":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de recepcionista")
+    return current_user
+
+async def require_vet_or_recepcionista(current_user: dict = Depends(get_current_user)):
+    if current_user["rol"] not in ("veterinario", "recepcionista", "administrador"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de veterinario o recepcionista")
+    return current_user
+
+async def require_staff(current_user: dict = Depends(get_current_user)):
+    """Admin, veterinario o recepcionista"""
+    if current_user["rol"] not in ("administrador", "veterinario", "recepcionista"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de personal")
     return current_user

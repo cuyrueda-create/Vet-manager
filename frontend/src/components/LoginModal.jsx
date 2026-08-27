@@ -22,7 +22,7 @@ const LoginModal = ({ onClose, onOpenRegister, onOpenRecuperar, allowedRoles }) 
       const stored = JSON.parse(localStorage.getItem('user') || 'null');
       if (allowedRoles && stored && !allowedRoles.includes(stored.rol)) {
         logout();
-        const rolLabel = stored.rol === 'user' ? 'cliente' : stored.rol;
+        const rolLabel = stored.rol === 'usuario' ? 'cliente' : stored.rol;
         setError(`Esta cuenta (${rolLabel}) no puede ingresar por este portal. Usa el portal correspondiente a tu perfil.`);
         return;
       }

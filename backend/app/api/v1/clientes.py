@@ -55,7 +55,7 @@ async def get_clientes(current_user: dict = Depends(get_current_user)):
     cursor = connection.cursor(dictionary=True)
     
     try:
-        if current_user["rol"] == "admin":
+        if current_user["rol"] == "administrador":
             cursor.execute("""
                 SELECT c.id_cliente, c.nombre, c.apellido, c.email, c.telefono, c.direccion,
                        c.tipo_documento, c.numero_documento, c.is_active, c.id_usuario,
@@ -166,7 +166,7 @@ async def get_cliente(cliente_id: int, current_user: dict = Depends(get_current_
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         # Un usuario solo puede ver los clientes que él registró
-        if current_user["rol"] != "admin" and cliente.get("id_usuario") != current_user["id_usuario"]:
+        if current_user["rol"] != "administrador" and cliente.get("id_usuario") != current_user["id_usuario"]:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         return cliente
@@ -204,7 +204,7 @@ async def update_cliente(cliente_id: int, cliente: ClienteUpdate, current_user: 
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
         # Un usuario solo puede actualizar los clientes que él registró
-        if current_user["rol"] != "admin" and row.get("id_usuario") != current_user["id_usuario"]:
+        if current_user["rol"] != "administrador" and row.get("id_usuario") != current_user["id_usuario"]:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         # Construir query de actualización dinámica
@@ -295,7 +295,7 @@ async def delete_cliente(cliente_id: int, current_user: dict = Depends(get_curre
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
         # Un usuario solo puede eliminar los clientes que él registró
-        if current_user["rol"] != "admin" and cliente.get("id_usuario") != current_user["id_usuario"]:
+        if current_user["rol"] != "administrador" and cliente.get("id_usuario") != current_user["id_usuario"]:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         # Verificar si ya está eliminado
