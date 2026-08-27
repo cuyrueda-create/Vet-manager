@@ -1071,6 +1071,11 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
   body * {
     visibility: hidden;
   }
@@ -1085,11 +1090,29 @@
     left: 0;
     top: 0;
     width: 100%;
+    background: white !important;
+    padding: 20px !important;
   }
 
-  .factura-doc {
-    border: none;
-    padding: 0;
-    max-width: 100%;
+  .modal-overlay,
+  .modal-content,
+  .modal-close {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    backdrop-filter: none !important;
+  }
+
+  .notif-bell-container,
+  .navbar,
+  .logout-btn,
+  button:not(#invoice-print button) {
+    display: none !important;
   }
 }

@@ -35,7 +35,7 @@ class UserCreate(BaseModel):
     apellido: str
     email: EmailStr
     contraseña: str
-    rol: str = "asistente"
+    rol: str = "veterinario"
     telefono: str
     direccion: str
     tipo_documento: str
@@ -66,11 +66,11 @@ async def create_usuario(data: UserCreate, current_user: dict = Depends(require_
         pwd_error = validar_contraseña_fuerte(data.contraseña)
         if pwd_error:
             raise HTTPException(status_code=400, detail=pwd_error)
-        if data.rol not in ("admin", "veterinario", "asistente"):
+        if data.rol not in ("administrador", "veterinario", "recepcionista"):
             raise HTTPException(status_code=400, detail="Rol inválido")
 
         # Crear un administrador es un acto sensible: exige la clave maestra de administración
-        if data.rol == "admin":
+        if data.rol == "administrador":
             if not data.clave_admin:
                 raise HTTPException(status_code=400, detail="Para crear un administrador debes ingresar la clave maestra de administración")
             if data.clave_admin != ADMIN_CREATE_KEY:
@@ -117,8 +117,8 @@ async def get_usuarios(current_user: dict = Depends(require_admin)):
                    rol, tipo_documento, numero_documento, is_active,
                    nombre_negocio, direccion_negocio, especialidad, anos_experiencia, created_at
             FROM usuarios
-            WHERE created_by = %s OR id_usuario = %s OR (rol = 'admin' AND is_active = 0)
-            ORDER BY (rol = 'admin' AND is_active = 0) DESC, nombre, apellido
+            WHERE created_by = %s OR id_usuario = %s OR (rol = 'administrador' AND is_active = 0)
+            ORDER BY (rol = 'administrador' AND is_active = 0) DESC, nombre, apellido
         """, (current_user["id_usuario"], current_user["id_usuario"]))
         rows = cursor.fetchall()
         for row in rows:
@@ -171,7 +171,7 @@ async def update_usuario(usuario_id: int, data: UserUpdate, current_user: dict =
         if not target:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         # Se permite gestionar: tu cuenta, tus usuarios y las solicitudes de admin pendientes
-        is_pending_admin = target.get("rol") == "admin" and target.get("is_active") == 0
+        is_pending_admin = target.get("rol") == "administrador" and target.get("is_active") == 0
         if target["id_usuario"] != current_user["id_usuario"] and target.get("created_by") != current_user["id_usuario"] and not is_pending_admin:
             raise HTTPException(status_code=403, detail="No tienes permisos sobre este usuario")
 
@@ -214,7 +214,7 @@ async def delete_usuario(usuario_id: int, current_user: dict = Depends(require_a
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         if user["id_usuario"] == current_user["id_usuario"]:
             raise HTTPException(status_code=400, detail="No puedes desactivar tu propia cuenta")
-        is_pending_admin = user.get("rol") == "admin" and user.get("is_active") == 0
+        is_pending_admin = user.get("rol") == "administrador" and user.get("is_active") == 0
         if user.get("created_by") != current_user["id_usuario"] and not is_pending_admin:
             raise HTTPException(status_code=403, detail="No tienes permisos sobre este usuario")
 

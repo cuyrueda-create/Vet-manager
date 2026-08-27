@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axiosConfig';
 import Navbar from '../../components/Navbar';
@@ -11,13 +11,15 @@ const estadoConfig = {
   cancelada: { color: '#ef4444', bg: '#fee2e2', border: '#fca5a5', label: 'Cancelada', icon: 'x' }
 };
 
-const AdminDashboard = () => {
+const RecepcionDashboard = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [stats, setStats] = useState(null);
   const [recentCitas, setRecentCitas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
       api.get('/api/stats'),
       api.get('/api/citas')
@@ -25,25 +27,23 @@ const AdminDashboard = () => {
       setStats(statsRes.data);
       setRecentCitas((citasRes.data || []).slice(0, 6));
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [location.pathname]);
 
   const statDefs = [
     { key: 'citas_hoy', label: 'Citas hoy', icon: 'clock', color: '#f59e0b', bg: '#fef3c7' },
     { key: 'citas_pendientes', label: 'Pendientes', icon: 'clock', color: '#8b5cf6', bg: '#ede9fe' },
     { key: 'citas_realizadas', label: 'Realizadas', icon: 'check', color: '#10b981', bg: '#d1fae5' },
-    { key: 'citas_canceladas', label: 'Canceladas', icon: 'x', color: '#ef4444', bg: '#fee2e2' },
     { key: 'clientes', label: 'Clientes', icon: 'users', color: '#3b82f6', bg: '#eff6ff' },
     { key: 'mascotas', label: 'Mascotas', icon: 'paw', color: '#f59e0b', bg: '#fef3c7' },
-    { key: 'usuarios', label: 'Usuarios', icon: 'user', color: '#8b5cf6', bg: '#ede9fe' },
     { key: 'servicios', label: 'Servicios', icon: 'settings', color: '#10b981', bg: '#d1fae5' }
   ];
 
   const shortcuts = [
-    { to: '/admin/citas', icon: 'calendar', label: 'Citas', desc: 'Ver, editar o eliminar citas', color: '#3b82f6', bg: '#eff6ff' },
-    { to: '/admin/usuarios', icon: 'users', label: 'Usuarios', desc: 'Crear usuarios y cambiar roles', color: '#10b981', bg: '#d1fae5' },
-    { to: '/admin/equipo', icon: 'users', label: 'Equipo', desc: 'Ver todo el personal y clientes', color: '#8b5cf6', bg: '#ede9fe' },
-    { to: '/clientes', icon: 'users', label: 'Clientes', desc: 'Administrar dueños de mascotas', color: '#f59e0b', bg: '#fef3c7' },
-    { to: '/mascotas', icon: 'paw', label: 'Mascotas', desc: 'Ver y gestionar pacientes', color: '#8b5cf6', bg: '#ede9fe' }
+    { to: '/recepcion/nueva-cita', icon: 'calendar', label: 'Nueva Cita', desc: 'Agendar cita para cliente walk-in', color: '#3b82f6', bg: '#eff6ff' },
+    { to: '/recepcion/citas', icon: 'clock', label: 'Citas', desc: 'Ver y gestionar todas las citas', color: '#8b5cf6', bg: '#ede9fe' },
+    { to: '/recepcion/clientes', icon: 'users', label: 'Clientes', desc: 'Registrar y buscar clientes', color: '#10b981', bg: '#d1fae5' },
+    { to: '/recepcion/mascotas', icon: 'paw', label: 'Mascotas', desc: 'Registrar mascotas', color: '#f59e0b', bg: '#fef3c7' },
+    { to: '/recepcion/facturas', icon: 'document', label: 'Facturas', desc: 'Crear y ver facturas', color: '#8b5cf6', bg: '#ede9fe' }
   ];
 
   return (
@@ -57,13 +57,13 @@ const AdminDashboard = () => {
         }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              Bienvenido, {user?.nombre || 'Administrador'}
+              Bienvenido, {user?.nombre || 'Recepcion'}
             </h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
-              Panel de control de Vet-Manager
+              Panel de recepcion - Vet-Manager
             </p>
           </div>
-          <Link to="/admin/citas" style={{
+          <Link to="/recepcion/nueva-cita" style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 20px', borderRadius: 10, border: 'none',
             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
@@ -71,7 +71,7 @@ const AdminDashboard = () => {
             cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
             textDecoration: 'none', transition: 'all 0.2s'
           }}>
-            <Icon name="calendar" size={18} /> Ver todas las citas
+            <Icon name="plus" size={18} /> Nueva Cita
           </Link>
         </div>
 
@@ -140,7 +140,7 @@ const AdminDashboard = () => {
 
         {recentCitas.length > 0 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Ultimas citas registradas</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Ultimas citas</h2>
             <div style={{
               background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
               overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
@@ -175,12 +175,8 @@ const AdminDashboard = () => {
                           {c.cliente_nombre} {c.cliente_apellido}
                         </td>
                         <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{c.servicio_nombre}</td>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>
-                          {c.fecha?.split('T')[0] || c.fecha}
-                        </td>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>
-                          {c.hora?.slice(0, 5)}
-                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{c.fecha}</td>
+                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{c.hora?.slice(0, 5)}</td>
                         <td style={{ padding: '14px 16px' }}>
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -205,4 +201,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default RecepcionDashboard;

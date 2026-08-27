@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     telefono VARCHAR(20) NULL,
     direccion VARCHAR(150) NULL,
     contraseÃ±a VARCHAR(200) NOT NULL,
-rol ENUM('admin','veterinario','asistente','user') NOT NULL DEFAULT 'asistente',
+ rol ENUM('administrador','veterinario','recepcionista','usuario') NOT NULL DEFAULT 'usuario',
     tipo_documento VARCHAR(20),
     numero_documento VARCHAR(30),
     nombre_negocio VARCHAR(150),
@@ -223,21 +223,48 @@ CREATE TABLE IF NOT EXISTS historial_clinico (
     FOREIGN KEY (id_cita) REFERENCES citas(id_cita) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ==================== NOTIFICACIONES ====================
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id_notificacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    titulo VARCHAR(150) NOT NULL,
+    mensaje TEXT NOT NULL,
+    tipo VARCHAR(50) NOT NULL DEFAULT 'general',
+    leida BOOLEAN DEFAULT FALSE,
+    enlace VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+    INDEX idx_usuario_leida (id_usuario, leida)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==================== MEDICAMENTOS ASIGNADOS ====================
+CREATE TABLE IF NOT EXISTS medicamentos_asignados (
+    id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_historial INT NOT NULL,
+    id_medicamento INT NOT NULL,
+    dosis VARCHAR(50),
+    frecuencia VARCHAR(100),
+    duracion VARCHAR(50),
+    instrucciones TEXT,
+    FOREIGN KEY (id_historial) REFERENCES historial_clinico(id_historial) ON DELETE CASCADE,
+    FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================================
 -- DATOS DE PRUEBA
 -- ============================================================
 
 -- USUARIOS (contraseÃ±a hasheada de "1234")
 INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contraseÃ±a, rol, tipo_documento, numero_documento) VALUES
-('Luis','Cuy','cuyrueda@gmail.com','3200000000','Cra 1 #1-01','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','admin','CC','1011'),
+('Luis','Cuy','cuyrueda@gmail.com','3200000000','Cra 1 #1-01','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','administrador','CC','1011'),
 ('MarÃ­a','LÃ³pez','maria@vet.com','3122222222','Cll 5 #15-22','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1002'),
 ('Carlos','PÃ©rez','carlos@vet.com','3133333333','Cra 45 #12-08','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1003'),
-('Ana','Ruiz','ana@vet.com','3144444444','Cll 90 #22-34','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','asistente','TI','1004'),
-('Laura','MÃ©ndez','laura@vet.com','3155555555','Cra 12 #33-21','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','asistente','CC','1005'),
+('Ana','Ruiz','ana@vet.com','3144444444','Cll 90 #22-34','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','TI','1004'),
+('Laura','MÃ©ndez','laura@vet.com','3155555555','Cra 12 #33-21','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','CC','1005'),
 ('Diego','MartÃ­nez','diego@vet.com','3166666666','Cll 11 #7-40','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CE','1006'),
-('Andrea','Rojas','andrea@vet.com','3177777777','Cra 30 #10-10','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','admin','CC','1007'),
+('Andrea','Rojas','andrea@vet.com','3177777777','Cra 30 #10-10','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','administrador','CC','1007'),
 ('Luis','Castro','luis@vet.com','3188888888','Cll 14 #18-05','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1008'),
-('Paula','Reyes','paula@vet.com','3199999999','Cra 55 #1-45','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','asistente','TI','1009'),
+('Paula','Reyes','paula@vet.com','3199999999','Cra 55 #1-45','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','TI','1009'),
 ('SofÃ­a','Vargas','sofia@vet.com','3100000000','Cll 100 #30-90','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1010');
 
 -- CLIENTES
@@ -409,6 +436,16 @@ CREATE TABLE IF NOT EXISTS factura_detalle (
     subtotal DECIMAL(12,2) NOT NULL,
     FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==================== ALTERS PARA NUEVAS FUNCIONALIDADES ====================
+-- Agregar signos_vitales y peso_anterior al historial clinico
+ALTER TABLE historial_clinico
+ADD COLUMN signos_vitales TEXT AFTER observaciones,
+ADD COLUMN peso_anterior DECIMAL(5,2) AFTER signos_vitales;
+
+-- Agregar id_recepcionista a citas
+ALTER TABLE citas
+ADD COLUMN id_recepcionista INT NULL AFTER id_usuario;
 
 
 

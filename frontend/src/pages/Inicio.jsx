@@ -91,22 +91,18 @@ const Inicio = () => {
           </div>
 
           <div className="footer-col">
-            <h4>Enlaces</h4>
-            <button onClick={openLogin} className="footer-link-btn">Iniciar Sesión</button>
-            <button onClick={() => setModal('terminos')} className="footer-link-btn">Términos de Servicio</button>
-            <button onClick={() => setModal('privacidad')} className="footer-link-btn">Aviso de Privacidad</button>
-            <button onClick={() => setModal('datos')} className="footer-link-btn">Eliminación de Datos</button>
+            <h4>Portales</h4>
+            <a href="/admin" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Administrador</a>
+            <a href="/recepcion" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Recepcion</a>
+            <button onClick={openLogin} className="footer-link-btn">Iniciar Sesion Cliente</button>
           </div>
 
           <div className="footer-col">
             <h4>Acerca de</h4>
             <p className="footer-text">{CONTACTO.nombre} es un sistema de gestión veterinaria diseñado para facilitar la administración de clínicas, estéticas y tiendas de mascotas.</p>
-            <h4 className="footer-social-title">Redes Sociales</h4>
-            <div className="footer-social">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social-link" title="Facebook">📘</a>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="social-link" title="Instagram">📸</a>
-              <a href="https://wa.me/${CONTACTO.telefono.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener noreferrer" className="social-link" title="WhatsApp">💬</a>
-            </div>
+            <button onClick={() => setModal('terminos')} className="footer-link-btn" style={{ fontSize: 12 }}>Terminos</button>
+            <button onClick={() => setModal('privacidad')} className="footer-link-btn" style={{ fontSize: 12 }}>Privacidad</button>
+            <button onClick={() => setModal('datos')} className="footer-link-btn" style={{ fontSize: 12 }}>Eliminacion de Datos</button>
           </div>
         </div>
         <div className="footer-bottom">
@@ -116,7 +112,7 @@ const Inicio = () => {
 
       {/* Modals */}
       <Modal isOpen={modal === 'login'} onClose={closeModal}>
-        <LoginModal allowedRoles={['user']} onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
+        <LoginModal allowedRoles={['usuario']} onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
       </Modal>
       <Modal isOpen={modal === 'register'} onClose={closeModal}>
         <RegisterModal onClose={closeModal} onOpenLogin={() => setModal('login')} />

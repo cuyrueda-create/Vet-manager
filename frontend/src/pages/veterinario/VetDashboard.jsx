@@ -11,10 +11,10 @@ const estadoConfig = {
   cancelada: { color: '#ef4444', bg: '#fee2e2', border: '#fca5a5', label: 'Cancelada', icon: 'x' }
 };
 
-const AdminDashboard = () => {
+const VetDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
-  const [recentCitas, setRecentCitas] = useState([]);
+  const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const AdminDashboard = () => {
       api.get('/api/citas')
     ]).then(([statsRes, citasRes]) => {
       setStats(statsRes.data);
-      setRecentCitas((citasRes.data || []).slice(0, 6));
+      setCitas((citasRes.data || []).slice(0, 8));
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -31,19 +31,13 @@ const AdminDashboard = () => {
     { key: 'citas_hoy', label: 'Citas hoy', icon: 'clock', color: '#f59e0b', bg: '#fef3c7' },
     { key: 'citas_pendientes', label: 'Pendientes', icon: 'clock', color: '#8b5cf6', bg: '#ede9fe' },
     { key: 'citas_realizadas', label: 'Realizadas', icon: 'check', color: '#10b981', bg: '#d1fae5' },
-    { key: 'citas_canceladas', label: 'Canceladas', icon: 'x', color: '#ef4444', bg: '#fee2e2' },
-    { key: 'clientes', label: 'Clientes', icon: 'users', color: '#3b82f6', bg: '#eff6ff' },
-    { key: 'mascotas', label: 'Mascotas', icon: 'paw', color: '#f59e0b', bg: '#fef3c7' },
-    { key: 'usuarios', label: 'Usuarios', icon: 'user', color: '#8b5cf6', bg: '#ede9fe' },
-    { key: 'servicios', label: 'Servicios', icon: 'settings', color: '#10b981', bg: '#d1fae5' }
+    { key: 'citas_canceladas', label: 'Canceladas', icon: 'x', color: '#ef4444', bg: '#fee2e2' }
   ];
 
   const shortcuts = [
-    { to: '/admin/citas', icon: 'calendar', label: 'Citas', desc: 'Ver, editar o eliminar citas', color: '#3b82f6', bg: '#eff6ff' },
-    { to: '/admin/usuarios', icon: 'users', label: 'Usuarios', desc: 'Crear usuarios y cambiar roles', color: '#10b981', bg: '#d1fae5' },
-    { to: '/admin/equipo', icon: 'users', label: 'Equipo', desc: 'Ver todo el personal y clientes', color: '#8b5cf6', bg: '#ede9fe' },
-    { to: '/clientes', icon: 'users', label: 'Clientes', desc: 'Administrar dueños de mascotas', color: '#f59e0b', bg: '#fef3c7' },
-    { to: '/mascotas', icon: 'paw', label: 'Mascotas', desc: 'Ver y gestionar pacientes', color: '#8b5cf6', bg: '#ede9fe' }
+    { to: '/veterinario/mis-citas', icon: 'calendar', label: 'Mis Citas', desc: 'Ver y gestionar citas asignadas', color: '#3b82f6', bg: '#eff6ff' },
+    { to: '/veterinario/historial', icon: 'paw', label: 'Pacientes', desc: 'Ver mascotas y historial clinico', color: '#10b981', bg: '#d1fae5' },
+    { to: '/veterinario/medicamentos', icon: 'clipboard', label: 'Medicamentos', desc: 'Catalogo de medicamentos', color: '#f59e0b', bg: '#fef3c7' }
   ];
 
   return (
@@ -57,13 +51,13 @@ const AdminDashboard = () => {
         }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              Bienvenido, {user?.nombre || 'Administrador'}
+              Bienvenido, Dr(a). {user?.nombre || 'Veterinario'}
             </h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
-              Panel de control de Vet-Manager
+              Panel del veterinario — gestiona tus citas y pacientes
             </p>
           </div>
-          <Link to="/admin/citas" style={{
+          <Link to="/veterinario/mis-citas" style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 20px', borderRadius: 10, border: 'none',
             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
@@ -71,7 +65,7 @@ const AdminDashboard = () => {
             cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
             textDecoration: 'none', transition: 'all 0.2s'
           }}>
-            <Icon name="calendar" size={18} /> Ver todas las citas
+            <Icon name="calendar" size={18} /> Ver mis citas
           </Link>
         </div>
 
@@ -138,9 +132,9 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {recentCitas.length > 0 && (
+        {citas.length > 0 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Ultimas citas registradas</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Mis ultimas citas</h2>
             <div style={{
               background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
               overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
@@ -148,7 +142,7 @@ const AdminDashboard = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
-                    {['#', 'Mascota', 'Cliente', 'Servicio', 'Fecha', 'Hora', 'Estado'].map(h => (
+                    {['Mascota', 'Cliente', 'Servicio', 'Fecha', 'Hora', 'Estado'].map(h => (
                       <th key={h} style={{
                         padding: '14px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600,
                         color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -158,13 +152,12 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentCitas.map(c => {
+                  {citas.map(c => {
                     const e = estadoConfig[c.estado] || estadoConfig.programada;
                     return (
                       <tr key={c.id_cita} style={{ borderBottom: '1px solid #f1f5f9' }}
                         onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
                         onMouseLeave={ev => ev.currentTarget.style.background = 'white'}>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#64748b' }}>{c.id_cita}</td>
                         <td style={{ padding: '14px 16px' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                             <Icon name="paw" size={14} style={{ color: '#8b5cf6' }} />
@@ -205,4 +198,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default VetDashboard;
