@@ -16,6 +16,7 @@ const VetDashboard = () => {
   const [stats, setStats] = useState(null);
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -24,7 +25,7 @@ const VetDashboard = () => {
     ]).then(([statsRes, citasRes]) => {
       setStats(statsRes.data);
       setCitas((citasRes.data || []).slice(0, 8));
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => setError('Error al cargar datos')).finally(() => setLoading(false));
   }, []);
 
   const statDefs = [

@@ -93,7 +93,6 @@ const Inicio = () => {
           <div className="footer-col">
             <h4>Portales</h4>
             <a href="/admin" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Administrador</a>
-            <a href="/recepcion" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Recepcion</a>
             <button onClick={openLogin} className="footer-link-btn">Iniciar Sesion Cliente</button>
           </div>
 
@@ -112,7 +111,7 @@ const Inicio = () => {
 
       {/* Modals */}
       <Modal isOpen={modal === 'login'} onClose={closeModal}>
-        <LoginModal allowedRoles={['usuario']} onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
+        <LoginModal onClose={closeModal} onOpenRegister={() => setModal('register')} onOpenRecuperar={() => setModal('recuperar')} />
       </Modal>
       <Modal isOpen={modal === 'register'} onClose={closeModal}>
         <RegisterModal onClose={closeModal} onOpenLogin={() => setModal('login')} />

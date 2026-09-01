@@ -8,20 +8,24 @@ const RecepcionMascotas = () => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterCliente, setFilterCliente] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ id_cliente: '', nombre: '', especie: '', raza: '', sexo: 'Desconocido', edad: '', peso: '', observaciones: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([api.get('/mascotas'), api.get('/clientes')])
+    Promise.all([api.get('/api/mascotas'), api.get('/clientes')])
       .then(([mRes, cRes]) => { setMascotas(mRes.data || []); setClientes(cRes.data || []); })
-      .catch(() => {}).finally(() => setLoading(false));
+      .catch(() => setError('Error al cargar datos'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = mascotas.filter(m =>
-    `${m.nombre} ${m.especie} ${m.cliente_nombre || ''}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = mascotas.filter(m => {
+    const matchSearch = `${m.nombre} ${m.especie} ${m.cliente_nombre || ''} ${m.cliente_apellido || ''}`.toLowerCase().includes(search.toLowerCase());
+    const matchCliente = !filterCliente || m.id_cliente == filterCliente;
+    return matchSearch && matchCliente;
+  });
 
   const speciesEmoji = { 'Perro': '🐶', 'Gato': '🐱', 'Ave': '🐦', 'Conejo': '🐰', 'Reptil': '🦎', 'Hamster': '🐹' };
 
@@ -31,8 +35,8 @@ const RecepcionMascotas = () => {
     if (!form.id_cliente || !form.nombre || !form.especie) { setError('Cliente, nombre y especie son requeridos'); return; }
     setSubmitting(true);
     try {
-      await api.post('/mascotas', { ...form, edad: form.edad ? parseInt(form.edad) : null, peso: form.peso ? parseFloat(form.peso) : null });
-      const res = await api.get('/mascotas');
+      await api.post('/api/mascotas', { ...form, edad: form.edad ? parseInt(form.edad) : null, peso: form.peso ? parseFloat(form.peso) : null });
+      const res = await api.get('/api/mascotas');
       setMascotas(res.data || []);
       setShowForm(false);
       setForm({ id_cliente: '', nombre: '', especie: '', raza: '', sexo: 'Desconocido', edad: '', peso: '', observaciones: '' });
@@ -45,7 +49,8 @@ const RecepcionMascotas = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Eliminar esta mascota?')) return;
-    try { await api.delete(`/mascotas/${id}`); setMascotas(prev => prev.filter(m => m.id_mascota !== id)); } catch {}
+    try { await api.delete(`/api/mascotas/${id}`); setMascotas(prev => prev.filter(m => m.id_mascota !== id)); } 
+    catch (e) { setError(e.response?.data?.detail || 'Error al eliminar mascota'); }
   };
 
   const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
@@ -66,8 +71,15 @@ const RecepcionMascotas = () => {
           </button>
         </div>
 
-        <input type="text" placeholder="Buscar por nombre, especie o dueño..." value={search} onChange={e => setSearch(e.target.value)}
-          style={{ width: '100%', maxWidth: 400, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', marginBottom: 20 }} />
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <input type="text" placeholder="Buscar por nombre, especie o dueño..." value={search} onChange={e => setSearch(e.target.value)}
+            style={{ flex: 1, minWidth: 250, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
+          <select value={filterCliente} onChange={e => setFilterCliente(e.target.value)}
+            style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', minWidth: 200 }}>
+            <option value="">Todos los clientes</option>
+            {clientes.map(c => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido}</option>)}
+          </select>
+        </div>
 
         {showForm && (
           <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', padding: 24, marginBottom: 24 }}>

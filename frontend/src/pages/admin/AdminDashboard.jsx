@@ -5,25 +5,19 @@ import api from '../../api/axiosConfig';
 import Navbar from '../../components/Navbar';
 import Icon from '../../components/Icon';
 
-const estadoConfig = {
-  programada: { color: '#f59e0b', bg: '#fef3c7', border: '#fcd34d', label: 'Programada', icon: 'clock' },
-  realizada: { color: '#10b981', bg: '#d1fae5', border: '#6ee7b7', label: 'Realizada', icon: 'check' },
-  cancelada: { color: '#ef4444', bg: '#fee2e2', border: '#fca5a5', label: 'Cancelada', icon: 'x' }
-};
-
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
-  const [recentCitas, setRecentCitas] = useState([]);
+  const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/api/stats'),
-      api.get('/api/citas')
-    ]).then(([statsRes, citasRes]) => {
+      api.get('/api/v1/admin/bloc')
+    ]).then(([statsRes, usersRes]) => {
       setStats(statsRes.data);
-      setRecentCitas((citasRes.data || []).slice(0, 6));
+      setRecentUsers((usersRes.data || []).slice(0, 6));
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -39,11 +33,11 @@ const AdminDashboard = () => {
   ];
 
   const shortcuts = [
-    { to: '/admin/citas', icon: 'calendar', label: 'Citas', desc: 'Ver, editar o eliminar citas', color: '#3b82f6', bg: '#eff6ff' },
-    { to: '/admin/usuarios', icon: 'users', label: 'Usuarios', desc: 'Crear usuarios y cambiar roles', color: '#10b981', bg: '#d1fae5' },
-    { to: '/admin/equipo', icon: 'users', label: 'Equipo', desc: 'Ver todo el personal y clientes', color: '#8b5cf6', bg: '#ede9fe' },
-    { to: '/clientes', icon: 'users', label: 'Clientes', desc: 'Administrar dueños de mascotas', color: '#f59e0b', bg: '#fef3c7' },
-    { to: '/mascotas', icon: 'paw', label: 'Mascotas', desc: 'Ver y gestionar pacientes', color: '#8b5cf6', bg: '#ede9fe' }
+    { to: '/admin/personal', icon: 'users', label: 'Personal', desc: 'Veterinarios y recepcionistas', color: '#10b981', bg: '#d1fae5' },
+    { to: '/admin/usuarios', icon: 'user', label: 'Usuarios', desc: 'Gestionar cuentas del sistema', color: '#3b82f6', bg: '#eff6ff' },
+    { to: '/admin/inventario', icon: 'clipboard', label: 'Inventario', desc: 'Servicios y recursos de la clinica', color: '#f59e0b', bg: '#fef3c7' },
+    { to: '/facturas', icon: 'document', label: 'Facturas', desc: 'Consulta y gestion de facturas', color: '#8b5cf6', bg: '#ede9fe' },
+    { to: '/reporte-vista', icon: 'chart', label: 'Reportes', desc: 'Informes y estadisticas', color: '#ef4444', bg: '#fee2e2' },
   ];
 
   return (
@@ -63,15 +57,15 @@ const AdminDashboard = () => {
               Panel de control de Vet-Manager
             </p>
           </div>
-          <Link to="/admin/citas" style={{
+          <Link to="/admin/personal" style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 20px', borderRadius: 10, border: 'none',
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
             color: 'white', fontWeight: 600, fontSize: 14,
-            cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
+            cursor: 'pointer', boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
             textDecoration: 'none', transition: 'all 0.2s'
           }}>
-            <Icon name="calendar" size={18} /> Ver todas las citas
+            <Icon name="users" size={18} /> Ver personal
           </Link>
         </div>
 
@@ -138,9 +132,9 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {recentCitas.length > 0 && (
+        {recentUsers.length > 0 && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Ultimas citas registradas</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Usuarios recientes</h2>
             <div style={{
               background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
               overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
@@ -148,7 +142,7 @@ const AdminDashboard = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
-                    {['#', 'Mascota', 'Cliente', 'Servicio', 'Fecha', 'Hora', 'Estado'].map(h => (
+                    {['#', 'Nombre', 'Email', 'Rol', 'Estado'].map(h => (
                       <th key={h} style={{
                         padding: '14px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600,
                         color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -158,42 +152,39 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentCitas.map(c => {
-                    const e = estadoConfig[c.estado] || estadoConfig.programada;
-                    return (
-                      <tr key={c.id_cita} style={{ borderBottom: '1px solid #f1f5f9' }}
-                        onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={ev => ev.currentTarget.style.background = 'white'}>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#64748b' }}>{c.id_cita}</td>
-                        <td style={{ padding: '14px 16px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                            <Icon name="paw" size={14} style={{ color: '#8b5cf6' }} />
-                            <strong style={{ color: '#1e293b', fontSize: 14 }}>{c.mascota_nombre}</strong>
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>
-                          {c.cliente_nombre} {c.cliente_apellido}
-                        </td>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{c.servicio_nombre}</td>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>
-                          {c.fecha?.split('T')[0] || c.fecha}
-                        </td>
-                        <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>
-                          {c.hora?.slice(0, 5)}
-                        </td>
-                        <td style={{ padding: '14px 16px' }}>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 6,
-                            padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                            color: e.color, background: e.bg, border: `1px solid ${e.border}`
-                          }}>
-                            <Icon name={e.icon} size={12} />
-                            {e.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {recentUsers.map(u => (
+                    <tr key={u.id_usuario} style={{ borderBottom: '1px solid #f1f5f9' }}
+                      onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={ev => ev.currentTarget.style.background = 'white'}>
+                      <td style={{ padding: '14px 16px', fontSize: 14, color: '#64748b' }}>{u.id_usuario}</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <strong style={{ color: '#1e293b', fontSize: 14 }}>{u.nombre} {u.apellido}</strong>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{u.email}</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          color: u.rol === 'administrador' ? '#b45309' : u.rol === 'veterinario' ? '#047857' : u.rol === 'recepcionista' ? '#6d28d9' : '#1d4ed8',
+                          background: u.rol === 'administrador' ? '#fef3c7' : u.rol === 'veterinario' ? '#d1fae5' : u.rol === 'recepcionista' ? '#ede9fe' : '#dbeafe',
+                          border: `1px solid ${u.rol === 'administrador' ? '#fcd34d' : u.rol === 'veterinario' ? '#6ee7b7' : u.rol === 'recepcionista' ? '#c4b5fd' : '#93c5fd'}`
+                        }}>
+                          {u.rol}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          color: u.is_active ? '#047857' : '#dc2626',
+                          background: u.is_active ? '#d1fae5' : '#fee2e2',
+                          border: `1px solid ${u.is_active ? '#6ee7b7' : '#fca5a5'}`
+                        }}>
+                          {u.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

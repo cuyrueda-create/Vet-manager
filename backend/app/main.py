@@ -109,6 +109,11 @@ def migrate_citas_table():
         print("✅ Columna agregada: notas (citas)")
     except:
         pass
+    try:
+        cursor.execute("ALTER TABLE citas MODIFY COLUMN estado ENUM('programada','en_proceso','realizada','cancelada') DEFAULT 'programada'")
+        print("✅ ENUM de estado actualizado: en_proceso agregado")
+    except:
+        pass
     conn.commit()
     cursor.close()
     conn.close()
@@ -203,6 +208,42 @@ def migrate_facturas_pago():
     cursor.close()
     conn.close()
 
+def migrate_medicamentos_asignados():
+    """Crea la tabla medicamentos_asignados si no existe"""
+    import time
+    for attempt in range(5):
+        conn = get_db_connection()
+        if conn:
+            break
+        print(f"Intento {attempt + 1}/5 - Esperando BD...")
+        time.sleep(3)
+    if not conn:
+        print("No se pudo conectar a la BD para migracion de medicamentos_asignados")
+        return
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS medicamentos_asignados (
+                id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
+                id_historial INT NOT NULL,
+                id_medicamento INT NOT NULL,
+                dosis VARCHAR(100) NOT NULL,
+                frecuencia VARCHAR(100) NULL,
+                duracion VARCHAR(100) NULL,
+                instrucciones TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (id_historial) REFERENCES historial_clinico(id_historial),
+                FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
+            )
+        """)
+        conn.commit()
+        print("Tabla medicamentos_asignados verificada/creada")
+    except Exception as e:
+        print(f"Error creando tabla medicamentos_asignados: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
 def hash_existing_passwords():
     """Convierte contraseñas en texto plano a pbkdf2_sha256"""
     conn = get_db_connection()
@@ -277,7 +318,7 @@ def migrate_admin_columns():
 
 @app.on_event("startup")
 def startup():
-    print("🔧 Ejecutando migraciones...")
+    print("Ejecutando migraciones...")
     migrate_usuarios_table()
     migrate_clientes_table()
     migrate_citas_table()
@@ -285,8 +326,9 @@ def startup():
     migrate_admin_columns()
     migrate_roles()
     migrate_facturas_pago()
+    migrate_medicamentos_asignados()
     hash_existing_passwords()
-    print("✅ Migraciones completadas")
+    print("Migraciones completadas")
 
 # Configurar CORS
 app.add_middleware(
@@ -863,6 +905,20 @@ async def register(user_data: UsuarioCreate):
         
         connection.commit()
         user_id = cursor.lastrowid
+
+        # Notificar a todos los administradores del nuevo registro
+        try:
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE rol = 'administrador' AND is_active = 1")
+            admins = cursor.fetchall()
+            for admin in admins:
+                cursor.execute("""
+                    INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                    VALUES (%s, %s, %s, 'registro', '/admin/usuarios')
+                """, (admin["id_usuario"], "Nuevo usuario registrado",
+                      f"{user_data.nombre} {user_data.apellido} ({user_data.email}) se ha registrado en el sistema."))
+            connection.commit()
+        except Exception:
+            pass  # No fallar el registro si la notificación falla
 
         # Enviar correo de confirmación
         if EMAIL_CONFIG['user'] and EMAIL_CONFIG['password']:
@@ -1638,7 +1694,7 @@ async def vet_update_cita_estado(cita_id: int, data: dict, current_user: dict = 
         if cita["id_usuario_vet"] != current_user["id_usuario"]:
             raise HTTPException(status_code=403, detail="Esta cita no está asignada a ti")
         nuevo_estado = data.get("estado")
-        if nuevo_estado not in ("programada", "realizada", "cancelada"):
+        if nuevo_estado not in ("programada", "en_proceso", "realizada", "cancelada"):
             raise HTTPException(status_code=400, detail="Estado inválido")
         if cita["estado"] == nuevo_estado:
             return {"message": "La cita ya tiene ese estado"}
@@ -1767,6 +1823,167 @@ async def vet_create_historial(data: dict, current_user: dict = Depends(get_curr
         cursor.close()
         connection.close()
 
+@app.get("/api/vet/citas-hoy")
+async def vet_citas_hoy(current_user: dict = Depends(get_current_user)):
+    """Citas del día asignadas al veterinario logueado"""
+    if current_user["rol"] != "veterinario":
+        raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT c.id_cita, c.fecha, TIME_FORMAT(c.hora, '%H:%i') AS hora, c.estado, c.notas,
+                   c.id_mascota, c.id_usuario_vet,
+                   m.nombre AS mascota_nombre, m.especie AS mascota_especie,
+                   m.raza AS mascota_raza, m.peso AS mascota_peso,
+                   s.nombre AS servicio_nombre, s.precio AS servicio_precio,
+                   co.nombre AS consultorio,
+                   cl.nombre AS cliente_nombre, cl.apellido AS cliente_apellido,
+                   cl.telefono AS cliente_telefono, cl.email AS cliente_email,
+                   cl.direccion AS cliente_direccion
+            FROM citas c
+            INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+            INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+            INNER JOIN consultorio co ON c.id_consultorio = co.id_consultorio
+            INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+            WHERE c.id_usuario_vet = %s AND c.fecha = CURDATE()
+            ORDER BY c.hora ASC
+        """, (current_user["id_usuario"],))
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.post("/api/vet/consulta", status_code=201)
+async def vet_registrar_consulta(data: dict, current_user: dict = Depends(get_current_user)):
+    """
+    Registra una consulta médica completa:
+    1. Crea entrada en historial_clinico con signos vitales, diagnóstico y tratamiento
+    2. Cambia estado de la cita a 'realizada'
+    3. Notifica al cliente y a los recepcionistas
+    """
+    if current_user["rol"] != "veterinario":
+        raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        id_cita = data.get("id_cita")
+        if not id_cita:
+            raise HTTPException(status_code=400, detail="id_cita es requerido")
+
+        cursor.execute("""
+            SELECT c.id_cita, c.id_mascota, c.id_usuario_vet, c.fecha, c.hora, c.estado,
+                   m.nombre AS mascota_nombre,
+                   s.nombre AS servicio_nombre,
+                   u.nombre AS vet_nombre, u.apellido AS vet_apellido
+            FROM citas c
+            INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+            INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+            INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+            WHERE c.id_cita = %s
+        """, (id_cita,))
+        cita = cursor.fetchone()
+        if not cita:
+            raise HTTPException(status_code=404, detail="Cita no encontrada")
+        if cita["id_usuario_vet"] != current_user["id_usuario"]:
+            raise HTTPException(status_code=403, detail="Esta cita no está asignada a ti")
+        if cita["estado"] == "realizada":
+            raise HTTPException(status_code=400, detail="Esta cita ya fue atendida")
+
+        # --- 1. Crear historial clínico ---
+        signos_vitales = data.get("signos_vitales", "").strip()
+        peso = data.get("peso")
+        diagnostico = data.get("diagnostico", "").strip()
+        tratamiento = data.get("tratamiento", "").strip()
+        observaciones = data.get("observaciones", "").strip()
+
+        if not diagnostico:
+            raise HTTPException(status_code=400, detail="El diagnóstico es obligatorio")
+
+        cursor.execute("""
+            INSERT INTO historial_clinico (id_mascota, id_usuario, id_cita, diagnostico, tratamiento, observaciones, signos_vitales, peso_anterior)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (cita["id_mascota"], current_user["id_usuario"], id_cita,
+              diagnostico, tratamiento, observaciones,
+              signos_vitales, float(peso) if peso else None))
+        historial_id = cursor.lastrowid
+
+        # --- 2. Asignar medicamentos si los hay ---
+        medicamentos = data.get("medicamentos", [])
+        for med in medicamentos:
+            id_med = med.get("id_medicamento")
+            if not id_med:
+                continue
+            cursor.execute("""
+                INSERT INTO medicamentos_asignados (id_historial, id_medicamento, dosis, frecuencia, duracion, instrucciones)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (historial_id, id_med,
+                  med.get("dosis", ""),
+                  med.get("frecuencia", ""),
+                  med.get("duracion", ""),
+                  med.get("instrucciones", "")))
+
+        # --- 3. Cambiar estado de la cita a realizada ---
+        cursor.execute("UPDATE citas SET estado = 'realizada' WHERE id_cita = %s", (id_cita,))
+
+        # --- 4. Notificar al cliente ---
+        cursor.execute("""
+            SELECT cl.id_usuario, cl.nombre, cl.apellido
+            FROM clientes cl
+            INNER JOIN mascotas ma ON ma.id_cliente = cl.id_cliente
+            WHERE ma.id_mascota = %s
+        """, (cita["id_mascota"],))
+        cliente = cursor.fetchone()
+        if cliente and cliente.get("id_usuario"):
+            try:
+                cursor.execute("""
+                    INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                    VALUES (%s, %s, %s, 'consulta', '/usuario/mis-citas')
+                """, (
+                    cliente["id_usuario"],
+                    "Consulta completada",
+                    f"La consulta de {cita['mascota_nombre']} el {cita['fecha']} fue atendida por Dr. {cita['vet_nombre']} {cita['vet_apellido']}. Diagnóstico: {diagnostico[:100]}."
+                ))
+            except:
+                pass
+
+        # --- 5. Notificar a recepcionistas ---
+        try:
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE rol = 'recepcionista' AND is_active = 1")
+            for rep in cursor.fetchall():
+                if rep["id_usuario"] != current_user["id_usuario"]:
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'consulta', '/recepcion/citas')
+                    """, (
+                        rep["id_usuario"],
+                        "Consulta completada",
+                        f"Dr. {cita['vet_nombre']} {cita['vet_apellido']} completó la consulta de {cita['mascota_nombre']} ({cita['servicio_nombre']}). Facturable."
+                    ))
+        except:
+            pass
+
+        connection.commit()
+        return {
+            "message": "Consulta registrada y cita completada exitosamente",
+            "id_historial": historial_id,
+            "estado": "realizada"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 @app.post("/api/reportes", status_code=201)
 async def generar_reporte(data: dict, current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
@@ -1873,6 +2090,32 @@ async def create_cita(data: dict, current_user: dict = Depends(get_current_user)
 
         notas = data.get("notas")
 
+        # Validar que no haya doble reserva de veterinario (ventana de 30 min)
+        cursor.execute("""
+            SELECT COUNT(*) AS conflictos FROM citas
+            WHERE id_usuario_vet = %s AND fecha = %s AND estado = 'programada'
+            AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(fecha, ' ', hora), CONCAT(%s, ' ', %s))) < 30
+        """, (id_usuario_vet, data["fecha"], data["fecha"], data["hora"]))
+        conflicto_vet = cursor.fetchone()
+        if conflicto_vet and conflicto_vet["conflictos"] > 0:
+            raise HTTPException(
+                status_code=409, 
+                detail="El veterinario ya tiene una cita en ese horario (ventana de 30 minutos)"
+            )
+
+        # Validar que no haya doble reserva de consultorio (ventana de 30 min)
+        cursor.execute("""
+            SELECT COUNT(*) AS conflictos FROM citas
+            WHERE id_consultorio = %s AND fecha = %s AND estado = 'programada'
+            AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(fecha, ' ', hora), CONCAT(%s, ' ', %s))) < 30
+        """, (id_consultorio, data["fecha"], data["fecha"], data["hora"]))
+        conflicto_consultorio = cursor.fetchone()
+        if conflicto_consultorio and conflicto_consultorio["conflictos"] > 0:
+            raise HTTPException(
+                status_code=409, 
+                detail="El consultorio ya esta ocupado en ese horario (ventana de 30 minutos)"
+            )
+
         cursor.execute("""
             INSERT INTO citas (id_mascota, id_usuario_vet, id_servicio, id_consultorio, fecha, hora, estado, id_usuario, notas)
             VALUES (%s, %s, %s, %s, %s, %s, 'programada', %s, %s)
@@ -1897,6 +2140,53 @@ async def create_cita(data: dict, current_user: dict = Depends(get_current_user)
                 connection.commit()
             except Exception:
                 pass
+
+        # Notificar a todos los recepcionistas activos
+        try:
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE rol = 'recepcionista' AND is_active = 1")
+            recepcionistas = cursor.fetchall()
+            cursor.execute("SELECT nombre FROM mascotas WHERE id_mascota = %s", (data["id_mascota"],))
+            mascota_info = cursor.fetchone()
+            mascota_nombre = mascota_info["nombre"] if mascota_info else "la mascota"
+            for rep in recepcionistas:
+                if rep["id_usuario"] != current_user["id_usuario"]:
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'cita', '/recepcion/citas')
+                    """, (
+                        rep["id_usuario"],
+                        "Nueva cita agendada",
+                        f"Nueva cita para {mascota_nombre} el {data['fecha']} a las {data['hora']}."
+                    ))
+            connection.commit()
+        except Exception:
+            pass
+
+        # Notificar al cliente dueño de la mascota
+        try:
+            cursor.execute("""
+                SELECT c.id_usuario, c.nombre, c.apellido
+                FROM clientes c
+                INNER JOIN mascotas m ON m.id_cliente = c.id_cliente
+                WHERE m.id_mascota = %s
+            """, (data["id_mascota"],))
+            cliente = cursor.fetchone()
+            if cliente and cliente.get("id_usuario"):
+                cursor.execute("SELECT nombre FROM servicios WHERE id_servicio = %s", (data["id_servicio"],))
+                servicio_info = cursor.fetchone()
+                servicio_nombre = servicio_info["nombre"] if servicio_info else "el servicio"
+                vet_nombre = f"Dr. {vet_info['nombre']} {vet_info['apellido']}" if vet_info else "el veterinario"
+                cursor.execute("""
+                    INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                    VALUES (%s, %s, %s, 'cita', '/usuario/mis-citas')
+                """, (
+                    cliente["id_usuario"],
+                    "Cita confirmada",
+                    f"Tu cita para {mascota_nombre} fue agendada para el {data['fecha']} a las {data['hora']} con {vet_nombre} ({servicio_nombre})."
+                ))
+            connection.commit()
+        except Exception:
+            pass
 
         cursor.execute("""
             SELECT c.id_cita, c.fecha, c.hora, c.notas,
@@ -2055,9 +2345,126 @@ async def update_cita(cita_id: int, data: dict, current_user: dict = Depends(get
                 values.append(data[key])
         if not fields:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
+        
+        # Validar doble reserva si se cambia fecha, hora, veterinario o consultorio
+        if any(key in data for key in ["fecha", "hora", "id_usuario_vet", "id_consultorio"]):
+            # Obtener valores actuales de la cita
+            cursor.execute("SELECT fecha, hora, id_usuario_vet, id_consultorio FROM citas WHERE id_cita = %s", (cita_id,))
+            cita_actual = cursor.fetchone()
+            
+            # Usar nuevos valores o los actuales
+            fecha_check = data.get("fecha", cita_actual["fecha"])
+            hora_check = data.get("hora", cita_actual["hora"])
+            vet_check = data.get("id_usuario_vet", cita_actual["id_usuario_vet"])
+            consultorio_check = data.get("id_consultorio", cita_actual["id_consultorio"])
+            
+            # Verificar conflicto de veterinario (excluyendo la cita actual, ventana de 30 min)
+            cursor.execute("""
+                SELECT COUNT(*) AS conflictos FROM citas
+                WHERE id_usuario_vet = %s AND fecha = %s AND estado = 'programada'
+                AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(fecha, ' ', hora), CONCAT(%s, ' ', %s))) < 30
+                AND id_cita != %s
+            """, (vet_check, fecha_check, fecha_check, hora_check, cita_id))
+            conflicto_vet = cursor.fetchone()
+            if conflicto_vet and conflicto_vet["conflictos"] > 0:
+                raise HTTPException(
+                    status_code=409, 
+                    detail="El veterinario ya tiene otra cita en ese horario (ventana de 30 minutos)"
+                )
+            
+            # Verificar conflicto de consultorio (excluyendo la cita actual, ventana de 30 min)
+            cursor.execute("""
+                SELECT COUNT(*) AS conflictos FROM citas
+                WHERE id_consultorio = %s AND fecha = %s AND estado = 'programada'
+                AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(fecha, ' ', hora), CONCAT(%s, ' ', %s))) < 30
+                AND id_cita != %s
+            """, (consultorio_check, fecha_check, fecha_check, hora_check, cita_id))
+            conflicto_consultorio = cursor.fetchone()
+            if conflicto_consultorio and conflicto_consultorio["conflictos"] > 0:
+                raise HTTPException(
+                    status_code=409, 
+                    detail="El consultorio ya esta ocupado en ese horario (ventana de 30 minutos)"
+                )
+
         values.append(cita_id)
         cursor.execute(f"UPDATE citas SET {', '.join(fields)} WHERE id_cita = %s", values)
         connection.commit()
+
+        # ---- Notificaciones post-actualización de cita ----
+        try:
+            cursor.execute("""
+                SELECT c.id_usuario, c.id_usuario_vet, c.fecha, c.hora, c.estado,
+                       m.nombre AS mascota_nombre,
+                       s.nombre AS servicio_nombre,
+                       u.nombre AS vet_nombre, u.apellido AS vet_apellido
+                FROM citas c
+                INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                WHERE c.id_cita = %s
+            """, (cita_id,))
+            cita_actual = cursor.fetchone()
+
+            if cita_actual:
+                cam_cambios = []
+                if "estado" in data:
+                    cam_cambios.append(f"estado: {data['estado']}")
+                if "fecha" in data:
+                    cam_cambios.append(f"fecha: {data['fecha']}")
+                if "hora" in data:
+                    cam_cambios.append(f"hora: {data['hora']}")
+                if "notas" in data:
+                    cam_cambios.append("notas actualizadas")
+                if "id_servicio" in data:
+                    cam_cambios.append(f"servicio: {cita_actual['servicio_nombre']}")
+                resumen = ", ".join(cam_cambios) if cam_cambios else "cita modificada"
+                mascota = cita_actual["mascota_nombre"]
+
+                # Veterinario asignado
+                if cita_actual["id_usuario_vet"] and cita_actual["id_usuario_vet"] != current_user["id_usuario"]:
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'cita', '/veterinario/mis-citas')
+                    """, (
+                        cita_actual["id_usuario_vet"],
+                        "Cita modificada",
+                        f"La cita de {mascota} el {cita_actual['fecha']} fue actualizada: {resumen}."
+                    ))
+
+                # Recepcionistas activos (gestión de agenda)
+                cursor.execute("SELECT id_usuario FROM usuarios WHERE rol = 'recepcionista' AND is_active = 1")
+                for rep in cursor.fetchall():
+                    if rep["id_usuario"] != current_user["id_usuario"]:
+                        cursor.execute("""
+                            INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                            VALUES (%s, %s, %s, 'cita', '/recepcion/citas')
+                        """, (
+                            rep["id_usuario"],
+                            "Cita modificada",
+                            f"La cita de {mascota} ({cita_actual['vet_nombre']} {cita_actual['vet_apellido']}) fue actualizada: {resumen}."
+                        ))
+
+                # Cliente dueño de la mascota
+                cursor.execute("""
+                    SELECT cl.id_usuario FROM clientes cl
+                    INNER JOIN mascotas ma ON ma.id_cliente = cl.id_cliente
+                    WHERE ma.id_mascota = (SELECT id_mascota FROM citas WHERE id_cita = %s)
+                """, (cita_id,))
+                cliente = cursor.fetchone()
+                if cliente and cliente.get("id_usuario") and cliente["id_usuario"] != current_user["id_usuario"]:
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'cita', '/usuario/mis-citas')
+                    """, (
+                        cliente["id_usuario"],
+                        "Tu cita fue modificada",
+                        f"La cita de {mascota} el {cita_actual['fecha']} a las {cita_actual['hora']} fue actualizada: {resumen}."
+                    ))
+
+                connection.commit()
+        except Exception:
+            pass
+
         return {"message": "Cita actualizada exitosamente"}
     except HTTPException:
         raise
@@ -2086,11 +2493,70 @@ async def delete_cita(cita_id: int, current_user: dict = Depends(get_current_use
             raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar citas")
 
         # Limpiar dependencias antes de eliminar (agenda, historial y facturas)
+        # Obtener datos antes de borrar para las notificaciones
+        cursor.execute("""
+            SELECT c.fecha, c.hora, c.id_usuario_vet, c.id_usuario,
+                   m.nombre AS mascota_nombre,
+                   u.nombre AS vet_nombre, u.apellido AS vet_apellido
+            FROM citas c
+            INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+            INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+            WHERE c.id_cita = %s
+        """, (cita_id,))
+        cita_info = cursor.fetchone()
+
         cursor.execute("DELETE FROM agenda WHERE id_cita = %s", (cita_id,))
         cursor.execute("UPDATE historial_clinico SET id_cita = NULL WHERE id_cita = %s", (cita_id,))
         cursor.execute("UPDATE facturas SET id_cita = NULL WHERE id_cita = %s", (cita_id,))
         cursor.execute("DELETE FROM citas WHERE id_cita = %s", (cita_id,))
         connection.commit()
+
+        # Notificar eliminación
+        if cita_info:
+            try:
+                mascota = cita_info["mascota_nombre"]
+                # Veterinario asignado
+                if cita_info["id_usuario_vet"] and cita_info["id_usuario_vet"] != current_user["id_usuario"]:
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'cita', '/veterinario/mis-citas')
+                    """, (
+                        cita_info["id_usuario_vet"],
+                        "Cita eliminada",
+                        f"La cita de {mascota} del {cita_info['fecha']} fue eliminada del sistema."
+                    ))
+                # Recepcionistas
+                cursor.execute("SELECT id_usuario FROM usuarios WHERE rol = 'recepcionista' AND is_active = 1")
+                for rep in cursor.fetchall():
+                    if rep["id_usuario"] != current_user["id_usuario"]:
+                        cursor.execute("""
+                            INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                            VALUES (%s, %s, %s, 'cita', '/recepcion/citas')
+                        """, (
+                            rep["id_usuario"],
+                            "Cita eliminada",
+                            f"La cita de {mascota} ({cita_info['vet_nombre']} {cita_info['vet_apellido']}) fue eliminada."
+                        ))
+                # Cliente dueño
+                cursor.execute("""
+                    SELECT cl.id_usuario FROM clientes cl
+                    INNER JOIN mascotas ma ON ma.id_cliente = cl.id_cliente
+                    WHERE ma.nombre = %s
+                    LIMIT 1
+                """, (mascota,))
+                cliente = cursor.fetchone()
+                if cliente and cliente.get("id_usuario") and cliente["id_usuario"] != current_user["id_usuario"]:
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'cita', '/usuario/mis-citas')
+                    """, (
+                        cliente["id_usuario"],
+                        "Tu cita fue eliminada",
+                        f"La cita de {mascota} del {cita_info['fecha']} a las {cita_info['hora']} fue eliminada."
+                    ))
+                connection.commit()
+            except Exception:
+                pass
         return {"message": "Cita eliminada exitosamente"}
     except HTTPException:
         raise
@@ -2108,14 +2574,7 @@ async def get_mascotas(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        if current_user["rol"] == "administrador":
-            cursor.execute("""
-                SELECT m.*, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
-                FROM mascotas m
-                INNER JOIN clientes c ON m.id_cliente = c.id_cliente
-                ORDER BY m.nombre
-            """)
-        elif current_user["rol"] == "veterinario":
+        if current_user["rol"] in ("administrador", "veterinario", "recepcionista"):
             cursor.execute("""
                 SELECT m.*, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
                 FROM mascotas m
@@ -2131,6 +2590,33 @@ async def get_mascotas(current_user: dict = Depends(get_current_user)):
                 ORDER BY m.nombre
             """, (current_user["id_usuario"],))
         return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.get("/api/clientes/{cliente_id}/mascotas")
+async def get_mascotas_by_cliente(cliente_id: int, current_user: dict = Depends(get_current_user)):
+    """Obtener mascotas de un cliente especifico (para recepcion al agendar cita)"""
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id_cliente FROM clientes WHERE id_cliente = %s", (cliente_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+        cursor.execute("""
+            SELECT m.*, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido
+            FROM mascotas m
+            INNER JOIN clientes c ON m.id_cliente = c.id_cliente
+            WHERE m.id_cliente = %s
+            ORDER BY m.nombre
+        """, (cliente_id,))
+        return cursor.fetchall()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     finally:
@@ -2204,6 +2690,114 @@ async def delete_mascota(mascota_id: int, current_user: dict = Depends(get_curre
         cursor.close()
         connection.close()
 
+@app.get("/api/clientes/{cliente_id}/perfil")
+async def get_perfil_cliente(cliente_id: int, current_user: dict = Depends(get_current_user)):
+    """Perfil completo de un cliente: datos, mascotas, historial clinico, citas y medicamentos"""
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        # Obtener datos del cliente
+        cursor.execute("""
+            SELECT id_cliente, nombre, apellido, email, telefono, direccion, 
+                   tipo_documento, numero_documento, is_active, created_at
+            FROM clientes WHERE id_cliente = %s
+        """, (cliente_id,))
+        cliente = cursor.fetchone()
+        if not cliente:
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+        
+        # Obtener mascotas del cliente
+        cursor.execute("""
+            SELECT id_mascota, nombre, especie, raza, sexo, edad, peso, observaciones, created_at
+            FROM mascotas WHERE id_cliente = %s ORDER BY nombre
+        """, (cliente_id,))
+        mascotas = cursor.fetchall()
+        
+        # Obtener historial clinico de todas las mascotas del cliente
+        historial = []
+        medicamentos = []
+        citas_recientes = []
+        
+        for mascota in mascotas:
+            # Historial clinico de cada mascota
+            cursor.execute("""
+                SELECT h.id_historial, h.diagnostico, h.tratamiento, h.observaciones, 
+                       h.fecha, h.signos_vitales, h.peso_anterior,
+                       u.nombre AS vet_nombre, u.apellido AS vet_apellido,
+                       h.id_mascota
+                FROM historial_clinico h
+                INNER JOIN usuarios u ON h.id_usuario = u.id_usuario
+                WHERE h.id_mascota = %s
+                ORDER BY h.fecha DESC
+            """, (mascota["id_mascota"],))
+            hist_mascota = cursor.fetchall()
+            for h in hist_mascota:
+                h["mascota_nombre"] = mascota["nombre"]
+            historial.extend(hist_mascota)
+            
+            # Medicamentos asignados a cada mascota
+            cursor.execute("""
+                SELECT ma.id_asignacion, ma.dosis, ma.frecuencia, ma.duracion, ma.instrucciones,
+                       m.nombre AS medicamento_nombre, m.precio, m.descripcion,
+                       h.id_mascota
+                FROM medicamentos_asignados ma
+                INNER JOIN medicamentos m ON ma.id_medicamento = m.id_medicamento
+                INNER JOIN historial_clinico h ON ma.id_historial = h.id_historial
+                WHERE h.id_mascota = %s
+                ORDER BY m.nombre
+            """, (mascota["id_mascota"],))
+            meds_mascota = cursor.fetchall()
+            for med in meds_mascota:
+                med["mascota_nombre"] = mascota["nombre"]
+                if med.get("precio"):
+                    med["precio"] = float(med["precio"])
+            medicamentos.extend(meds_mascota)
+            
+            # Citas recientes de cada mascota
+            cursor.execute("""
+                SELECT c.id_cita, c.fecha, TIME_FORMAT(c.hora, '%H:%i') AS hora, c.estado, c.notas,
+                       s.nombre AS servicio_nombre, s.precio AS servicio_precio,
+                       u.nombre AS vet_nombre, u.apellido AS vet_apellido,
+                       co.nombre AS consultorio_nombre,
+                       c.id_mascota
+                FROM citas c
+                INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+                INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+                INNER JOIN consultorio co ON c.id_consultorio = co.id_consultorio
+                WHERE c.id_mascota = %s
+                ORDER BY c.fecha DESC, c.hora DESC
+                LIMIT 10
+            """, (mascota["id_mascota"],))
+            citas_mascota = cursor.fetchall()
+            for cita in citas_mascota:
+                cita["mascota_nombre"] = mascota["nombre"]
+                if cita.get("servicio_precio"):
+                    cita["servicio_precio"] = float(cita["servicio_precio"])
+            citas_recientes.extend(citas_mascota)
+        
+        # Ordenar historial y citas por fecha
+        historial.sort(key=lambda x: x.get("fecha", ""), reverse=True)
+        citas_recientes.sort(key=lambda x: (x.get("fecha", ""), x.get("hora", "")), reverse=True)
+        
+        return {
+            "cliente": cliente,
+            "mascotas": mascotas,
+            "historial": historial,
+            "medicamentos": medicamentos,
+            "citas_recientes": citas_recientes[:10]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 @app.get("/mascotas")
 async def get_mascotas_alias(current_user: dict = Depends(get_current_user)):
     return await get_mascotas(current_user)
@@ -2257,6 +2851,54 @@ async def get_mi_cliente(current_user: dict = Depends(get_current_user)):
         cursor.close()
         connection.close()
 
+@app.get("/api/usuario/historial")
+async def get_usuario_historial(current_user: dict = Depends(get_current_user)):
+    """Retorna el historial clinico de las mascotas del usuario logueado"""
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id_cliente FROM clientes WHERE id_usuario = %s", (current_user["id_usuario"],))
+        cliente = cursor.fetchone()
+        if not cliente:
+            return []
+
+        cursor.execute("""
+            SELECT h.id_historial, h.diagnostico, h.tratamiento, h.observaciones,
+                   h.fecha, h.signos_vitales, h.peso_anterior,
+                   h.id_mascota, h.id_usuario, h.id_cita,
+                   m.nombre AS mascota_nombre, m.especie AS mascota_especie,
+                   u.nombre AS vet_nombre, u.apellido AS vet_apellido,
+                   s.nombre AS servicio_nombre
+            FROM historial_clinico h
+            INNER JOIN mascotas m ON h.id_mascota = m.id_mascota
+            INNER JOIN usuarios u ON h.id_usuario = u.id_usuario
+            LEFT JOIN citas c ON h.id_cita = c.id_cita
+            LEFT JOIN servicios s ON c.id_servicio = s.id_servicio
+            WHERE m.id_cliente = %s
+            ORDER BY h.fecha DESC
+        """, (cliente["id_cliente"],))
+        historial = cursor.fetchall()
+
+        # Obtener medicamentos asignados para cada registro
+        for entry in historial:
+            cursor.execute("""
+                SELECT ma.dosis, ma.frecuencia, ma.duracion, ma.instrucciones,
+                       med.nombre AS medicamento_nombre
+                FROM medicamentos_asignados ma
+                INNER JOIN medicamentos med ON ma.id_medicamento = med.id_medicamento
+                WHERE ma.id_historial = %s
+            """, (entry["id_historial"],))
+            entry["medicamentos"] = cursor.fetchall()
+
+        return historial
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 @app.get("/api/servicios")
 async def get_servicios(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
@@ -2291,12 +2933,13 @@ async def get_consultorios(current_user: dict = Depends(get_current_user)):
 async def get_veterinarios(current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
     if not connection:
-        raise HTTPException(status_code=500, detail="Error de conexión")
+        raise HTTPException(status_code=500, detail="Error de conexion")
     cursor = connection.cursor(dictionary=True)
     try:
         cursor.execute("""
-            SELECT id_usuario, nombre, apellido, email, telefono
-            FROM usuarios WHERE rol = 'veterinario' AND is_active = 1
+            SELECT id_usuario, nombre, apellido, email, telefono, especialidad, anos_experiencia, is_active
+            FROM usuarios WHERE rol = 'veterinario'
+            ORDER BY is_active DESC, nombre
         """)
         return cursor.fetchall()
     except Exception as e:
@@ -2313,8 +2956,9 @@ async def get_recepcionistas(current_user: dict = Depends(get_current_user)):
     cursor = connection.cursor(dictionary=True)
     try:
         cursor.execute("""
-            SELECT id_usuario, nombre, apellido, email, telefono
-            FROM usuarios WHERE rol = 'recepcionista' AND is_active = 1
+            SELECT id_usuario, nombre, apellido, email, telefono, is_active
+            FROM usuarios WHERE rol = 'recepcionista'
+            ORDER BY is_active DESC, nombre
         """)
         return cursor.fetchall()
     except Exception as e:
@@ -2333,6 +2977,7 @@ class FacturaDetalleCreate(BaseModel):
 class FacturaCreate(BaseModel):
     id_cliente: int
     id_cita: Optional[int] = None
+    fecha_emision: Optional[str] = None
     fecha_vencimiento: Optional[str] = None
     correo_notificacion: Optional[str] = None
     detalles: list[FacturaDetalleCreate]
@@ -2391,10 +3036,11 @@ async def create_factura(data: FacturaCreate, current_user: dict = Depends(get_c
             numero = f"FAC-{siguiente:04d}"
             cursor.execute("SELECT id_factura FROM facturas WHERE numero = %s", (numero,))
 
+        fecha_emision = data.fecha_emision if data.fecha_emision else None
         cursor.execute("""
-            INSERT INTO facturas (numero, id_cliente, id_usuario, id_cita, subtotal, iva, total, estado, fecha_vencimiento)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'emitida', %s)
-        """, (numero, data.id_cliente, current_user["id_usuario"], data.id_cita, subtotal, iva, total, data.fecha_vencimiento))
+            INSERT INTO facturas (numero, id_cliente, id_usuario, id_cita, fecha, subtotal, iva, total, estado, fecha_vencimiento)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'emitida', %s)
+        """, (numero, data.id_cliente, current_user["id_usuario"], data.id_cita, fecha_emision, subtotal, iva, total, data.fecha_vencimiento))
         factura_id = cursor.lastrowid
 
         for detalle in data.detalles:

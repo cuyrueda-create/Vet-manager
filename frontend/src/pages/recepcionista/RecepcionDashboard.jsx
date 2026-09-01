@@ -17,6 +17,7 @@ const RecepcionDashboard = () => {
   const [stats, setStats] = useState(null);
   const [recentCitas, setRecentCitas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -26,7 +27,7 @@ const RecepcionDashboard = () => {
     ]).then(([statsRes, citasRes]) => {
       setStats(statsRes.data);
       setRecentCitas((citasRes.data || []).slice(0, 6));
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => setError('Error al cargar datos')).finally(() => setLoading(false));
   }, [location.pathname]);
 
   const statDefs = [

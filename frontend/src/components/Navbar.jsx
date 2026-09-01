@@ -94,13 +94,12 @@ const Navbar = () => {
   const links = isAdmin
     ? [
         { to: '/admin/dashboard', label: 'Dashboard', icon: 'home' },
-        { to: '/admin/citas', label: 'Citas', icon: 'calendar' },
-        { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
-        { to: '/clientes', label: 'Clientes', icon: 'users' },
-        { to: '/mascotas', label: 'Mascotas', icon: 'paw' },
-        { to: '/facturas', label: 'Facturas', icon: 'document' },
-        { to: '/reporte-vista', label: 'Reporte', icon: 'chart' },
-        { to: '/perfil', label: 'Mi Perfil', icon: 'user' },
+        { to: '/admin/personal', label: 'Personal', icon: 'users' },
+        { to: '/admin/usuarios', label: 'Usuarios', icon: 'user' },
+        { to: '/admin/bloc', label: 'Bloc', icon: 'book' },
+        { to: '/admin/inventario', label: 'Inventario', icon: 'clipboard' },
+        { to: '/reporte-vista', label: 'Reportes', icon: 'chart' },
+        { to: '/perfil', label: 'Mi Perfil', icon: 'settings' },
       ]
     : isVet
     ? [

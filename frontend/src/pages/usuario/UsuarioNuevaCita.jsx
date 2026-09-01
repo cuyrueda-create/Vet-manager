@@ -18,6 +18,27 @@ const UsuarioNuevaCita = () => {
   const [saving, setSaving] = useState(false);
   const [ticket, setTicket] = useState(null);
 
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const currentHHMM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const isToday = form.fecha === today;
+  const minTime = isToday ? currentHHMM : '';
+
+  const availableHours = (() => {
+    const start = 7;
+    const end = 20;
+    const slots = [];
+    for (let h = start; h <= end; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const hhmm = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        if (isToday && hhmm <= currentHHMM) continue;
+        slots.push(hhmm);
+      }
+    }
+    return slots;
+  })();
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -38,7 +59,12 @@ const UsuarioNuevaCita = () => {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'fecha') {
+      setForm({ ...form, fecha: value, hora: '' });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -58,7 +84,6 @@ const UsuarioNuevaCita = () => {
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
   const mascotaSeleccionada = mascotas.find(m => m.id_mascota == form.id_mascota);
   const servicioSeleccionado = servicios.find(s => s.id_servicio == form.id_servicio);
 
@@ -218,13 +243,19 @@ const UsuarioNuevaCita = () => {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
                     <Icon name="clock" size={14} style={{ color: '#06b6d4' }} /> Hora *
                   </label>
-                  <input type="time" name="hora" value={form.hora} onChange={handleChange} required
+                  <select name="hora" value={form.hora} onChange={handleChange} required
                     style={{
                       width: '100%', padding: '12px 14px', borderRadius: 10,
                       border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none',
                       boxSizing: 'border-box',
                       borderColor: form.hora ? '#10b981' : undefined
-                    }} />
+                    }}>
+                    <option value="">Seleccionar hora...</option>
+                    {availableHours.map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>Horario: 07:00 - 20:00 (bloques de 30 min)</p>
                 </div>
 
                 {/* Notas */}

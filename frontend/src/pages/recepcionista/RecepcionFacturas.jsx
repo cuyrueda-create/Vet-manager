@@ -18,10 +18,15 @@ const RecepcionFacturas = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const defaultFecha = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
   const [form, setForm] = useState({
     id_cliente: '',
     id_mascota: '',
     id_cita: '',
+    fecha_emision: defaultFecha,
     fecha_vencimiento: '',
     correo_notificacion: '',
     detalles: [{ descripcion: '', cantidad: 1, precio_unitario: 0 }]
@@ -33,7 +38,7 @@ const RecepcionFacturas = () => {
       api.get('/api/facturas'),
       api.get('/clientes'),
       api.get('/api/servicios'),
-      api.get('/mascotas'),
+      api.get('/api/mascotas'),
       api.get('/api/citas')
     ]).then(([fRes, cRes, sRes, mRes, ctRes]) => {
       setFacturas(fRes.data?.data || []);
@@ -41,7 +46,7 @@ const RecepcionFacturas = () => {
       setServicios(sRes.data || []);
       setMascotas(mRes.data || []);
       setCitas((ctRes.data || []).filter(c => c.estado === 'programada'));
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => setError('Error al cargar datos')).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -100,12 +105,13 @@ const RecepcionFacturas = () => {
       await api.post('/api/facturas', {
         id_cliente: parseInt(form.id_cliente),
         id_cita: form.id_cita ? parseInt(form.id_cita) : null,
+        fecha_emision: form.fecha_emision ? form.fecha_emision.replace('T', ' ') + ':00' : null,
         fecha_vencimiento: form.fecha_vencimiento || null,
         correo_notificacion: form.correo_notificacion || null,
         detalles: form.detalles.filter(d => d.descripcion && d.precio_unitario > 0)
       });
       setShowForm(false);
-      setForm({ id_cliente: '', id_mascota: '', id_cita: '', fecha_vencimiento: '', correo_notificacion: '', detalles: [{ descripcion: '', cantidad: 1, precio_unitario: 0 }] });
+      setForm({ id_cliente: '', id_mascota: '', id_cita: '', fecha_emision: defaultFecha, fecha_vencimiento: '', correo_notificacion: '', detalles: [{ descripcion: '', cantidad: 1, precio_unitario: 0 }] });
       const res = await api.get('/api/facturas');
       setFacturas(res.data?.data || []);
     } catch (e) {
@@ -181,7 +187,7 @@ const RecepcionFacturas = () => {
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 16px' }}>Nueva Factura</h3>
             {error && <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#dc2626', fontSize: 14 }}>{error}</div>}
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={labelStyle}>Cliente *</label>
                   <select value={form.id_cliente} onChange={e => setForm(f => ({ ...f, id_cliente: e.target.value, id_mascota: '', id_cita: '' }))} style={inputStyle} required>
@@ -210,6 +216,11 @@ const RecepcionFacturas = () => {
                 <div>
                   <label style={labelStyle}>Fecha vencimiento</label>
                   <input type="date" value={form.fecha_vencimiento} onChange={e => setForm(f => ({ ...f, fecha_vencimiento: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Fecha y hora de emision</label>
+                  <input type="datetime-local" value={form.fecha_emision} onChange={e => setForm(f => ({ ...f, fecha_emision: e.target.value }))} style={inputStyle} />
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>Ajusta la fecha/hora de la factura segun la atencion realizada</p>
                 </div>
                 <div>
                   <label style={labelStyle}>Correo notificacion (opcional)</label>

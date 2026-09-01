@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axiosConfig';
 import Navbar from '../../components/Navbar';
 import Icon from '../../components/Icon';
 
 const RecepcionClientes = () => {
+  const navigate = useNavigate();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -13,26 +15,43 @@ const RecepcionClientes = () => {
   const docLimits = { CC: 10, CE: 15, TI: 11 };
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
-    api.get('/clientes').then(r => setClientes(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    api.get('/clientes').then(r => setClientes(r.data || [])).catch(() => setError('Error al cargar clientes')).finally(() => setLoading(false));
   }, []);
 
   const filtered = clientes.filter(c =>
     `${c.nombre} ${c.apellido} ${c.telefono || ''} ${c.email || ''}`.toLowerCase().includes(search.toLowerCase())
   );
 
+  const validateForm = () => {
+    const errs = {};
+    if (!form.nombre.trim()) errs.nombre = 'Requerido';
+    else if (form.nombre.length > 60) errs.nombre = 'Max 60';
+    if (!form.apellido.trim()) errs.apellido = 'Requerido';
+    else if (form.apellido.length > 60) errs.apellido = 'Max 60';
+    if (form.telefono) {
+      const tel = form.telefono.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^[0-9]+$/.test(tel)) errs.telefono = 'Solo numeros';
+      else if (!(tel.length === 10 && tel.startsWith('3')) && tel.length !== 7 && !(tel.length === 12 && tel.startsWith('57')))
+        errs.telefono = 'Cel: 10 digitos (3XX). Fijo: 7 digitos';
+    }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Email invalido';
+    if (form.numero_documento && form.numero_documento.length > docLimits[form.tipo_documento]) errs.numero_documento = `Max ${docLimits[form.tipo_documento]}`;
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.nombre || !form.apellido) { setError('Nombre y apellido son requeridos'); return; }
+    if (!validateForm()) return;
     setSubmitting(true);
     try {
-      await api.post('/clientes', form);
-      const res = await api.get('/clientes');
-      setClientes(res.data || []);
-      setShowForm(false);
-      setForm({ nombre: '', apellido: '', telefono: '', email: '', direccion: '', tipo_documento: 'CC', numero_documento: '' });
+      const res = await api.post('/clientes', form);
+      const nuevoId = res.data.id_cliente;
+      navigate(`/recepcion/cliente/${nuevoId}`);
     } catch (e) {
       setError(e.response?.data?.detail || 'Error al crear cliente');
     } finally {
@@ -75,10 +94,10 @@ const RecepcionClientes = () => {
             {error && <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#dc2626', fontSize: 14 }}>{error}</div>}
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div><label style={labelStyle}>Nombre *</label><input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} style={inputStyle} required /></div>
-                <div><label style={labelStyle}>Apellido *</label><input value={form.apellido} onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))} style={inputStyle} required /></div>
-                <div><label style={labelStyle}>Telefono (Max. 10 caracteres)</label><input value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} maxLength={10} style={inputStyle} /></div>
-                <div><label style={labelStyle}>Email</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Nombre *</label><input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.nombre ? '#ef4444' : undefined }} required />{fieldErrors.nombre && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.nombre}</span>}</div>
+                <div><label style={labelStyle}>Apellido *</label><input value={form.apellido} onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.apellido ? '#ef4444' : undefined }} required />{fieldErrors.apellido && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.apellido}</span>}</div>
+                <div><label style={labelStyle}>Celular / Telefono</label><input placeholder="3101234567" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} maxLength={12} style={{ ...inputStyle, borderColor: fieldErrors.telefono ? '#ef4444' : undefined }} />{fieldErrors.telefono && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.telefono}</span>}</div>
+                <div><label style={labelStyle}>Email</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} maxLength={100} style={{ ...inputStyle, borderColor: fieldErrors.email ? '#ef4444' : undefined }} />{fieldErrors.email && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.email}</span>}</div>
                 <div><label style={labelStyle}>Tipo Doc</label>
                   <select value={form.tipo_documento} onChange={e => setForm(p => ({ ...p, tipo_documento: e.target.value, numero_documento: '' }))} style={inputStyle}>
                     <option value="CC">Cedula (10 digitos)</option><option value="CE">Cedula Extranjeria (15 digitos)</option><option value="TI">Tarjeta Identidad (11 digitos)</option>
@@ -116,9 +135,14 @@ const RecepcionClientes = () => {
                     <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{c.email || '-'}</td>
                     <td style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>{c.tipo_documento} {c.numero_documento}</td>
                     <td style={{ padding: '14px 16px' }}>
-                      <button onClick={() => handleDelete(c.id_cliente)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
-                        <Icon name="trash" size={16} />
-                      </button>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => navigate(`/recepcion/cliente/${c.id_cliente}`)} title="Ver perfil" style={{ background: '#eff6ff', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 6, borderRadius: 6 }}>
+                          <Icon name="eye" size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(c.id_cliente)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

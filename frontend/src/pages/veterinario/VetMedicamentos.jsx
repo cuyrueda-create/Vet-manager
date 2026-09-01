@@ -6,12 +6,13 @@ import Icon from '../../components/Icon';
 const VetMedicamentos = () => {
   const [medicamentos, setMedicamentos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     api.get('/api/medicamentos')
       .then(r => setMedicamentos(r.data || []))
-      .catch(() => {})
+      .catch(() => setError('Error al cargar medicamentos'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,6 +41,10 @@ const VetMedicamentos = () => {
             style={{ width: '100%', maxWidth: 400, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }}
           />
         </div>
+
+        {error && (
+          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#dc2626', fontSize: 14 }}>{error}</div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>

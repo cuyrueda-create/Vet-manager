@@ -2,283 +2,245 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 import Navbar from '../components/Navbar';
 import Icon from '../components/Icon';
-import Modal from '../components/Modal';
-import { useAuth } from '../contexts/AuthContext';
 
-const ListadoVista = () => {
-  const { user } = useAuth();
-  const [data, setData] = useState([]);
+const COLORS = {
+  blue: '#3b82f6', green: '#10b981', yellow: '#f59e0b', red: '#ef4444',
+  purple: '#8b5cf6', indigo: '#6366f1', pink: '#ec4899', gray: '#6b7280'
+};
+
+const kpiCard = (label, value, icon, color, bg) => (
+  <div style={{ background: bg, borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+    <div style={{ width: 46, height: 46, borderRadius: 12, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+      <Icon name={icon} size={22} style={{ color }} />
+    </div>
+    <div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: '#1e293b' }}>{value}</div>
+      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{label}</div>
+    </div>
+  </div>
+);
+
+const barChart = (items, maxVal, colorFn) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    {items.map((item, i) => (
+      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ width: 120, fontSize: 13, color: '#334155', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+        <div style={{ flex: 1, height: 24, background: '#f1f5f9', borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{
+            width: `${maxVal > 0 ? (item.value / maxVal) * 100 : 0}%`,
+            height: '100%', background: colorFn(i), borderRadius: 6,
+            transition: 'width 0.5s ease', display: 'flex', alignItems: 'center', paddingLeft: 8
+          }}>
+            {item.value > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'white' }}>{item.value}</span>}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const pieIndicators = (items, colors) => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+    {items.map((item, i) => (
+      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 12, height: 12, borderRadius: 3, background: colors[i % colors.length] }} />
+        <span style={{ fontSize: 13, color: '#334155' }}>{item.label}: <strong>{item.value}</strong></span>
+      </div>
+    ))}
+  </div>
+);
+
+const cardSection = (title, children) => (
+  <div style={{
+    background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
+    overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+  }}>
+    <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{title}</h3>
+    </div>
+    <div style={{ padding: '20px' }}>{children}</div>
+  </div>
+);
+
+const AdminInformes = () => {
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState({ total: 0, especies: 0, citas: 0 });
-  const [generando, setGenerando] = useState(false);
-  const [mensaje, setMensaje] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [tipoReporte, setTipoReporte] = useState('datos');
-  const [descripcion, setDescripcion] = useState('');
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    api.get('/api/v1/admin/informes')
+      .then(r => setData(r.data))
+      .catch(() => setError('Error al cargar informes'))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const generarReporte = async () => {
-    if (data.length === 0) { setMensaje({ tipo: 'error', texto: 'No hay datos para generar el reporte' }); return; }
-    try {
-      setGenerando(true); setMensaje('');
-      const response = await api.post('/api/reportes', {
-        tipo: 'vista_sql',
-        contenido: { fecha_generado: new Date().toISOString(), total_registros: data.length, estadisticas: stats, registros: data }
-      });
-      setMensaje({ tipo: 'exito', texto: response.data?.message || 'Reporte generado correctamente' });
-    } catch (e) { setMensaje({ tipo: 'error', texto: e.response?.data?.detail || 'Error al generar el reporte' }); }
-    finally { setGenerando(false); }
-  };
-
-  const guardarReporte = async (e) => {
-    e.preventDefault();
-    if (tipoReporte === 'problema' && descripcion.trim().length < 5) {
-      setMensaje({ tipo: 'error', texto: 'Describe el problema con al menos 5 caracteres' }); return;
-    }
-    try {
-      setGenerando(true); setMensaje('');
-      const contenido = tipoReporte === 'problema'
-        ? { tipo: 'problema_web', fecha: new Date().toISOString(), usuario: user ? `${user.nombre} ${user.apellido}` : 'Desconocido', descripcion: descripcion.trim() }
-        : { fecha_generado: new Date().toISOString(), total_registros: data.length, estadisticas: stats, registros: data };
-      const response = await api.post('/api/reportes', { tipo: tipoReporte === 'problema' ? 'problema_web' : 'vista_sql', contenido });
-      setMensaje({ tipo: 'exito', texto: response.data?.message || 'Reporte guardado correctamente' });
-      setShowModal(false); setDescripcion('');
-    } catch (e) { setMensaje({ tipo: 'error', texto: e.response?.data?.detail || 'Error al guardar el reporte' }); }
-    finally { setGenerando(false); }
-  };
-
-  const fetchData = async () => {
-    try {
-      setLoading(true); setError('');
-      const response = await api.get('/data/vista');
-      if (response.data && response.data.success) {
-        const datos = response.data.data || [];
-        setData(datos);
-        if (datos.length > 0) {
-          const especiesSet = new Set();
-          datos.forEach(item => { if (item.especie) especiesSet.add(item.especie); });
-          const citas = datos.reduce((sum, item) => sum + (item.total_citas || 0), 0);
-          setStats({ total: datos.length, especies: especiesSet.size, citas });
-        } else { setStats({ total: 0, especies: 0, citas: 0 }); }
-      } else { setError(response.data?.message || 'Error al cargar los datos'); }
-    } catch (e) {
-      if (e.response) setError(e.response.data?.detail || `Error ${e.response.status}`);
-      else if (e.request) setError('No se pudo conectar con el servidor.');
-      else setError('Error al realizar la peticion: ' + e.message);
-    } finally { setLoading(false); }
-  };
-
-  const renderDataTable = () => {
-    if (!data || data.length === 0) return (
-      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-        <Icon name="chart" size={48} style={{ color: '#cbd5e1', marginBottom: 12 }} />
-        <p style={{ fontSize: 16, color: '#94a3b8' }}>No hay datos disponibles</p>
+  if (loading) return (
+    <div>
+      <Navbar />
+      <div className="listado-container" style={{ textAlign: 'center', padding: '80px 20px' }}>
+        <div style={{ width: 40, height: 40, border: '4px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ color: '#64748b', fontSize: 14 }}>Cargando informes...</p>
       </div>
-    );
-    const columns = data[0] ? Object.keys(data[0]) : [];
-    return (
-      <div style={{
-        background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-        overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f8fafc' }}>
-              {columns.map(col => (
-                <th key={col} style={{
-                  padding: '14px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600,
-                  color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '2px solid #e2e8f0'
-                }}>{col.replace(/_/g, ' ').toUpperCase()}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((item, index) => (
-              <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}
-                onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
-                onMouseLeave={ev => ev.currentTarget.style.background = 'white'}>
-                {columns.map(col => (
-                  <td key={col} style={{ padding: '14px 16px', fontSize: 14, color: '#334155' }}>
-                    {item[col] !== null && item[col] !== undefined ? String(item[col]) : '-'}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+    </div>
+  );
 
-  const statsData = [
-    { label: 'Total registros', value: stats.total, color: '#3b82f6', bg: '#eff6ff', icon: 'clipboard' },
-    { label: 'Especies', value: stats.especies, color: '#10b981', bg: '#d1fae5', icon: 'paw' },
-    { label: 'Total citas', value: stats.citas, color: '#f59e0b', bg: '#fef3c7', icon: 'calendar' }
-  ];
+  if (error) return (
+    <div>
+      <Navbar />
+      <div className="listado-container" style={{ textAlign: 'center', padding: '80px 20px' }}>
+        <p style={{ color: '#ef4444', fontSize: 14 }}>{error}</p>
+        <button onClick={() => window.location.reload()} style={{ marginTop: 12, padding: '10px 20px', borderRadius: 10, border: 'none', background: '#3b82f6', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Reintentar</button>
+      </div>
+    </div>
+  );
+
+  if (!data) return null;
+
+  const especiesMax = data.mascotas_por_especie.length > 0 ? Math.max(...data.mascotas_por_especie.map(e => e.total)) : 0;
+  const vetsMax = data.top_veterinarios.length > 0 ? Math.max(...data.top_veterinarios.map(v => v.total_citas)) : 0;
+  const clientesMax = data.top_clientes.length > 0 ? Math.max(...data.top_clientes.map(c => c.total_mascotas)) : 0;
+
+  const especieColors = [COLORS.blue, COLORS.green, COLORS.purple, COLORS.yellow, COLORS.pink];
+  const estadoColors = [COLORS.yellow, COLORS.green, COLORS.red];
+  const rolColors = [COLORS.indigo, COLORS.green, COLORS.purple, COLORS.blue, COLORS.gray];
 
   return (
     <div>
       <Navbar />
       <div className="listado-container">
 
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-          flexWrap: 'wrap', gap: 16, marginBottom: 28
-        }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>Reporte</h1>
-            <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>Datos de mascotas y clientes obtenidos desde la base de datos</p>
-          </div>
-          <button onClick={() => setShowModal(true)} disabled={data.length === 0} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 20px', borderRadius: 10, border: 'none',
-            background: data.length === 0 ? '#94a3b8' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            color: 'white', fontWeight: 600, fontSize: 14,
-            cursor: data.length === 0 ? 'not-allowed' : 'pointer',
-            boxShadow: data.length === 0 ? 'none' : '0 2px 8px rgba(37,99,235,0.3)', transition: 'all 0.2s'
-          }}>
-            <Icon name="document" size={18} /> Generar reporte
-          </button>
+        {/* Header */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Icon name="chart" size={26} style={{ color: '#3b82f6' }} />
+            Informes
+          </h1>
+          <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>Resumen general y estadisticas de la clinica</p>
         </div>
 
-        {mensaje && (
-          <div style={{
-            background: mensaje.tipo === 'exito' ? '#f0fdf4' : '#fef2f2',
-            border: `1px solid ${mensaje.tipo === 'exito' ? '#bbf7d0' : '#fecaca'}`,
-            borderRadius: 10, padding: '12px 16px', marginBottom: 20,
-            color: mensaje.tipo === 'exito' ? '#15803d' : '#b91c1c', fontSize: 14
-          }}>{mensaje.texto}</div>
-        )}
+        {/* KPIs principales */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
+          {kpiCard('Usuarios', data.total_usuarios, 'users', COLORS.indigo, '#eef2ff')}
+          {kpiCard('Clientes', data.total_clientes, 'user', COLORS.blue, '#eff6ff')}
+          {kpiCard('Mascotas', data.total_mascotas, 'paw', COLORS.green, '#d1fae5')}
+          {kpiCard('Citas', data.total_citas, 'calendar', COLORS.yellow, '#fef3c7')}
+          {kpiCard('Servicios', data.total_servicios, 'clipboard', COLORS.purple, '#ede9fe')}
+          {kpiCard('Medicamentos', data.total_medicamentos, 'paw', COLORS.pink, '#fce7f3')}
+        </div>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{
-              width: 40, height: 40, border: '4px solid #e2e8f0', borderTopColor: '#3b82f6',
-              borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite'
-            }} />
-            <p style={{ color: '#64748b', fontSize: 14 }}>Cargando datos desde la vista SQL...</p>
-          </div>
-        ) : error ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: 14, background: '#fef2f2',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'
-            }}>
-              <Icon name="x" size={28} style={{ color: '#ef4444' }} />
-            </div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Error al cargar datos</h3>
-            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 20 }}>{error}</p>
-            <button onClick={fetchData} style={{
-              padding: '10px 20px', borderRadius: 10, border: 'none',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: 'white',
-              fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)'
-            }}>Intentar nuevamente</button>
-          </div>
-        ) : (
-          <>
-            {data.length > 0 && (
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                gap: 12, marginBottom: 24
-              }}>
-                {statsData.map((stat, i) => (
-                  <div key={i} style={{
-                    background: stat.bg, borderRadius: 12, padding: '16px 18px',
-                    display: 'flex', alignItems: 'center', gap: 14
-                  }}>
-                    <div style={{
-                      width: 42, height: 42, borderRadius: 10,
-                      background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                    }}>
-                      <Icon name={stat.icon} size={20} style={{ color: stat.color }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{stat.value}</div>
-                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{stat.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {renderDataTable()}
-          </>
-        )}
+        {/* Segunda fila: Usuarios + Estado de citas */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
-        <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
-          <div style={{ padding: 0 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px',
-              borderBottom: '1px solid #f1f5f9'
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10, background: '#eff6ff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Icon name="document" size={20} style={{ color: '#3b82f6' }} />
-              </div>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Generar reporte</h2>
-            </div>
-            <div style={{ padding: '20px 24px' }}>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                {[
-                  { key: 'datos', label: 'Datos del reporte', desc: 'Guarda la informacion actual', icon: 'chart' },
-                  { key: 'problema', label: 'Problema web', desc: 'Reporta un error del sistema', icon: 'x' }
-                ].map(t => (
-                  <button key={t.key} type="button" onClick={() => setTipoReporte(t.key)} style={{
-                    flex: 1, padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                    background: tipoReporte === t.key ? '#eff6ff' : '#f8fafc',
-                    border: `2px solid ${tipoReporte === t.key ? '#3b82f6' : '#e2e8f0'}`,
-                    transition: 'all 0.15s', textAlign: 'left'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                      <Icon name={t.icon} size={18} style={{ color: tipoReporte === t.key ? '#3b82f6' : '#94a3b8' }} />
-                      <strong style={{ fontSize: 14, color: '#1e293b' }}>{t.label}</strong>
+          {/* Usuarios por rol */}
+          {cardSection('Usuarios por rol', (() => {
+            const rolLabels = { administrador: 'Administradores', veterinario: 'Veterinarios', recepcionista: 'Recepcionistas', usuario: 'Usuarios' };
+            const items = Object.entries(data.usuarios_por_rol || {}).map(([rol, total]) => ({ label: rolLabels[rol] || rol, value: total }));
+            const max = items.length > 0 ? Math.max(...items.map(i => i.value)) : 0;
+            return barChart(items, max, (i) => rolColors[i % rolColors.length]);
+          })())}
+
+          {/* Estado de citas */}
+          {cardSection('Estado de citas', (() => {
+            const items = [
+              { label: 'Pendientes', value: data.citas_pendientes },
+              { label: 'Completadas', value: data.citas_completadas },
+              { label: 'Canceladas', value: data.citas_canceladas }
+            ];
+            return (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  {items.map((item, i) => (
+                    <div key={i} style={{ textAlign: 'center', padding: '14px 8px', borderRadius: 10, background: '#f8fafc', border: `1px solid ${estadoColors[i]}20` }}>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: estadoColors[i] }}>{item.value}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{item.label}</div>
                     </div>
-                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{t.desc}</p>
-                  </button>
-                ))}
-              </div>
-              {tipoReporte === 'problema' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Describe el problema</label>
-                  <textarea
-                    value={descripcion}
-                    onChange={e => setDescripcion(e.target.value)}
-                    placeholder="Ej. Al guardar una cita aparece un error de conexion..."
-                    rows={5}
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
-                      fontSize: 14, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box'
-                    }}
-                  />
+                  ))}
                 </div>
-              )}
+                {pieIndicators(items, estadoColors)}
+              </div>
+            );
+          })())}
+        </div>
+
+        {/* Tercera fila: Especies + Top Veterinarios */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+
+          {/* Mascotas por especie */}
+          {cardSection('Mascotas por especie', (() => {
+            const items = data.mascotas_por_especie.map(e => ({ label: e.especie, value: e.total }));
+            return barChart(items, especiesMax, (i) => especieColors[i % especieColors.length]);
+          })())}
+
+          {/* Top veterinarios */}
+          {cardSection('Top veterinarios por citas', (() => {
+            const items = data.top_veterinarios.map(v => ({ label: v.veterinario, value: v.total_citas }));
+            return barChart(items, vetsMax, (i) => [COLORS.green, COLORS.blue, COLORS.purple, COLORS.yellow, COLORS.pink][i % 5]);
+          })())}
+        </div>
+
+        {/* Cuarta fila: Top Clientes + Actividad reciente */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+
+          {/* Top clientes */}
+          {cardSection('Clientes con mas mascotas', (() => {
+            const items = data.top_clientes.map(c => ({ label: c.cliente, value: c.total_mascotas }));
+            return barChart(items, clientesMax, (i) => [COLORS.indigo, COLORS.blue, COLORS.purple, COLORS.green, COLORS.yellow][i % 5]);
+          })())}
+
+          {/* Actividad reciente */}
+          {cardSection('Actividad reciente', (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 280, overflowY: 'auto' }}>
+              {data.actividad_reciente.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', padding: 20 }}>No hay actividad reciente</p>
+              ) : data.actividad_reciente.map((a, i) => {
+                const estadoColor = a.estado === 'completada' ? COLORS.green : a.estado === 'cancelada' ? COLORS.red : COLORS.yellow;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: estadoColor, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: '#1e293b', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.mascota || 'Sin mascota'} - {a.motivo || 'Sin motivo'}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        Dr. {a.veterinario || 'N/A'} | {a.fecha}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: estadoColor, textTransform: 'capitalize', flexShrink: 0 }}>{a.estado}</span>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{
-              display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px',
-              borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderRadius: '0 0 16px 16px'
-            }}>
-              <button type="button" onClick={() => setShowModal(false)} style={{
-                padding: '10px 20px', borderRadius: 10, border: '1.5px solid #e2e8f0',
-                background: 'white', color: '#64748b', fontWeight: 600, fontSize: 14, cursor: 'pointer'
-              }}>Cancelar</button>
-              <button type="button" onClick={guardarReporte} disabled={generando} style={{
-                padding: '10px 20px', borderRadius: 10, border: 'none',
-                background: generando ? '#93c5fd' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                color: 'white', fontWeight: 600, fontSize: 14, cursor: generando ? 'not-allowed' : 'pointer',
-                boxShadow: generando ? 'none' : '0 2px 8px rgba(37,99,235,0.3)'
-              }}>{generando ? 'Guardando...' : 'Guardar reporte'}</button>
+          ))}
+        </div>
+
+        {/* Resumen general */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {cardSection('Ingresos', (
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: COLORS.green }}>${data.ingresos_totales.toLocaleString()}</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Total facturas pagadas</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{data.total_facturas} factura(s) registrada(s)</div>
             </div>
-          </div>
-        </Modal>
+          ))}
+          {cardSection('Inactivos', (
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: COLORS.red }}>{data.usuarios_inactivos}</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Usuarios desactivados</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{data.usuarios_activos} activos de {data.total_usuarios}</div>
+            </div>
+          ))}
+          {cardSection('Citas', (
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: COLORS.yellow }}>{data.citas_pendientes}</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Citas pendientes</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{data.citas_completadas} completadas</div>
+            </div>
+          ))}
+        </div>
 
       </div>
     </div>
   );
 };
 
-export default ListadoVista;
+export default AdminInformes;
