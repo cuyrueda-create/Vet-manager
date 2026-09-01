@@ -3,7 +3,7 @@ import api from '../../api/axiosConfig';
 import Navbar from '../../components/Navbar';
 import Icon from '../../components/Icon';
 
-const ROLES = ['administrador', 'veterinario', 'recepcionista'];
+const ROLES = ['usuario'];
 
 const AdminUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -12,8 +12,8 @@ const AdminUsuarios = () => {
   const [success, setSuccess] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
-    nombre: '', apellido: '', email: '', contraseña: '', rol: 'veterinario',
-    telefono: '', direccion: '', tipo_documento: '', numero_documento: '', clave_admin: ''
+    nombre: '', apellido: '', email: '', contraseña: '', rol: 'usuario',
+    telefono: '', direccion: '', tipo_documento: '', numero_documento: ''
   });
 
   const docLimits = { CC: 10, CE: 15, TI: 11 };
@@ -48,15 +48,11 @@ const AdminUsuarios = () => {
     setSavingCreate(true); setError('');
     const pwdError = passwordPolicy(createForm.contraseña);
     if (pwdError) { setError(`Contraseña inválida: ${pwdError}`); setSavingCreate(false); return; }
-    if (createForm.rol === 'administrador' && !createForm.clave_admin) {
-      setError('Para crear un administrador debes ingresar la clave maestra de administración');
-      setSavingCreate(false); return;
-    }
     try {
       await api.post('/api/v1/admin/usuarios', createForm);
       setSuccess('Usuario creado exitosamente');
       setShowCreate(false);
-      setCreateForm({ nombre: '', apellido: '', email: '', contraseña: '', rol: 'veterinario', telefono: '', direccion: '', tipo_documento: '', numero_documento: '', clave_admin: '' });
+      setCreateForm({ nombre: '', apellido: '', email: '', contraseña: '', rol: 'usuario', telefono: '', direccion: '', tipo_documento: '', numero_documento: '' });
       loadUsuarios();
     } catch (err) { setError(err.response?.data?.detail || 'Error al crear usuario'); }
     finally { setSavingCreate(false); }
@@ -87,17 +83,7 @@ const AdminUsuarios = () => {
     } catch (err) { setError(err.response?.data?.detail || 'Error al cambiar estado del usuario'); }
   };
 
-  const rejectPending = async (u) => {
-    if (!window.confirm(`¿Rechazar la solicitud de administrador de ${u.nombre} ${u.apellido}?`)) return;
-    setError('');
-    try { await api.delete(`/api/v1/admin/usuarios/${u.id_usuario}`); setSuccess('Solicitud de administrador rechazada'); loadUsuarios(); }
-    catch (err) { setError(err.response?.data?.detail || 'Error al rechazar la solicitud'); }
-  };
-
-  const isPending = (u) => u.rol === 'administrador' && !u.is_active;
-
   const estadoConfig = (u) => {
-    if (isPending(u)) return { color: '#f59e0b', bg: '#fef3c7', border: '#fcd34d', label: 'Pendiente', icon: 'clock' };
     if (u.is_active) return { color: '#10b981', bg: '#d1fae5', border: '#6ee7b7', label: 'Activo', icon: 'check' };
     return { color: '#ef4444', bg: '#fee2e2', border: '#fca5a5', label: 'Inactivo', icon: 'x' };
   };
@@ -125,7 +111,7 @@ const AdminUsuarios = () => {
         }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>Gestion de Usuarios</h1>
-            <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>Usuarios registrados y solicitudes de administrador pendientes</p>
+            <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>Gestionar usuarios registrados en el sistema</p>
           </div>
           <button onClick={() => { setShowCreate(!showCreate); setError(''); setSuccess(''); }} style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -188,16 +174,7 @@ const AdminUsuarios = () => {
                     <select name="rol" value={createForm.rol} onChange={handleCreateChange} required style={inputStyle}>
                       {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    {createForm.rol === 'administrador' && (
-                      <p style={{ margin: '6px 0 0', fontSize: 12, color: '#f59e0b' }}>Creacion de administradores requiere clave maestra</p>
-                    )}
                   </div>
-                  {createForm.rol === 'administrador' && (
-                    <div>
-                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Clave maestra *</label>
-                      <input type="password" name="clave_admin" value={createForm.clave_admin || ''} onChange={handleCreateChange} required style={inputStyle} />
-                    </div>
-                  )}
                 </div>
               </div>
               <div style={{
@@ -286,29 +263,14 @@ const AdminUsuarios = () => {
                             width: 34, height: 34, borderRadius: 8, border: 'none', cursor: 'pointer',
                             background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center'
                           }}><Icon name="pencil" size={14} /></button>
-                          {isPending(u) ? (
-                            <>
-                              <button onClick={() => toggleActive(u)} style={{
-                                padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                                background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white',
-                                fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4
-                              }}><Icon name="check" size={12} /> Aprobar</button>
-                              <button onClick={() => rejectPending(u)} style={{
-                                padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                                background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white',
-                                fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4
-                              }}><Icon name="x" size={12} /> Rechazar</button>
-                            </>
-                          ) : (
-                            <button onClick={() => toggleActive(u)} style={{
-                              padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                              background: u.is_active ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
-                              color: 'white', fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4
-                            }}>
-                              <Icon name={u.is_active ? 'x' : 'check'} size={12} />
-                              {u.is_active ? 'Desactivar' : 'Activar'}
-                            </button>
-                          )}
+                          <button onClick={() => toggleActive(u)} style={{
+                            padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                            background: u.is_active ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
+                            color: 'white', fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4
+                          }}>
+                            <Icon name={u.is_active ? 'x' : 'check'} size={12} />
+                            {u.is_active ? 'Desactivar' : 'Activar'}
+                          </button>
                         </div>
                       </td>
                     </tr>

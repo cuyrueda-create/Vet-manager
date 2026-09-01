@@ -13,13 +13,14 @@ const estadoConfig = {
 const RecepcionCitas = () => {
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filtro, setFiltro] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todas');
 
   useEffect(() => {
     api.get('/api/citas')
       .then(res => setCitas(res.data || []))
-      .catch(() => {})
+      .catch(() => setError('Error al cargar citas'))
       .finally(() => setLoading(false));
   }, []);
 

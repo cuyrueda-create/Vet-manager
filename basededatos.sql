@@ -2,7 +2,7 @@
 -- BASEDEDATOS VET MANAGER - TABLAS E INSERTS
 -- ============================================================
 -- Copia y pega todo esto en MySQL Workbench, HeidiSQL, DBeaver,
--- o impÃ³rtalo con: mysql -u root -p < basededatos.sql
+-- o imprtalo con: mysql -u root -p < basededatos.sql
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS vet_manager;
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(100) UNIQUE NOT NULL,
     telefono VARCHAR(20) NULL,
     direccion VARCHAR(150) NULL,
-    contraseÃ±a VARCHAR(200) NOT NULL,
+    contraseña VARCHAR(200) NOT NULL,
  rol ENUM('administrador','veterinario','recepcionista','usuario') NOT NULL DEFAULT 'usuario',
     tipo_documento VARCHAR(20),
     numero_documento VARCHAR(30),
@@ -254,30 +254,30 @@ CREATE TABLE IF NOT EXISTS medicamentos_asignados (
 -- DATOS DE PRUEBA
 -- ============================================================
 
--- USUARIOS (contraseÃ±a hasheada de "1234")
-INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contraseÃ±a, rol, tipo_documento, numero_documento) VALUES
+-- USUARIOS (contraseña hasheada de "1234")
+INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contraseña, rol, tipo_documento, numero_documento) VALUES
 ('Luis','Cuy','cuyrueda@gmail.com','3200000000','Cra 1 #1-01','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','administrador','CC','1011'),
-('MarÃ­a','LÃ³pez','maria@vet.com','3122222222','Cll 5 #15-22','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1002'),
-('Carlos','PÃ©rez','carlos@vet.com','3133333333','Cra 45 #12-08','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1003'),
+('María','López','maria@vet.com','3122222222','Cll 5 #15-22','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1002'),
+('Carlos','Pérez','carlos@vet.com','3133333333','Cra 45 #12-08','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1003'),
 ('Ana','Ruiz','ana@vet.com','3144444444','Cll 90 #22-34','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','TI','1004'),
-('Laura','MÃ©ndez','laura@vet.com','3155555555','Cra 12 #33-21','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','CC','1005'),
-('Diego','MartÃ­nez','diego@vet.com','3166666666','Cll 11 #7-40','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CE','1006'),
+('Laura','Méndez','laura@vet.com','3155555555','Cra 12 #33-21','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','CC','1005'),
+('Diego','Martínez','diego@vet.com','3166666666','Cll 11 #7-40','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CE','1006'),
 ('Andrea','Rojas','andrea@vet.com','3177777777','Cra 30 #10-10','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','administrador','CC','1007'),
 ('Luis','Castro','luis@vet.com','3188888888','Cll 14 #18-05','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1008'),
 ('Paula','Reyes','paula@vet.com','3199999999','Cra 55 #1-45','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','usuario','TI','1009'),
-('SofÃ­a','Vargas','sofia@vet.com','3100000000','Cll 100 #30-90','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1010');
+('Sofía','Vargas','sofia@vet.com','3100000000','Cll 100 #30-90','$pbkdf2-sha256$10000$FhJirNVay3nvPQdg7N07xw$oHdGDN5qF5S2Yd3f9K0F0sN0G1b2c3d4e5f6g7h8i9j0k','veterinario','CC','1010');
 
 -- CLIENTES
 INSERT INTO clientes (nombre, apellido, telefono, direccion, tipo_documento, numero_documento) VALUES
-('Carlos','JimÃ©nez','3111111111','Cra 10 # 20-30','CC','2001'),
+('Carlos','Jiménez','3111111111','Cra 10 # 20-30','CC','2001'),
 ('Laura','Torres','3122222222','Cll 5 # 15-22','CC','2002'),
-('AndrÃ©s','Villa','3133333333','Cra 45 # 12-08','CE','2003'),
-('Juliana','HernÃ¡ndez','3144444444','Cll 90 # 22-34','CC','2004'),
-('Santiago','RÃ­os','3155555555','Cra 12 # 33-21','CC','2005'),
-('Diana','MuÃ±oz','3166666666','Cll 11 # 7-40','TI','2006'),
+('Andrés','Villa','3133333333','Cra 45 # 12-08','CE','2003'),
+('Juliana','Hernández','3144444444','Cll 90 # 22-34','CC','2004'),
+('Santiago','Ríos','3155555555','Cra 12 # 33-21','CC','2005'),
+('Diana','Muñoz','3166666666','Cll 11 # 7-40','TI','2006'),
 ('Felipe','Cardona','3177777777','Cra 30 # 10-10','CC','2007'),
 ('Marta','Orozco','3188888888','Cll 14 # 18-05','CC','2008'),
-('Jorge','LÃ³pez','3199999999','Cra 55 # 1-45','CC','2009'),
+('Jorge','López','3199999999','Cra 55 # 1-45','CC','2009'),
 ('Natalia','Cano','3100000000','Cll 100 # 30-90','CC','2010');
 
 -- MASCOTAS
@@ -288,23 +288,23 @@ INSERT INTO mascotas (id_cliente, nombre, especie, raza, sexo, edad, peso, obser
 (4,'Misu','Gato','Criollo','H',2,3.8,NULL),
 (5,'Toby','Perro','Poodle','M',6,8.3,'Problemas de piel'),
 (6,'Coco','Ave','Loro','Desconocido',10,1.2,NULL),
-(7,'Nala','Gato','SiamÃ©s','H',1,3.0,NULL),
+(7,'Nala','Gato','Siamés','H',1,3.0,NULL),
 (8,'Simba','Perro','Golden','M',2,28.0,NULL),
 (9,'Bunny','Conejo','Mini Lop','H',1,1.1,NULL),
-(10,'Rex','Perro','Pastor AlemÃ¡n','M',7,35.0,NULL);
+(10,'Rex','Perro','Pastor Alemán','M',7,35.0,NULL);
 
 -- SERVICIOS
 INSERT INTO servicios (nombre, descripcion, precio) VALUES
-('Consulta General','RevisiÃ³n mÃ©dica de rutina',35000),
-('VacunaciÃ³n','AplicaciÃ³n de vacunas',50000),
-('DesparasitaciÃ³n','Tratamiento interno y externo',30000),
-('BaÃ±o','BaÃ±o con shampoo especial',25000),
-('Corte de uÃ±as','Corte y limpieza de uÃ±as',15000),
-('CirugÃ­a menor','Procedimientos menores',150000),
-('RadiografÃ­a','Estudio de rayos X',70000),
-('EcografÃ­a','Imagen por ultrasonido',85000),
-('Urgencias','AtenciÃ³n inmediata',120000),
-('OdontologÃ­a','Limpieza dental',90000);
+('Consulta General','Revisión médica de rutina',35000),
+('Vacunación','Aplicación de vacunas',50000),
+('Desparasitación','Tratamiento interno y externo',30000),
+('Baño','Baño con shampoo especial',25000),
+('Corte de uñas','Corte y limpieza de uñas',15000),
+('Cirugía menor','Procedimientos menores',150000),
+('Radiografía','Estudio de rayos X',70000),
+('Ecografía','Imagen por ultrasonido',85000),
+('Urgencias','Atención inmediata',120000),
+('Odontología','Limpieza dental',90000);
 
 -- CONSULTORIO
 INSERT INTO consultorio (nombre, ubicacion, estado) VALUES
@@ -335,15 +335,15 @@ INSERT INTO citas (id_mascota,id_usuario_vet,id_servicio,id_consultorio,fecha,ho
 -- INSUMOS
 INSERT INTO insumos (nombre, descripcion, cantidad, unidad, precio) VALUES
 ('Jeringas','Jeringas de 5ml',100,'unidad',500),
-('Guantes','Guantes de lÃ¡tex',200,'par',300),
-('Gasas','Gasas estÃ©riles',150,'paquete',1000),
-('Alcohol','Alcohol antisÃ©ptico',20,'botella',4000),
-('AntibiÃ³tico','Medicamento inyectable',30,'frascos',12000),
-('Desinfectante','Limpieza profunda',10,'galÃ³n',25000),
-('Sueros','SoluciÃ³n salina',40,'bolsa',8000),
+('Guantes','Guantes de látex',200,'par',300),
+('Gasas','Gasas estériles',150,'paquete',1000),
+('Alcohol','Alcohol antiséptico',20,'botella',4000),
+('Antibiótico','Medicamento inyectable',30,'frascos',12000),
+('Desinfectante','Limpieza profunda',10,'galón',25000),
+('Sueros','Solución salina',40,'bolsa',8000),
 ('Vitaminas','Vitaminas inyectables',25,'frasco',15000),
-('Agujas','Agujas hipodÃ©rmicas',300,'unidad',200),
-('Vendas','Vendas elÃ¡sticas',50,'rollo',2500);
+('Agujas','Agujas hipodérmicas',300,'unidad',200),
+('Vendas','Vendas elásticas',50,'rollo',2500);
 
 -- PROVEEDORES
 INSERT INTO proveedores (nombre,telefono,email,direccion,id_usuario) VALUES
@@ -367,7 +367,7 @@ INSERT INTO productos (nombre,descripcion,precio,stock,id_proveedor) VALUES
 ('collar ajustable','collar para mascotas',12000,60,5),
 ('transportador','caja para transporte',90000,10,6),
 ('peine mascota','peine especial',10000,35,7),
-('ropa canina','ropa para clima frÃ­o',45000,20,8),
+('ropa canina','ropa para clima frío',45000,20,8),
 ('plato acero','plato para comida',18000,45,9),
 ('cama mascota','cama acolchada',95000,15,10);
 
@@ -446,6 +446,10 @@ ADD COLUMN peso_anterior DECIMAL(5,2) AFTER signos_vitales;
 -- Agregar id_recepcionista a citas
 ALTER TABLE citas
 ADD COLUMN id_recepcionista INT NULL AFTER id_usuario;
+
+-- Agregar notas a citas (el código usa 'notas' en INSERT/UPDATE)
+ALTER TABLE citas
+ADD COLUMN notas TEXT NULL AFTER observaciones;
 
 
 

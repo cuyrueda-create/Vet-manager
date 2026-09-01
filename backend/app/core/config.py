@@ -9,7 +9,7 @@ DB_CONFIG = {
     'password': os.getenv("DB_PASSWORD", ""),
     'database': os.getenv("DB_NAME", "vet_manager"),
     'port': int(os.getenv("DB_PORT", 3306)),
-    'charset': 'utf8',
+    'charset': 'utf8mb4',
     'use_unicode': True
 }
 

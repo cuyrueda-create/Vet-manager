@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axiosConfig';
 import Navbar from '../../components/Navbar';
@@ -7,13 +8,16 @@ import Modal from '../../components/Modal';
 
 const estadoConfig = {
   programada: { color: '#f59e0b', bg: '#fef3c7', border: '#fcd34d', label: 'Programada', icon: 'clock' },
-  realizada: { color: '#10b981', bg: '#d1fae5', border: '#6ee7b7', label: 'Realizada', icon: 'check' },
+  en_proceso: { color: '#3b82f6', bg: '#eff6ff', border: '#93c5fd', label: 'En Proceso', icon: 'activity' },
+  realizada: { color: '#10b981', bg: '#d1fae5', border: '#6ee7b7', label: 'Atendida', icon: 'check' },
   cancelada: { color: '#ef4444', bg: '#fee2e2', border: '#fca5a5', label: 'Cancelada', icon: 'x' }
 };
 
 const VetMisCitas = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [citas, setCitas] = useState([]);
+  const [filtro, setFiltro] = useState('todas');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -32,14 +36,22 @@ const VetMisCitas = () => {
   useEffect(() => { loadCitas(); }, []);
 
   const cambiarEstado = async (id, estado) => {
-    const label = estado === 'realizada' ? 'marcar como realizada' : 'cancelar';
+    const label = estado === 'realizada' ? 'marcar como atendida' : 'cancelar';
     if (!window.confirm(`¿Deseas ${label} esta cita?`)) return;
     setError(''); setSuccess('');
     try {
       await api.put(`/api/vet/citas/${id}/estado`, { estado });
-      setSuccess(`Cita ${estado === 'realizada' ? 'realizada' : 'cancelada'} exitosamente`);
+      setSuccess(`Cita ${estado === 'realizada' ? 'atendida' : 'cancelada'} exitosamente`);
       loadCitas();
     } catch (err) { setError(err.response?.data?.detail || 'Error al actualizar la cita'); }
+  };
+
+  const iniciarConsulta = async (id) => {
+    setError(''); setSuccess('');
+    try {
+      await api.put(`/api/vet/citas/${id}/estado`, { estado: 'en_proceso' });
+      navigate(`/veterinario/consulta/${id}`);
+    } catch (err) { setError(err.response?.data?.detail || 'Error al iniciar la consulta'); }
   };
 
   const startEdit = (cita) => { setEditando(cita.id_cita); setEditForm({ notas: cita.notas || '' }); };
@@ -53,14 +65,18 @@ const VetMisCitas = () => {
   };
 
   const pendientes = citas.filter(c => c.estado === 'programada').length;
+  const enProceso = citas.filter(c => c.estado === 'en_proceso').length;
   const realizadas = citas.filter(c => c.estado === 'realizada').length;
   const canceladas = citas.filter(c => c.estado === 'cancelada').length;
 
   const stats = [
     { label: 'Pendientes', value: pendientes, color: '#f59e0b', bg: '#fef3c7', icon: 'clock' },
-    { label: 'Realizadas', value: realizadas, color: '#10b981', bg: '#d1fae5', icon: 'check' },
+    { label: 'En Proceso', value: enProceso, color: '#3b82f6', bg: '#eff6ff', icon: 'activity' },
+    { label: 'Atendidas', value: realizadas, color: '#10b981', bg: '#d1fae5', icon: 'check' },
     { label: 'Canceladas', value: canceladas, color: '#ef4444', bg: '#fee2e2', icon: 'x' }
   ];
+
+  const filteredCitas = filtro === 'todas' ? citas : citas.filter(c => c.estado === filtro);
 
   return (
     <div>
@@ -111,6 +127,33 @@ const VetMisCitas = () => {
           }}>{success}</div>
         )}
 
+        {!loading && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            {[
+              { key: 'todas', label: 'Todas', count: citas.length },
+              { key: 'programada', label: 'Pendientes', count: pendientes },
+              { key: 'en_proceso', label: 'En Proceso', count: enProceso },
+              { key: 'realizada', label: 'Atendidas', count: realizadas },
+              { key: 'cancelada', label: 'Canceladas', count: canceladas }
+            ].map(f => (
+              <button key={f.key} onClick={() => setFiltro(f.key)} style={{
+                padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                border: filtro === f.key ? '2px solid #3b82f6' : '1.5px solid #e2e8f0',
+                background: filtro === f.key ? '#eff6ff' : 'white',
+                color: filtro === f.key ? '#2563eb' : '#64748b',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+              }}>
+                {f.label}
+                <span style={{
+                  background: filtro === f.key ? '#3b82f6' : '#e2e8f0',
+                  color: filtro === f.key ? 'white' : '#64748b',
+                  borderRadius: 10, padding: '2px 8px', fontSize: 11
+                }}>{f.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{
@@ -137,9 +180,11 @@ const VetMisCitas = () => {
                 </tr>
               </thead>
               <tbody>
-                {citas.length === 0 ? (
-                  <tr><td colSpan={9} style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No tienes citas asignadas</td></tr>
-                ) : citas.map(c => {
+                {filteredCitas.length === 0 ? (
+                  <tr><td colSpan={9} style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
+                    {filtro === 'todas' ? 'No tienes citas asignadas' : 'No hay citas con este filtro'}
+                  </td></tr>
+                ) : filteredCitas.map(c => {
                   const e = estadoConfig[c.estado] || estadoConfig.programada;
                   return (
                     <tr key={c.id_cita} style={{ borderBottom: '1px solid #f1f5f9' }}
@@ -171,7 +216,13 @@ const VetMisCitas = () => {
                         <div style={{ display: 'flex', gap: 6 }}>
                           {c.estado === 'programada' && (
                             <>
-                              <button onClick={() => cambiarEstado(c.id_cita, 'realizada')} title="Marcar como realizada" style={{
+                              <button onClick={() => iniciarConsulta(c.id_cita)} title="Iniciar Consulta" style={{
+                                padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                                background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: 'white',
+                                fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
+                                boxShadow: '0 2px 6px rgba(37,99,235,0.3)'
+                              }}><Icon name="activity" size={12} /> Consulta</button>
+                              <button onClick={() => cambiarEstado(c.id_cita, 'realizada')} title="Marcar como atendida" style={{
                                 width: 34, height: 34, borderRadius: 8, border: 'none', cursor: 'pointer',
                                 background: '#d1fae5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center'
                               }}><Icon name="check" size={14} /></button>
@@ -184,6 +235,13 @@ const VetMisCitas = () => {
                                 background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center'
                               }}><Icon name="pencil" size={14} /></button>
                             </>
+                          )}
+                          {c.estado === 'en_proceso' && (
+                            <button onClick={() => navigate(`/veterinario/consulta/${c.id_cita}`)} title="Continuar Consulta" style={{
+                              padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                              background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white',
+                              fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4
+                            }}><Icon name="activity" size={12} /> Continuar</button>
                           )}
                         </div>
                       </td>

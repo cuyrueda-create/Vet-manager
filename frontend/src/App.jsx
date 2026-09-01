@@ -14,24 +14,26 @@ import ListadoVista from './pages/ListadoVista';
 import HistorialCitas from './pages/HistorialCitas';
 import FacturasPage from './pages/FacturasPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminCitas from './pages/admin/AdminCitas';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminEquipo from './pages/admin/AdminEquipo';
+import AdminBloc from './pages/admin/AdminBloc';
+import AdminInventario from './pages/admin/AdminInventario';
 import UsuarioMisCitas from './pages/usuario/UsuarioMisCitas';
 import UsuarioNuevaCita from './pages/usuario/UsuarioNuevaCita';
 import UsuarioMisMascotas from './pages/usuario/UsuarioMisMascotas';
 import UsuarioMisFacturas from './pages/usuario/UsuarioMisFacturas';
 import VetDashboard from './pages/veterinario/VetDashboard';
 import VetMisCitas from './pages/veterinario/VetMisCitas';
+import VetConsulta from './pages/veterinario/VetConsulta';
 import VetHistorial from './pages/veterinario/VetHistorial';
 import VetMedicamentos from './pages/veterinario/VetMedicamentos';
-import RecepcionLanding from './pages/recepcionista/RecepcionLanding';
 import RecepcionDashboard from './pages/recepcionista/RecepcionDashboard';
 import RecepcionNuevaCita from './pages/recepcionista/RecepcionNuevaCita';
 import RecepcionClientes from './pages/recepcionista/RecepcionClientes';
 import RecepcionMascotas from './pages/recepcionista/RecepcionMascotas';
 import RecepcionFacturas from './pages/recepcionista/RecepcionFacturas';
 import RecepcionCitas from './pages/recepcionista/RecepcionCitas';
+import RecepcionPerfilCliente from './pages/recepcionista/RecepcionPerfilCliente';
 
 // Landing pública: si ya hay sesión, redirige al panel según el rol
 const HomeLanding = () => {
@@ -78,21 +80,6 @@ const AdminLandingRoute = () => {
   return <AdminLanding />;
 };
 
-// Landing recepcionista
-const RecepcionLandingRoute = () => {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Cargando...</p>
-      </div>
-    );
-  }
-  if (user) return <Navigate to={homePath(user)} replace />;
-  return <RecepcionLanding />;
-};
-
 function AppRoutes() {
   return (
     <Routes>
@@ -113,9 +100,10 @@ function AppRoutes() {
       {/* Panel ADMIN */}
       <Route path="/admin" element={<AdminLandingRoute />} />
       <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-      <Route path="/admin/citas" element={<AdminRoute><AdminCitas /></AdminRoute>} />
       <Route path="/admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
-      <Route path="/admin/equipo" element={<AdminRoute><AdminEquipo /></AdminRoute>} />
+      <Route path="/admin/personal" element={<AdminRoute><AdminEquipo /></AdminRoute>} />
+      <Route path="/admin/bloc" element={<AdminRoute><AdminBloc /></AdminRoute>} />
+      <Route path="/admin/inventario" element={<AdminRoute><AdminInventario /></AdminRoute>} />
 
       {/* Panel USUARIO */}
       <Route path="/usuario" element={<Navigate to="/usuario/dashboard" replace />} />
@@ -129,15 +117,16 @@ function AppRoutes() {
       <Route path="/veterinario" element={<Navigate to="/veterinario/dashboard" replace />} />
       <Route path="/veterinario/dashboard" element={<VeterinarioRoute><VetDashboard /></VeterinarioRoute>} />
       <Route path="/veterinario/mis-citas" element={<VeterinarioRoute><VetMisCitas /></VeterinarioRoute>} />
+      <Route path="/veterinario/consulta/:id_cita" element={<VeterinarioRoute><VetConsulta /></VeterinarioRoute>} />
       <Route path="/veterinario/historial" element={<VeterinarioRoute><VetHistorial /></VeterinarioRoute>} />
       <Route path="/veterinario/medicamentos" element={<VeterinarioRoute><VetMedicamentos /></VeterinarioRoute>} />
 
       {/* Panel RECEPCIONISTA */}
-      <Route path="/recepcion" element={<RecepcionLandingRoute />} />
       <Route path="/recepcion/dashboard" element={<RecepcionRoute><RecepcionDashboard /></RecepcionRoute>} />
       <Route path="/recepcion/nueva-cita" element={<RecepcionRoute><RecepcionNuevaCita /></RecepcionRoute>} />
       <Route path="/recepcion/citas" element={<RecepcionRoute><RecepcionCitas /></RecepcionRoute>} />
       <Route path="/recepcion/clientes" element={<RecepcionRoute><RecepcionClientes /></RecepcionRoute>} />
+      <Route path="/recepcion/cliente/:id" element={<RecepcionRoute><RecepcionPerfilCliente /></RecepcionRoute>} />
       <Route path="/recepcion/mascotas" element={<RecepcionRoute><RecepcionMascotas /></RecepcionRoute>} />
       <Route path="/recepcion/facturas" element={<RecepcionRoute><RecepcionFacturas /></RecepcionRoute>} />
 
@@ -154,11 +143,33 @@ function AppRoutes() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null, info: null }; }
+  componentDidCatch(error, info) { this.setState({ error, info }); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: 'monospace', background: '#fee2e2', minHeight: '100vh' }}>
+          <h1 style={{ color: '#dc2626' }}>Error de React</h1>
+          <pre style={{ whiteSpace: 'pre-wrap', background: 'white', padding: 16, borderRadius: 8, border: '1px solid #fca5a5', overflow: 'auto' }}>
+            {this.state.error.message}
+            {'\n\n'}
+            {this.state.info?.componentStack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

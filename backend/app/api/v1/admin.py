@@ -110,16 +110,14 @@ async def get_usuarios(current_user: dict = Depends(require_admin)):
         raise HTTPException(status_code=500, detail="Error de conexión a BD")
     cursor = connection.cursor(dictionary=True)
     try:
-        # Usuarios registrados por el administrador, su propia cuenta,
-        # y las solicitudes de administrador pendientes de aprobación
         cursor.execute("""
             SELECT id_usuario, nombre, apellido, email, telefono, direccion,
                    rol, tipo_documento, numero_documento, is_active,
                    nombre_negocio, direccion_negocio, especialidad, anos_experiencia, created_at
             FROM usuarios
-            WHERE created_by = %s OR id_usuario = %s OR (rol = 'administrador' AND is_active = 0)
-            ORDER BY (rol = 'administrador' AND is_active = 0) DESC, nombre, apellido
-        """, (current_user["id_usuario"], current_user["id_usuario"]))
+            WHERE rol = 'usuario'
+            ORDER BY nombre, apellido
+        """)
         rows = cursor.fetchall()
         for row in rows:
             if row.get("created_at"):
@@ -153,6 +151,38 @@ async def get_usuario(usuario_id: int, current_user: dict = Depends(require_admi
         return user
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@router.get("/bloc")
+async def get_bloc(current_user: dict = Depends(require_admin)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a BD")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email, contrasea, rol, is_active,
+                   telefono, tipo_documento, numero_documento, created_at
+            FROM usuarios
+            ORDER BY
+                CASE rol
+                    WHEN 'administrador' THEN 1
+                    WHEN 'veterinario' THEN 2
+                    WHEN 'recepcionista' THEN 3
+                    WHEN 'usuario' THEN 4
+                    ELSE 5
+                END, nombre, apellido
+        """)
+        rows = cursor.fetchall()
+        for row in rows:
+            if row.get("created_at"):
+                row["created_at"] = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+            row["contraseña_texto"] = "Cuy123**"
+        return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     finally:
@@ -232,6 +262,101 @@ async def delete_usuario(usuario_id: int, current_user: dict = Depends(require_a
         raise
     except Exception as e:
         connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@router.get("/informes")
+async def get_informes(current_user: dict = Depends(require_admin)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a BD")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        result = {}
+
+        cursor.execute("SELECT COUNT(*) as total FROM usuarios")
+        result["total_usuarios"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE is_active = 1")
+        result["usuarios_activos"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE is_active = 0")
+        result["usuarios_inactivos"] = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as total FROM clientes")
+        result["total_clientes"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM mascotas")
+        result["total_mascotas"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM citas")
+        result["total_citas"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM citas WHERE estado = 'pendiente' OR estado = 'programada'")
+        result["citas_pendientes"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM citas WHERE estado = 'completada' OR estado = 'realizada'")
+        result["citas_completadas"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM citas WHERE estado = 'cancelada'")
+        result["citas_canceladas"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM facturas")
+        result["total_facturas"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM facturas WHERE estado = 'pagada'")
+        result["ingresos_totales"] = float(cursor.fetchone()["total"])
+        cursor.execute("SELECT COUNT(*) as total FROM servicios")
+        result["total_servicios"] = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as total FROM medicamentos")
+        result["total_medicamentos"] = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT rol, COUNT(*) as total FROM usuarios GROUP BY rol")
+        result["usuarios_por_rol"] = {row["rol"]: row["total"] for row in cursor.fetchall()}
+
+        cursor.execute("""
+            SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, COUNT(*) as total
+            FROM citas
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            GROUP BY mes ORDER BY mes
+        """)
+        result["citas_por_mes"] = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT especie, COUNT(*) as total FROM mascotas
+            GROUP BY especie ORDER BY total DESC
+        """)
+        result["mascotas_por_especie"] = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT CONCAT(u.nombre, ' ', u.apellido) as veterinario, COUNT(ct.id_cita) as total_citas
+            FROM usuarios u
+            INNER JOIN citas ct ON u.id_usuario = ct.id_usuario_vet
+            WHERE u.rol = 'veterinario'
+            GROUP BY u.id_usuario, u.nombre, u.apellido
+            ORDER BY total_citas DESC LIMIT 5
+        """)
+        result["top_veterinarios"] = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT CONCAT(c.nombre, ' ', c.apellido) as cliente, COUNT(m.id_mascota) as total_mascotas
+            FROM clientes c
+            INNER JOIN mascotas m ON c.id_cliente = m.id_cliente
+            GROUP BY c.id_cliente, c.nombre, c.apellido
+            ORDER BY total_mascotas DESC LIMIT 5
+        """)
+        result["top_clientes"] = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT ct.fecha, ct.notas as motivo, ct.estado,
+                   m.nombre as mascota,
+                   CONCAT(v.nombre, ' ', v.apellido) as veterinario
+            FROM citas ct
+            LEFT JOIN mascotas m ON ct.id_mascota = m.id_mascota
+            LEFT JOIN usuarios v ON ct.id_usuario_vet = v.id_usuario
+            ORDER BY ct.fecha DESC LIMIT 10
+        """)
+        result["actividad_reciente"] = cursor.fetchall()
+        for row in result["actividad_reciente"]:
+            if row.get("fecha"):
+                row["fecha"] = row["fecha"].strftime("%Y-%m-%d %H:%M")
+
+        return result
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     finally:
         cursor.close()

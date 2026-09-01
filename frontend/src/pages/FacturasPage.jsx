@@ -29,7 +29,7 @@ const getEstado = (f) => {
 
 const FacturasPage = () => {
   const { user } = useAuth();
-  const esPersonal = user && user.rol !== 'usuario';
+  const esPersonal = user && user.rol === 'recepcionista';
   const [facturas, setFacturas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -63,7 +63,7 @@ const FacturasPage = () => {
       api.get('/api/v1/clientes/'),
       api.get('/api/citas'),
       api.get('/api/servicios'),
-      api.get('/mascotas')
+      api.get('/api/mascotas')
     ]).then(([c, ct, s, m]) => {
       setClientes((c.data || []).filter(x => Number(x.num_mascotas) > 0));
       setCitas((ct.data || []).filter(x => x.estado === 'programada'));

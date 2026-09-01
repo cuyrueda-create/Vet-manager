@@ -22,6 +22,9 @@ const UsuarioMisMascotas = () => {
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [historial, setHistorial] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [mascotaHistorial, setMascotaHistorial] = useState(null);
   const [form, setForm] = useState({
     nombre: '', especie: 'Perro', raza: '',
     sexo: 'Desconocido', edad: '', peso: '', observaciones: ''
@@ -47,6 +50,20 @@ const UsuarioMisMascotas = () => {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  const verHistorial = async (m) => {
+    setMascotaHistorial(m);
+    setLoadingHistorial(true);
+    try {
+      const res = await api.get('/api/usuario/historial');
+      const historialMascota = (res.data || []).filter(h => h.id_mascota === m.id_mascota);
+      setHistorial(historialMascota);
+    } catch {
+      setError('Error al cargar el historial clínico');
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -272,6 +289,14 @@ const UsuarioMisMascotas = () => {
                     }}>
                       <Icon name="calendar" size={14} /> Cita
                     </Link>
+                    <button onClick={() => verHistorial(m)} style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0',
+                      background: 'white', color: '#8b5cf6', fontWeight: 500, fontSize: 12,
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}>
+                      <Icon name="book" size={14} /> Historial
+                    </button>
                     <button
                       onClick={() => eliminarMascota(m)}
                       style={{
@@ -427,6 +452,100 @@ const UsuarioMisMascotas = () => {
               </button>
             </div>
           </form>
+        </Modal>
+
+        {/* Modal Historial Clinico */}
+        <Modal isOpen={mascotaHistorial !== null} onClose={() => { setMascotaHistorial(null); setHistorial([]); }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, background: '#ede9fe',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Icon name="book" size={22} style={{ color: '#8b5cf6' }} />
+              </div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
+                  Historial Clínico
+                </h2>
+                <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                  {mascotaHistorial?.nombre} — {mascotaHistorial?.especie}
+                </p>
+              </div>
+            </div>
+
+            {loadingHistorial ? (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <div style={{ width: 32, height: 32, border: '3px solid #e2e8f0', borderTopColor: '#8b5cf6', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+                <p style={{ color: '#64748b', fontSize: 13 }}>Cargando historial...</p>
+              </div>
+            ) : historial.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', background: '#f8fafc', borderRadius: 12 }}>
+                <Icon name="info" size={32} style={{ color: '#94a3b8' }} />
+                <p style={{ color: '#64748b', fontSize: 14, marginTop: 12 }}>No hay registros clínicos para esta mascota</p>
+              </div>
+            ) : (
+              <div style={{ maxHeight: 400, overflow: 'auto' }}>
+                {historial.map(h => (
+                  <div key={h.id_historial} style={{
+                    background: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 12,
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                        {new Date(h.fecha).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>
+                        Dr. {h.vet_nombre} {h.vet_apellido}
+                      </span>
+                    </div>
+                    {h.servicio_nombre && (
+                      <div style={{ fontSize: 12, color: '#8b5cf6', fontWeight: 500, marginBottom: 8 }}>
+                        Servicio: {h.servicio_nombre}
+                      </div>
+                    )}
+                    {h.signos_vitales && (
+                      <div style={{ fontSize: 13, color: '#475569', marginBottom: 8, background: 'white', padding: 10, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                        <strong style={{ color: '#334155' }}>Signos Vitales:</strong><br />
+                        <span style={{ whiteSpace: 'pre-line' }}>{h.signos_vitales}</span>
+                      </div>
+                    )}
+                    {h.peso_anterior && (
+                      <div style={{ fontSize: 13, color: '#475569', marginBottom: 8 }}>
+                        <strong>Peso:</strong> {h.peso_anterior} kg
+                      </div>
+                    )}
+                    <div style={{ fontSize: 13, color: '#334155', marginBottom: 6 }}>
+                      <strong>Diagnóstico:</strong> {h.diagnostico}
+                    </div>
+                    {h.tratamiento && (
+                      <div style={{ fontSize: 13, color: '#334155', marginBottom: 6 }}>
+                        <strong>Tratamiento:</strong> {h.tratamiento}
+                      </div>
+                    )}
+                    {h.observaciones && (
+                      <div style={{ fontSize: 13, color: '#475569', fontStyle: 'italic', marginBottom: 6 }}>
+                        {h.observaciones}
+                      </div>
+                    )}
+                    {h.medicamentos && h.medicamentos.length > 0 && (
+                      <div style={{ marginTop: 10, padding: 10, background: 'white', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                        <strong style={{ color: '#15803d', fontSize: 12 }}>Medicamentos prescritos:</strong>
+                        {h.medicamentos.map((med, i) => (
+                          <div key={i} style={{ fontSize: 12, color: '#475569', marginTop: 4, paddingLeft: 8, borderLeft: '2px solid #10b981' }}>
+                            <strong>{med.medicamento_nombre}</strong> — {med.dosis}
+                            {med.frecuencia && <> | {med.frecuencia}</>}
+                            {med.duracion && <> | {med.duracion}</>}
+                            {med.instrucciones && <div style={{ fontStyle: 'italic', color: '#64748b' }}>{med.instrucciones}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </Modal>
       </div>
     </div>

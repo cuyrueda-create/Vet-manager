@@ -3,14 +3,27 @@ import Modal from '../components/Modal';
 import LoginModal from '../components/LoginModal';
 import RegisterAdminModal from '../components/RegisterAdminModal';
 import RecuperarPasswordModal from '../components/RecuperarPasswordModal';
+import Icon from '../components/Icon';
 import CONTACTO from '../config/contacto';
 
 const AdminLanding = () => {
   const [modal, setModal] = useState(null);
+  const [rolSeleccionado, setRolSeleccionado] = useState(null);
 
   const openLogin = () => setModal('login');
   const openAdminRegister = () => setModal('admin');
-  const closeModal = () => setModal(null);
+  const closeModal = () => { setModal(null); setRolSeleccionado(null); };
+
+  const roles = [
+    { key: 'administrador', label: 'Administrador', icon: 'user', color: '#b45309', bg: '#fef3c7', border: '#fcd34d', desc: 'Panel principal de gestion y configuracion del sistema.' },
+    { key: 'veterinario', label: 'Veterinario', icon: 'paw', color: '#047857', bg: '#d1fae5', border: '#6ee7b7', desc: 'Consulta de pacientes, historial clinico y medicamentos.' },
+    { key: 'recepcionista', label: 'Recepcion', icon: 'users', color: '#6d28d9', bg: '#ede9fe', border: '#c4b5fd', desc: 'Agenda de citas, clientes, mascotas y facturacion.' },
+  ];
+
+  const seleccionarRol = (rol) => {
+    setRolSeleccionado(rol);
+    setModal('login');
+  };
 
   return (
     <div className="landing-page landing-admin">
@@ -44,6 +57,37 @@ const AdminLanding = () => {
               />
               <span className="hero-fallback-emojis">🐶</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Seleccion de rol */}
+      <section className="landing-roles" style={{
+        padding: '60px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0'
+      }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1e293b', margin: '0 0 8px' }}>Selecciona tu perfil</h2>
+          <p style={{ color: '#64748b', fontSize: 15, margin: '0 0 32px' }}>Elige tu rol para iniciar sesion o registrarte</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            {roles.map((r) => (
+              <button key={r.key} onClick={() => seleccionarRol(r.key)} style={{
+                background: 'white', borderRadius: 16, border: `2px solid ${r.border}`,
+                padding: '28px 20px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'center'
+              }}
+                onMouseEnter={ev => { ev.currentTarget.style.transform = 'translateY(-4px)'; ev.currentTarget.style.boxShadow = `0 8px 24px ${r.color}22`; }}
+                onMouseLeave={ev => { ev.currentTarget.style.transform = 'translateY(0)'; ev.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14, background: r.bg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}>
+                  <Icon name={r.icon} size={28} style={{ color: r.color }} />
+                </div>
+                <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{r.label}</h3>
+                <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{r.desc}</p>
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -114,7 +158,7 @@ const AdminLanding = () => {
 
       {/* Modals */}
       <Modal isOpen={modal === 'login'} onClose={closeModal}>
-        <LoginModal allowedRoles={['administrador', 'veterinario']} onClose={closeModal} onOpenRegister={() => setModal('admin')} onOpenRecuperar={() => setModal('recuperar')} />
+        <LoginModal allowedRoles={rolSeleccionado ? [rolSeleccionado] : ['administrador', 'veterinario', 'recepcionista']} onClose={closeModal} onOpenRegister={() => setModal('admin')} onOpenRecuperar={() => setModal('recuperar')} />
       </Modal>
       <Modal isOpen={modal === 'admin'} onClose={closeModal}>
         <RegisterAdminModal onClose={closeModal} onOpenLogin={() => setModal('login')} />
