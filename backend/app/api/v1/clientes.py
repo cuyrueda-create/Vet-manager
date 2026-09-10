@@ -1,6 +1,6 @@
 # backend/app/api/v1/clientes.py
 from fastapi import APIRouter, HTTPException, status, Depends
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from app.core.database import get_db_connection
 from app.core.auth import get_current_user
@@ -10,22 +10,22 @@ router = APIRouter()
 # ==================== MODELOS ====================
 
 class ClienteCreate(BaseModel):
-    nombre: str
-    apellido: str
-    email: Optional[EmailStr] = None
-    telefono: Optional[str] = None
-    direccion: Optional[str] = None
-    tipo_documento: Optional[str] = None
-    numero_documento: Optional[str] = None
+    nombre: str = Field(max_length=60)
+    apellido: str = Field(max_length=60)
+    email: Optional[EmailStr] = Field(default=None, max_length=100)
+    telefono: Optional[str] = Field(default=None, max_length=20)
+    direccion: Optional[str] = Field(default=None, max_length=150)
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
 
 class ClienteUpdate(BaseModel):
-    nombre: Optional[str] = None
-    apellido: Optional[str] = None
-    email: Optional[EmailStr] = None
-    telefono: Optional[str] = None
-    direccion: Optional[str] = None
-    tipo_documento: Optional[str] = None
-    numero_documento: Optional[str] = None
+    nombre: Optional[str] = Field(default=None, max_length=60)
+    apellido: Optional[str] = Field(default=None, max_length=60)
+    email: Optional[EmailStr] = Field(default=None, max_length=100)
+    telefono: Optional[str] = Field(default=None, max_length=20)
+    direccion: Optional[str] = Field(default=None, max_length=150)
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
 
 class ClienteResponse(BaseModel):
     id_cliente: int

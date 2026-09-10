@@ -12,9 +12,12 @@ const RecepcionFacturas = () => {
   const [mascotas, setMascotas] = useState([]);
   const [citas, setCitas] = useState([]);
   const [medicamentosMascota, setMedicamentosMascota] = useState([]);
+  const [medicamentosCatalogo, setMedicamentosCatalogo] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedFactura, setSelectedFactura] = useState(null);
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [procesandoPago, setProcesandoPago] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,16 +39,18 @@ const RecepcionFacturas = () => {
   useEffect(() => {
     Promise.all([
       api.get('/api/facturas'),
-      api.get('/clientes'),
+      api.get('/clientes/'),
       api.get('/api/servicios'),
       api.get('/api/mascotas'),
-      api.get('/api/citas')
-    ]).then(([fRes, cRes, sRes, mRes, ctRes]) => {
+      api.get('/api/citas'),
+      api.get('/api/medicamentos')
+    ]).then(([fRes, cRes, sRes, mRes, ctRes, medRes]) => {
       setFacturas(fRes.data?.data || []);
       setClientes(cRes.data || []);
       setServicios(sRes.data || []);
       setMascotas(mRes.data || []);
-      setCitas((ctRes.data || []).filter(c => c.estado === 'programada'));
+      setCitas((ctRes.data || []).filter(c => c.estado === 'programada' || c.estado === 'realizada'));
+      setMedicamentosCatalogo(medRes.data || []);
     }).catch(() => setError('Error al cargar datos')).finally(() => setLoading(false));
   }, []);
 
@@ -62,6 +67,28 @@ const RecepcionFacturas = () => {
       setVeterinarioMascota(null);
     }
   }, [form.id_mascota]);
+
+  const handleSimularPago = async (exito) => {
+    if (!selectedFactura) return;
+    setProcesandoPago(true);
+    try {
+      if (exito) {
+        await api.put(`/api/facturas/${selectedFactura.id_factura}/pagar`);
+        const res = await api.get('/api/facturas');
+        setFacturas(res.data?.data || []);
+        setSelectedFactura(null);
+        setShowPagoModal(false);
+      } else {
+        await new Promise(r => setTimeout(r, 1500));
+        setError('Pago fallido: La transaccion fue rechazada por el proveedor de pagos.');
+        setShowPagoModal(false);
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al procesar el pago');
+    } finally {
+      setProcesandoPago(false);
+    }
+  };
 
   const addDetalle = () => {
     setForm(f => ({ ...f, detalles: [...f.detalles, { descripcion: '', cantidad: 1, precio_unitario: 0 }] }));
@@ -218,11 +245,6 @@ const RecepcionFacturas = () => {
                   <input type="date" value={form.fecha_vencimiento} onChange={e => setForm(f => ({ ...f, fecha_vencimiento: e.target.value }))} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Fecha y hora de emision</label>
-                  <input type="datetime-local" value={form.fecha_emision} onChange={e => setForm(f => ({ ...f, fecha_emision: e.target.value }))} style={inputStyle} />
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>Ajusta la fecha/hora de la factura segun la atencion realizada</p>
-                </div>
-                <div>
                   <label style={labelStyle}>Correo notificacion (opcional)</label>
                   <input type="email" placeholder="correo@ejemplo.com" value={form.correo_notificacion} onChange={e => setForm(f => ({ ...f, correo_notificacion: e.target.value }))} style={inputStyle} />
                 </div>
@@ -260,6 +282,19 @@ const RecepcionFacturas = () => {
                     {medicamentosMascota.map((m, i) => (
                       <button key={i} type="button" onClick={() => addMedicamento(m)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1fae5', background: '#ecfdf5', fontSize: 12, cursor: 'pointer', color: '#065f46' }}>
                         {m.medicamento_nombre} ({m.dosis}) - ${m.precio?.toLocaleString() || 0}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {medicamentosCatalogo.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>Agregar medicamento del catalogo</label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {medicamentosCatalogo.map((m, i) => (
+                      <button key={i} type="button" onClick={() => addMedicamento({ medicamento_nombre: m.nombre, dosis: m.dosis, precio: m.precio })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e0e7ff', background: '#eef2ff', fontSize: 12, cursor: 'pointer', color: '#3730a3' }}>
+                        {m.nombre} - ${m.precio?.toLocaleString() || 0}
                       </button>
                     ))}
                   </div>
@@ -344,25 +379,19 @@ const RecepcionFacturas = () => {
         )}
 
         {selectedFactura && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedFactura(null)}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setSelectedFactura(null); setShowPagoModal(false); }}>
             <div style={{ background: 'white', borderRadius: 20, padding: 32, maxWidth: 500, width: '90%', maxHeight: '80vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: 0 }}>Factura {selectedFactura.numero}</h2>
-                <button onClick={() => setSelectedFactura(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <button onClick={() => { setSelectedFactura(null); setShowPagoModal(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                   <Icon name="x" size={20} />
                 </button>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 13, color: '#64748b' }}>Cliente: <strong style={{ color: '#1e293b' }}>{selectedFactura.cliente_nombre} {selectedFactura.cliente_apellido}</strong></p>
                 <p style={{ fontSize: 13, color: '#64748b' }}>Fecha: <strong style={{ color: '#1e293b' }}>{selectedFactura.fecha}</strong></p>
-                <p style={{ fontSize: 13, color: '#64748b' }}>Estado: <strong style={{ color: selectedFactura.estado === 'emitida' ? '#10b981' : '#ef4444' }}>{selectedFactura.estado}</strong></p>
+                <p style={{ fontSize: 13, color: '#64748b' }}>Estado: <strong style={{ color: selectedFactura.estado === 'pagada' ? '#10b981' : selectedFactura.estado === 'anulada' ? '#ef4444' : '#f59e0b' }}>{selectedFactura.estado}</strong></p>
                 {selectedFactura.mascota_nombre && <p style={{ fontSize: 13, color: '#64748b' }}>Mascota: <strong style={{ color: '#1e293b' }}>{selectedFactura.mascota_nombre}</strong></p>}
-                {selectedFactura.vet_nombre && (
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 12px', marginTop: 8 }}>
-                    <p style={{ fontSize: 12, color: '#166534', margin: 0 }}>Veterinario: <strong>Dr. {selectedFactura.vet_nombre} {selectedFactura.vet_apellido}</strong></p>
-                    {selectedFactura.motivo_cita && <p style={{ fontSize: 11, color: '#6b7280', margin: '2px 0 0' }}>Motivo: {selectedFactura.motivo_cita}</p>}
-                  </div>
-                )}
               </div>
               {selectedFactura.detalles?.length > 0 && (
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
@@ -390,7 +419,90 @@ const RecepcionFacturas = () => {
                 <p style={{ fontSize: 13, color: '#64748b' }}>Subtotal: {formatMoney(selectedFactura.subtotal)}</p>
                 <p style={{ fontSize: 13, color: '#64748b' }}>IVA (19%): {formatMoney(selectedFactura.iva)}</p>
                 <p style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Total: {formatMoney(selectedFactura.total)}</p>
+                <div style={{ marginTop: 16, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button onClick={async () => {
+                    try {
+                      const res = await fetch(`http://localhost:5000/api/facturas/${selectedFactura.id_factura}/pdf`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      if (!res.ok) throw new Error('Error al descargar');
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `factura_${selectedFactura.numero}.pdf`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (e) { alert('Error al descargar PDF'); }
+                  }} style={{
+                    padding: '10px 24px', borderRadius: 10, border: 'none',
+                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    color: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    boxShadow: '0 2px 8px rgba(139,92,246,0.3)'
+                  }}>
+                    <Icon name="document" size={16} /> Descargar PDF
+                  </button>
+                  {selectedFactura.estado !== 'pagada' && selectedFactura.estado !== 'anulada' && (
+                    <button onClick={() => setShowPagoModal(true)} style={{
+                      padding: '10px 24px', borderRadius: 10, border: 'none',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                    }}>
+                      <Icon name="dollar" size={16} /> Simular Pago
+                    </button>
+                  )}
+                </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Simulacion de Pago */}
+        {showPagoModal && selectedFactura && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => { if (!procesandoPago) setShowPagoModal(false); }}>
+            <div style={{ background: 'white', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+              {procesandoPago ? (
+                <>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                    <div className="spinner" style={{ width: 30, height: 30 }}></div>
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: '0 0 8px' }}>Procesando pago...</h3>
+                  <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>Conectando con la pasarela de pagos</p>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                    <Icon name="dollar" size={28} style={{ color: '#10b981' }} />
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: '0 0 8px' }}>Simular Pago</h3>
+                  <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 4px' }}>Factura <strong>#{selectedFactura.numero}</strong></p>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: '#10b981', margin: '0 0 20px' }}>{formatMoney(selectedFactura.total)}</p>
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                    <button onClick={() => handleSimularPago(true)} style={{
+                      padding: '12px 28px', borderRadius: 10, border: 'none',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: 'white', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 8
+                    }}>
+                      <Icon name="check" size={16} /> Pago Exitoso
+                    </button>
+                    <button onClick={() => handleSimularPago(false)} style={{
+                      padding: '12px 28px', borderRadius: 10, border: '1px solid #e2e8f0',
+                      background: 'white', color: '#ef4444', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 8
+                    }}>
+                      <Icon name="x" size={16} /> Pago Fallido
+                    </button>
+                  </div>
+                  <button onClick={() => setShowPagoModal(false)} style={{
+                    marginTop: 16, padding: '8px 20px', borderRadius: 8, border: 'none',
+                    background: '#f1f5f9', color: '#64748b', fontSize: 13, cursor: 'pointer'
+                  }}>Cancelar</button>
+                </>
+              )}
             </div>
           </div>
         )}

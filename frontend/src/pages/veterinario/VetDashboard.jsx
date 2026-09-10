@@ -38,7 +38,8 @@ const VetDashboard = () => {
   const shortcuts = [
     { to: '/veterinario/mis-citas', icon: 'calendar', label: 'Mis Citas', desc: 'Ver y gestionar citas asignadas', color: '#3b82f6', bg: '#eff6ff' },
     { to: '/veterinario/historial', icon: 'paw', label: 'Pacientes', desc: 'Ver mascotas y historial clinico', color: '#10b981', bg: '#d1fae5' },
-    { to: '/veterinario/medicamentos', icon: 'clipboard', label: 'Medicamentos', desc: 'Catalogo de medicamentos', color: '#f59e0b', bg: '#fef3c7' }
+    { to: '/veterinario/medicamentos', icon: 'clipboard', label: 'Medicamentos', desc: 'Catalogo de medicamentos', color: '#f59e0b', bg: '#fef3c7' },
+    { to: '/veterinario/reportes', icon: 'chart', label: 'Mis Reportes', desc: 'Atenciones, diagnosticos y seguimiento', color: '#8b5cf6', bg: '#ede9fe' }
   ];
 
   return (

@@ -26,7 +26,7 @@ const strengthConfig = {
 
 const formatTelefono = (value) => {
   const digits = value.replace(/\D/g, '');
-  if (digits.length > 10) return digits.slice(0, 10);
+  if (digits.length > 20) return digits.slice(0, 20);
   return digits;
 };
 
@@ -63,8 +63,8 @@ export default function RegistroScreen({ navigation }) {
       return;
     }
 
-    if (!/^3\d{9}$/.test(form.telefono)) {
-      setError('El teléfono debe ser un número colombiano válido (10 dígitos, empieza con 3)');
+    if (!form.telefono || form.telefono.length < 7) {
+      setError('El teléfono debe tener al menos 7 dígitos');
       return;
     }
 

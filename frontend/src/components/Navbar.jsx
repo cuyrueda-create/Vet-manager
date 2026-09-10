@@ -98,7 +98,7 @@ const Navbar = () => {
         { to: '/admin/usuarios', label: 'Usuarios', icon: 'user' },
         { to: '/admin/bloc', label: 'Bloc', icon: 'book' },
         { to: '/admin/inventario', label: 'Inventario', icon: 'clipboard' },
-        { to: '/reporte-vista', label: 'Reportes', icon: 'chart' },
+        { to: '/admin/reportes', label: 'Reportes', icon: 'chart' },
         { to: '/perfil', label: 'Mi Perfil', icon: 'settings' },
       ]
     : isVet
@@ -107,6 +107,7 @@ const Navbar = () => {
         { to: '/veterinario/mis-citas', label: 'Mis Citas', icon: 'calendar' },
         { to: '/veterinario/historial', label: 'Pacientes', icon: 'paw' },
         { to: '/veterinario/medicamentos', label: 'Medicamentos', icon: 'clipboard' },
+        { to: '/veterinario/reportes', label: 'Mis Reportes', icon: 'chart' },
         { to: '/clientes', label: 'Clientes', icon: 'users' },
         { to: '/mascotas', label: 'Mascotas', icon: 'paw' },
         { to: '/perfil', label: 'Mi Perfil', icon: 'user' },
@@ -118,6 +119,7 @@ const Navbar = () => {
         { to: '/recepcion/clientes', label: 'Clientes', icon: 'users' },
         { to: '/recepcion/mascotas', label: 'Mascotas', icon: 'paw' },
         { to: '/recepcion/facturas', label: 'Facturas', icon: 'document' },
+        { to: '/recepcion/reportes', label: 'Mis Reportes', icon: 'chart' },
         { to: '/perfil', label: 'Mi Perfil', icon: 'user' },
       ]
     : [
@@ -202,7 +204,7 @@ const Navbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
+                className={`nav-link ${location.pathname === link.to || (link.to !== '/inicio' && link.to !== '/perfil' && location.pathname.startsWith(link.to)) ? 'active' : ''}`}
               >
                 <span className="nav-link-icon"><Icon name={link.icon} size={16} /></span>
                 {link.label}

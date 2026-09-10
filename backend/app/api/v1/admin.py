@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import os
 import re
@@ -31,26 +31,26 @@ def validar_contraseña_fuerte(password: str) -> Optional[str]:
     return None
 
 class UserCreate(BaseModel):
-    nombre: str
-    apellido: str
-    email: EmailStr
+    nombre: str = Field(max_length=60)
+    apellido: str = Field(max_length=60)
+    email: EmailStr = Field(max_length=100)
     contraseña: str
     rol: str = "veterinario"
-    telefono: str
-    direccion: str
-    tipo_documento: str
-    numero_documento: str
+    telefono: str = Field(max_length=20)
+    direccion: str = Field(max_length=150)
+    tipo_documento: str = Field(max_length=20)
+    numero_documento: str = Field(max_length=30)
     clave_admin: Optional[str] = None
 
 class UserUpdate(BaseModel):
-    nombre: Optional[str] = None
-    apellido: Optional[str] = None
-    email: Optional[EmailStr] = None
-    telefono: Optional[str] = None
-    direccion: Optional[str] = None
+    nombre: Optional[str] = Field(default=None, max_length=60)
+    apellido: Optional[str] = Field(default=None, max_length=60)
+    email: Optional[EmailStr] = Field(default=None, max_length=100)
+    telefono: Optional[str] = Field(default=None, max_length=20)
+    direccion: Optional[str] = Field(default=None, max_length=150)
     rol: Optional[str] = None
-    tipo_documento: Optional[str] = None
-    numero_documento: Optional[str] = None
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
     is_active: Optional[bool] = None
 
 @router.post("/usuarios", status_code=status.HTTP_201_CREATED)
@@ -165,7 +165,7 @@ async def get_bloc(current_user: dict = Depends(require_admin)):
     cursor = connection.cursor(dictionary=True)
     try:
         cursor.execute("""
-            SELECT id_usuario, nombre, apellido, email, contrasea, rol, is_active,
+            SELECT id_usuario, nombre, apellido, email, rol, is_active,
                    telefono, tipo_documento, numero_documento, created_at
             FROM usuarios
             ORDER BY
@@ -181,7 +181,6 @@ async def get_bloc(current_user: dict = Depends(require_admin)):
         for row in rows:
             if row.get("created_at"):
                 row["created_at"] = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
-            row["contraseña_texto"] = "Cuy123**"
         return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

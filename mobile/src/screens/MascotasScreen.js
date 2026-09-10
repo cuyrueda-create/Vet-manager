@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import api from '../api/axiosConfig';
 
-const especieIcon = { Perro: '🐶', Gato: '🐱', Ave: '🐦', Conejo: '🐰' };
+const especieIcon = { Canino: '🐶', Felino: '🐱', Ave: '🐦', Roedor: '🐹', Reptil: '🦎', Otro: '🐾' };
 
 export default function MascotasScreen() {
   const [mascotas, setMascotas] = useState([]);

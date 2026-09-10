@@ -18,7 +18,7 @@ const RecepcionClientes = () => {
   const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
-    api.get('/clientes').then(r => setClientes(r.data || [])).catch(() => setError('Error al cargar clientes')).finally(() => setLoading(false));
+    api.get('/clientes/').then(r => setClientes(r.data || [])).catch(() => setError('Error al cargar clientes')).finally(() => setLoading(false));
   }, []);
 
   const filtered = clientes.filter(c =>
@@ -31,12 +31,7 @@ const RecepcionClientes = () => {
     else if (form.nombre.length > 60) errs.nombre = 'Max 60';
     if (!form.apellido.trim()) errs.apellido = 'Requerido';
     else if (form.apellido.length > 60) errs.apellido = 'Max 60';
-    if (form.telefono) {
-      const tel = form.telefono.replace(/[\s\-\(\)\+]/g, '');
-      if (!/^[0-9]+$/.test(tel)) errs.telefono = 'Solo numeros';
-      else if (!(tel.length === 10 && tel.startsWith('3')) && tel.length !== 7 && !(tel.length === 12 && tel.startsWith('57')))
-        errs.telefono = 'Cel: 10 digitos (3XX). Fijo: 7 digitos';
-    }
+    if (form.telefono && form.telefono.length > 20) errs.telefono = 'Max 20 caracteres';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Email invalido';
     if (form.numero_documento && form.numero_documento.length > docLimits[form.tipo_documento]) errs.numero_documento = `Max ${docLimits[form.tipo_documento]}`;
     setFieldErrors(errs);
@@ -49,7 +44,7 @@ const RecepcionClientes = () => {
     if (!validateForm()) return;
     setSubmitting(true);
     try {
-      const res = await api.post('/clientes', form);
+      const res = await api.post('/clientes/', form);
       const nuevoId = res.data.id_cliente;
       navigate(`/recepcion/cliente/${nuevoId}`);
     } catch (e) {
@@ -96,7 +91,7 @@ const RecepcionClientes = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div><label style={labelStyle}>Nombre *</label><input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.nombre ? '#ef4444' : undefined }} required />{fieldErrors.nombre && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.nombre}</span>}</div>
                 <div><label style={labelStyle}>Apellido *</label><input value={form.apellido} onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.apellido ? '#ef4444' : undefined }} required />{fieldErrors.apellido && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.apellido}</span>}</div>
-                <div><label style={labelStyle}>Celular / Telefono</label><input placeholder="3101234567" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} maxLength={12} style={{ ...inputStyle, borderColor: fieldErrors.telefono ? '#ef4444' : undefined }} />{fieldErrors.telefono && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.telefono}</span>}</div>
+                <div><label style={labelStyle}>Celular / Telefono</label><input placeholder="3101234567" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} maxLength={20} style={{ ...inputStyle, borderColor: fieldErrors.telefono ? '#ef4444' : undefined }} />{fieldErrors.telefono && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.telefono}</span>}</div>
                 <div><label style={labelStyle}>Email</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} maxLength={100} style={{ ...inputStyle, borderColor: fieldErrors.email ? '#ef4444' : undefined }} />{fieldErrors.email && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.email}</span>}</div>
                 <div><label style={labelStyle}>Tipo Doc</label>
                   <select value={form.tipo_documento} onChange={e => setForm(p => ({ ...p, tipo_documento: e.target.value, numero_documento: '' }))} style={inputStyle}>

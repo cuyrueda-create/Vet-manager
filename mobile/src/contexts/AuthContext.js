@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const res = await api.post('/auth/login', { email, contraseña: password });
+      const res = await api.post('/auth/login', { email, password });
       const data = res.data;
       const userData = { token: data.access_token, ...data.user };
       await AsyncStorage.setItem('token', data.access_token);
@@ -56,8 +56,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = async (updates) => {
+    const updated = { ...user, ...updates };
+    await AsyncStorage.setItem('user', JSON.stringify(updated));
+    setUser(updated);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

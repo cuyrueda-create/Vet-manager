@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const formatTelefono = (value) => {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length > 10) return digits.slice(0, 10);
-  return digits;
+  return value.replace(/\D/g, '').slice(0, 20);
 };
 
 const passwordChecks = (pwd) => ({
@@ -73,8 +71,8 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
       return;
     }
 
-    if (!/^3\d{9}$/.test(formData.telefono)) {
-      setError('El teléfono debe ser un número colombiano válido (10 dígitos, empieza con 3)');
+    if (!formData.telefono.trim()) {
+      setError('El teléfono es requerido');
       return;
     }
 
@@ -92,7 +90,7 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
     const result = await registerAdmin({
       nombre: formData.nombre,
       email: formData.email,
-      telefono: `+57${formData.telefono}`,
+      telefono: formData.telefono.startsWith('+57') ? formData.telefono : `+57${formData.telefono}`,
       contraseña: formData.contraseña,
       numero_documento: formData.numeroDocumento,
       nombre_negocio: formData.nombreNegocio,
@@ -184,14 +182,14 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
 
         <div className="form-group">
           <label>Email corporativo</label>
-          <input type="email" name="email" placeholder="nombre@tuclinica.com" value={formData.email} onChange={handleChange} required />
+          <input type="email" name="email" placeholder="nombre@tuclinica.com" value={formData.email} onChange={handleChange} maxLength={100} required />
         </div>
 
         <div className="form-group">
           <label>Teléfono de contacto</label>
           <div className="phone-input">
             <span className="phone-prefix">+57</span>
-            <input type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} required />
+            <input type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} maxLength={20} required />
           </div>
         </div>
 
@@ -235,7 +233,7 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
 
         <div className="form-group">
           <label>Dirección de la clínica</label>
-          <input type="text" name="direccionNegocio" placeholder="Calle, número, ciudad" value={formData.direccionNegocio} onChange={handleChange} required />
+          <input type="text" name="direccionNegocio" placeholder="Calle, número, ciudad" value={formData.direccionNegocio} onChange={handleChange} maxLength={150} required />
         </div>
 
         <div className="form-row">
@@ -243,9 +241,7 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
             <label>Especialidad</label>
             <select name="especialidad" value={formData.especialidad} onChange={handleChange} required>
               <option value="Veterinaria">Veterinaria</option>
-              <option value="Estética">Estética</option>
-              <option value="Tienda">Tienda</option>
-              <option value="Mixto">Mixto</option>
+              <option value="Recepción">Recepción</option>
             </select>
           </div>
           <div className="form-group">

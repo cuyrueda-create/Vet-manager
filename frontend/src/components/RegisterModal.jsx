@@ -22,9 +22,7 @@ const strengthConfig = {
 };
 
 const formatTelefono = (value) => {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length > 10) return digits.slice(0, 10);
-  return digits;
+  return value.replace(/\D/g, '').slice(0, 20);
 };
 
 const RegisterModal = ({ onClose, onOpenLogin }) => {
@@ -68,8 +66,8 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       return;
     }
 
-    if (!/^3\d{9}$/.test(formData.telefono)) {
-      setError('El teléfono debe ser un número colombiano válido (10 dígitos, empieza con 3)');
+    if (!formData.telefono.trim()) {
+      setError('El teléfono es requerido');
       return;
     }
 
@@ -83,7 +81,7 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
-      telefono: `+57${formData.telefono}`,
+      telefono: formData.telefono.startsWith('+57') ? formData.telefono : `+57${formData.telefono}`,
       direccion: formData.direccion,
       contraseña: formData.contraseña,
     });
@@ -141,20 +139,20 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
 
         <div className="form-group">
           <label>Correo electrónico</label>
-          <input type="email" name="email" placeholder="correo@ejemplo.com" value={formData.email} onChange={handleChange} required />
+          <input type="email" name="email" placeholder="correo@ejemplo.com" value={formData.email} onChange={handleChange} maxLength={100} required />
         </div>
 
         <div className="form-group">
           <label>Teléfono</label>
           <div className="phone-input">
             <span className="phone-prefix">+57</span>
-            <input type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} required />
+            <input type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} maxLength={20} required />
           </div>
         </div>
 
         <div className="form-group">
           <label>Dirección</label>
-          <input type="text" name="direccion" placeholder="Calle, número, ciudad" value={formData.direccion} onChange={handleChange} required />
+          <input type="text" name="direccion" placeholder="Calle, número, ciudad" value={formData.direccion} onChange={handleChange} maxLength={150} required />
         </div>
 
         <div className="form-group">

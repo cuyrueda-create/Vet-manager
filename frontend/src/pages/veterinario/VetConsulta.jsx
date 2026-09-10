@@ -18,16 +18,36 @@ const VetConsulta = () => {
   const [success, setSuccess] = useState('');
 
   const [form, setForm] = useState({
-    signos_vitales: '',
-    peso: '',
+    motivo_consulta: '',
+    anamnesis: '',
+    examen_fisico: '',
     diagnostico: '',
     tratamiento: '',
+    recomendaciones: '',
     observaciones: '',
   });
-  const [medsSeleccionados, setMedsSeleccionados] = useState([]);
+
+  const [signosVitales, setSignosVitales] = useState({
+    temperatura: '',
+    peso: '',
+    frecuencia_cardiaca: '',
+    frecuencia_respiratoria: '',
+    hidratacion: '',
+    mucosas: '',
+    condicion_corporal: '',
+    estado_general: '',
+    piel_pelaje: '',
+    otros_hallazgos: '',
+  });
+
+  const [medsCatalogo, setMedsCatalogo] = useState([]);
+  const [medsPersonalizados, setMedsPersonalizados] = useState([]);
+  const [showCustomMedForm, setShowCustomMedForm] = useState(false);
+  const [customMed, setCustomMed] = useState({
+    nombre: '', dosis: '', frecuencia: '', duracion: '', instrucciones: ''
+  });
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([
       api.get('/api/citas'),
       api.get('/api/medicamentos')
@@ -42,7 +62,7 @@ const VetConsulta = () => {
         setMedicamentos(medsRes.data || []);
         if (citaEncontrada.id_mascota) {
           api.get(`/api/vet/historial/${citaEncontrada.id_mascota}`)
-            .then(r => setHistorial(r.data || []))
+            .then(r => setHistorial(r.data?.historial || r.data || []))
             .catch(() => {});
         }
       }
@@ -51,25 +71,51 @@ const VetConsulta = () => {
   }, [id_cita]);
 
   const updateField = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const updateSigno = (field, value) => setSignosVitales(prev => ({ ...prev, [field]: value }));
 
-  const addMedicamento = (med) => {
-    if (medsSeleccionados.find(m => m.id_medicamento === med.id_medicamento)) return;
-    setMedsSeleccionados(prev => [...prev, {
+  const addMedCatalogo = (med) => {
+    if (medsCatalogo.find(m => m.id_medicamento === med.id_medicamento)) return;
+    setMedsCatalogo(prev => [...prev, {
       id_medicamento: med.id_medicamento,
       nombre: med.nombre,
-      dosis: '',
-      frecuencia: '',
-      duracion: '',
-      instrucciones: ''
+      dosis: '', frecuencia: '', duracion: '', instrucciones: ''
     }]);
   };
 
-  const updateMed = (index, field, value) => {
-    setMedsSeleccionados(prev => prev.map((m, i) => i === index ? { ...m, [field]: value } : m));
+  const updateMedCatalogo = (index, field, value) => {
+    setMedsCatalogo(prev => prev.map((m, i) => i === index ? { ...m, [field]: value } : m));
   };
 
-  const removeMed = (index) => {
-    setMedsSeleccionados(prev => prev.filter((_, i) => i !== index));
+  const removeMedCatalogo = (index) => {
+    setMedsCatalogo(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addCustomMed = () => {
+    if (!customMed.nombre.trim() || !customMed.dosis.trim()) {
+      setError('Nombre y dosis son requeridos para el tratamiento personalizado');
+      return;
+    }
+    setMedsPersonalizados(prev => [...prev, { ...customMed }]);
+    setCustomMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' });
+    setShowCustomMedForm(false);
+  };
+
+  const removeCustomMed = (index) => {
+    setMedsPersonalizados(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const buildSignosVitalesText = () => {
+    const parts = [];
+    if (signosVitales.temperatura) parts.push(`Temperatura: ${signosVitales.temperatura}°C`);
+    if (signosVitales.frecuencia_cardiaca) parts.push(`FC: ${signosVitales.frecuencia_cardiaca} lpm`);
+    if (signosVitales.frecuencia_respiratoria) parts.push(`FR: ${signosVitales.frecuencia_respiratoria} rpm`);
+    if (signosVitales.hidratacion) parts.push(`Hidratación: ${signosVitales.hidratacion}`);
+    if (signosVitales.mucosas) parts.push(`Mucosas: ${signosVitales.mucosas}`);
+    if (signosVitales.condicion_corporal) parts.push(`Condición corporal: ${signosVitales.condicion_corporal}`);
+    if (signosVitales.estado_general) parts.push(`Estado general: ${signosVitales.estado_general}`);
+    if (signosVitales.piel_pelaje) parts.push(`Piel/pelaje: ${signosVitales.piel_pelaje}`);
+    if (signosVitales.otros_hallazgos) parts.push(`Otros: ${signosVitales.otros_hallazgos}`);
+    return parts.join('\n');
   };
 
   const handleSubmit = async () => {
@@ -79,22 +125,39 @@ const VetConsulta = () => {
     }
     setSaving(true); setError('');
     try {
-      const payload = {
-        id_cita: parseInt(id_cita),
-        signos_vitales: form.signos_vitales,
-        peso: form.peso || null,
-        diagnostico: form.diagnostico,
-        tratamiento: form.tratamiento,
-        observaciones: form.observaciones,
-        medicamentos: medsSeleccionados.map(m => ({
+      const allMeds = [
+        ...medsCatalogo.map(m => ({
           id_medicamento: m.id_medicamento,
           dosis: m.dosis,
           frecuencia: m.frecuencia,
           duracion: m.duracion,
           instrucciones: m.instrucciones
+        })),
+        ...medsPersonalizados.map(m => ({
+          id_medicamento: null,
+          nombre_personalizado: m.nombre,
+          dosis: m.dosis,
+          frecuencia: m.frecuencia,
+          duracion: m.duracion,
+          instrucciones: m.instrucciones
         }))
+      ];
+      const payload = {
+        id_cita: parseInt(id_cita),
+        signos_vitales: buildSignosVitalesText(),
+        peso: signosVitales.peso || null,
+        diagnostico: form.diagnostico,
+        tratamiento: form.tratamiento,
+        observaciones: [
+          form.motivo_consulta ? `Motivo: ${form.motivo_consulta}` : '',
+          form.anamnesis ? `Anamnesis: ${form.anamnesis}` : '',
+          form.examen_fisico ? `Examen físico: ${form.examen_fisico}` : '',
+          form.recomendaciones ? `Recomendaciones: ${form.recomendaciones}` : '',
+          form.observaciones ? `Observaciones: ${form.observaciones}` : ''
+        ].filter(Boolean).join('\n'),
+        medicamentos: allMeds
       };
-      const res = await api.post('/api/vet/consulta', payload);
+      await api.post('/api/vet/consulta', payload);
       setSuccess('Consulta registrada exitosamente. Redirigiendo...');
       setTimeout(() => navigate('/veterinario/mis-citas'), 1500);
     } catch (err) {
@@ -130,7 +193,7 @@ const VetConsulta = () => {
   );
 
   const sectionCard = { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', marginBottom: 20, overflow: 'hidden' };
-  const sectionHeader = (icon, title, color) => ({
+  const sectionHeader = (title, subtitle, iconColor, bgColor) => ({
     display: 'flex', alignItems: 'center', gap: 12, padding: '18px 24px',
     borderBottom: '1px solid #f1f5f9', background: '#f8fafc'
   });
@@ -139,11 +202,14 @@ const VetConsulta = () => {
     width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
     fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box'
   };
+  const selectStyle = {
+    ...inputStyle, background: 'white', appearance: 'auto'
+  };
 
   return (
     <div>
       <Navbar />
-      <div className="listado-container" style={{ maxWidth: 960, margin: '0 auto' }}>
+      <div className="listado-container" style={{ maxWidth: 1000, margin: '0 auto' }}>
 
         <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 16 }}>
           <button onClick={() => navigate('/veterinario/mis-citas')} style={{
@@ -151,7 +217,7 @@ const VetConsulta = () => {
             background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}><Icon name="arrow-left" size={18} /></button>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>Atención Clínica</h1>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>Consulta Veterinaria</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>Cita #{id_cita} — {cita?.mascota_nombre} — {cita?.servicio_nombre}</p>
           </div>
         </div>
@@ -165,7 +231,7 @@ const VetConsulta = () => {
 
         {/* === SECCION 1: ANAMNESIS === */}
         <div style={sectionCard}>
-          <div style={sectionHeader('user', 'Anamnesis — Antecedentes del Paciente', '#8b5cf6')}>
+          <div style={sectionHeader()}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="user" size={20} style={{ color: '#8b5cf6' }} />
             </div>
@@ -224,117 +290,257 @@ const VetConsulta = () => {
           </div>
         </div>
 
-        {/* === SECCION 2: CONSTANTES VITALES Y DIAGNÓSTICO === */}
+        {/* === SECCION 2: MOTIVO Y ANAMNESIS === */}
         <div style={sectionCard}>
-          <div style={sectionHeader('heart', 'Constantes Vitales y Diagnóstico', '#ef4444')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="heart" size={20} style={{ color: '#ef4444' }} />
+          <div style={sectionHeader()}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="clipboard" size={20} style={{ color: '#3b82f6' }} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Constantes Vitales y Diagnóstico</h3>
-              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Registro clínico de la consulta</p>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Motivo de Consulta y Anamnesis</h3>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Razón de la visita y antecedentes</p>
             </div>
           </div>
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={labelStyle}>Signos Vitales</label>
-                <textarea
-                  value={form.signos_vitales}
-                  onChange={e => updateField('signos_vitales', e.target.value)}
-                  rows={3}
-                  placeholder=" Temperatura: 38.5°C&#10;Frecuencia cardíaca: 120 lpm&#10;Frecuencia respiratoria: 25 rpm&#10;Mucosas: Rosadas&#10;Estado de hidratación: Normal"
-                  style={{ ...inputStyle, resize: 'vertical' }}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Peso (kg)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={form.peso}
-                  onChange={e => updateField('peso', e.target.value)}
-                  placeholder="Ej: 12.5"
-                  style={{ ...inputStyle, marginBottom: 12 }}
-                />
-                <label style={labelStyle}>Síntoma Principal</label>
-                <textarea
-                  value={form.tratamiento}
-                  onChange={e => updateField('tratamiento', e.target.value)}
-                  rows={2}
-                  placeholder="Motivo de consulta / síntomas observados..."
-                  style={{ ...inputStyle, resize: 'vertical' }}
-                />
-              </div>
-            </div>
-            <div>
-              <label style={labelStyle}>Diagnóstico *</label>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Motivo de Consulta *</label>
               <textarea
-                value={form.diagnostico}
-                onChange={e => updateField('diagnostico', e.target.value)}
-                rows={3}
-                placeholder="Diagnóstico clínico (obligatorio)..."
-                style={{ ...inputStyle, resize: 'vertical', borderColor: form.diagnostico ? '#e2e8f0' : '#f87171' }}
+                value={form.motivo_consulta}
+                onChange={e => updateField('motivo_consulta', e.target.value)}
+                rows={2}
+                placeholder="Motivo principal de la consulta..."
+                style={{ ...inputStyle, resize: 'vertical' }}
               />
             </div>
-            <div style={{ marginTop: 12 }}>
-              <label style={labelStyle}>Observaciones Clínicas</label>
+            <div>
+              <label style={labelStyle}>Anamnesis / Observaciones</label>
               <textarea
-                value={form.observaciones}
-                onChange={e => updateField('observaciones', e.target.value)}
-                rows={2}
-                placeholder="Observaciones adicionales, plan de seguimiento, notas..."
+                value={form.anamnesis}
+                onChange={e => updateField('anamnesis', e.target.value)}
+                rows={3}
+                placeholder="Antecedentes relevantes, historia clínica previa, síntomas observados por el propietario..."
                 style={{ ...inputStyle, resize: 'vertical' }}
               />
             </div>
           </div>
         </div>
 
-        {/* === SECCION 3: PRESCRIPCIÓN Y TRATAMIENTO === */}
+        {/* === SECCION 3: VALORACION FISICA === */}
         <div style={sectionCard}>
-          <div style={sectionHeader('clipboard', 'Prescripción y Tratamiento', '#10b981')}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="clipboard" size={20} style={{ color: '#10b981' }} />
+          <div style={sectionHeader()}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="heart" size={20} style={{ color: '#ef4444' }} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Prescripción y Tratamiento</h3>
-              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Formulación de medicamentos</p>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Valoración Física — Examen Clínico</h3>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Constantes vitales y hallazgos clínicos</p>
             </div>
           </div>
           <div style={{ padding: '20px 24px' }}>
-            {medsSeleccionados.length > 0 && (
+            {/* Fila 1: Constantes vitales */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+              <div>
+                <label style={labelStyle}>Temperatura (°C)</label>
+                <input type="number" step="0.1" min="35" max="43"
+                  value={signosVitales.temperatura}
+                  onChange={e => updateSigno('temperatura', e.target.value)}
+                  placeholder="Ej: 38.5" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Peso (kg)</label>
+                <input type="number" step="0.1" min="0"
+                  value={signosVitales.peso}
+                  onChange={e => updateSigno('peso', e.target.value)}
+                  placeholder="Ej: 12.5" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Frec. Cardíaca (lpm)</label>
+                <input type="number" min="0"
+                  value={signosVitales.frecuencia_cardiaca}
+                  onChange={e => updateSigno('frecuencia_cardiaca', e.target.value)}
+                  placeholder="Ej: 120" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Frec. Respiratoria (rpm)</label>
+                <input type="number" min="0"
+                  value={signosVitales.frecuencia_respiratoria}
+                  onChange={e => updateSigno('frecuencia_respiratoria', e.target.value)}
+                  placeholder="Ej: 25" style={inputStyle} />
+              </div>
+            </div>
+
+            {/* Fila 2: Estado clínico */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+              <div>
+                <label style={labelStyle}>Estado de Hidratación</label>
+                <select value={signosVitales.hidratacion} onChange={e => updateSigno('hidratacion', e.target.value)} style={selectStyle}>
+                  <option value="">Seleccionar...</option>
+                  <option value="Normal">Normal</option>
+                  <option value="Leve (5%)">Leve (5%)</option>
+                  <option value="Moderada (7-8%)">Moderada (7-8%)</option>
+                  <option value="Severa (9-10%)">Severa (9-10%)</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Mucosas</label>
+                <select value={signosVitales.mucosas} onChange={e => updateSigno('mucosas', e.target.value)} style={selectStyle}>
+                  <option value="">Seleccionar...</option>
+                  <option value="Rosadas">Rosadas</option>
+                  <option value="Pálidas">Pálidas</option>
+                  <option value="Ictéricas">Ictéricas</option>
+                  <option value="Cianóticas">Cianóticas</option>
+                  <option value="Inyectadas">Inyectadas</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Condición Corporal</label>
+                <select value={signosVitales.condicion_corporal} onChange={e => updateSigno('condicion_corporal', e.target.value)} style={selectStyle}>
+                  <option value="">Seleccionar...</option>
+                  <option value="1 - Emaciado">1 - Emaciado</option>
+                  <option value="2 - Delgado">2 - Delgado</option>
+                  <option value="3 - Ideal">3 - Ideal</option>
+                  <option value="4 - Sobrepeso">4 - Sobrepeso</option>
+                  <option value="5 - Obeso">5 - Obeso</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Estado General</label>
+                <select value={signosVitales.estado_general} onChange={e => updateSigno('estado_general', e.target.value)} style={selectStyle}>
+                  <option value="">Seleccionar...</option>
+                  <option value="Alerta">Alerta</option>
+                  <option value="Deprimido">Deprimido</option>
+                  <option value="Depresión severa">Depresión severa</option>
+                  <option value="Excitado">Excitado</option>
+                  <option value="Letárgico">Letárgico</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Fila 3: Hallazgos adicionales */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Piel y Pelaje</label>
+                <input
+                  value={signosVitales.piel_pelaje}
+                  onChange={e => updateSigno('piel_pelaje', e.target.value)}
+                  placeholder="Ej: Pelaje brillante, sin lesiones..."
+                  style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Otros Hallazgos</label>
+                <input
+                  value={signosVitales.otros_hallazgos}
+                  onChange={e => updateSigno('otros_hallazgos', e.target.value)}
+                  placeholder="Ej: Linfadenomegalia, masas..."
+                  style={inputStyle} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* === SECCION 4: EXAMEN FISICO RESUMEN === */}
+        <div style={sectionCard}>
+          <div style={sectionHeader()}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="search" size={20} style={{ color: '#d97706' }} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Examen Físico — Resumen</h3>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Descripción general del examen clínico</p>
+            </div>
+          </div>
+          <div style={{ padding: '20px 24px' }}>
+            <textarea
+              value={form.examen_fisico}
+              onChange={e => updateField('examen_fisico', e.target.value)}
+              rows={4}
+              placeholder="Resumen del examen físico completo: sistemas evaluados, hallazgos por aparatos..."
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+          </div>
+        </div>
+
+        {/* === SECCION 5: DIAGNOSTICO === */}
+        <div style={sectionCard}>
+          <div style={sectionHeader()}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fce7f3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="alert-circle" size={20} style={{ color: '#db2777' }} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Diagnóstico</h3>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Impresión diagnóstica clínica</p>
+            </div>
+          </div>
+          <div style={{ padding: '20px 24px' }}>
+            <textarea
+              value={form.diagnostico}
+              onChange={e => updateField('diagnostico', e.target.value)}
+              rows={3}
+              placeholder="Diagnóstico principal (obligatorio)..."
+              style={{ ...inputStyle, resize: 'vertical', borderColor: form.diagnostico ? '#e2e8f0' : '#f87171' }}
+            />
+          </div>
+        </div>
+
+        {/* === SECCION 6: TRATAMIENTO UNIFICADO === */}
+        <div style={sectionCard}>
+          <div style={sectionHeader()}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="pill" size={20} style={{ color: '#10b981' }} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Tratamiento</h3>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Plan terapéutico, procedimientos y prescripciones</p>
+            </div>
+          </div>
+          <div style={{ padding: '20px 24px' }}>
+            {/* Descripcion del tratamiento */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Descripción / Plan terapéutico</label>
+              <textarea
+                value={form.tratamiento}
+                onChange={e => updateField('tratamiento', e.target.value)}
+                rows={4}
+                placeholder="Procedimientos realizados, indicaciones terapéuticas, recomendaciones generales..."
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+
+            {/* Medicamentos del catálogo seleccionados */}
+            {medsCatalogo.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                {medsSeleccionados.map((med, i) => (
+                <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#334155' }}>Medicamentos del Catálogo</h4>
+                {medsCatalogo.map((med, i) => (
                   <div key={i} style={{
                     background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12,
                     padding: 16, marginBottom: 12, position: 'relative'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                       <strong style={{ color: '#15803d', fontSize: 14 }}>{med.nombre}</strong>
-                      <button onClick={() => removeMed(i)} style={{
+                      <button onClick={() => removeMedCatalogo(i)} style={{
                         width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
                         background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}><Icon name="x" size={12} /></button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <div>
-                        <label style={{ ...labelStyle, fontSize: 12 }}>Dosis</label>
-                        <input value={med.dosis} onChange={e => updateMed(i, 'dosis', e.target.value)}
+                        <label style={{ ...labelStyle, fontSize: 12 }}>Dosis *</label>
+                        <input value={med.dosis} onChange={e => updateMedCatalogo(i, 'dosis', e.target.value)}
                           placeholder="Ej: 500mg cada 8h" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                       <div>
                         <label style={{ ...labelStyle, fontSize: 12 }}>Frecuencia</label>
-                        <input value={med.frecuencia} onChange={e => updateMed(i, 'frecuencia', e.target.value)}
+                        <input value={med.frecuencia} onChange={e => updateMedCatalogo(i, 'frecuencia', e.target.value)}
                           placeholder="Ej: Cada 8 horas" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                       <div>
                         <label style={{ ...labelStyle, fontSize: 12 }}>Duración</label>
-                        <input value={med.duracion} onChange={e => updateMed(i, 'duracion', e.target.value)}
+                        <input value={med.duracion} onChange={e => updateMedCatalogo(i, 'duracion', e.target.value)}
                           placeholder="Ej: 7 días" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                       <div>
                         <label style={{ ...labelStyle, fontSize: 12 }}>Instrucciones</label>
-                        <input value={med.instrucciones} onChange={e => updateMed(i, 'instrucciones', e.target.value)}
+                        <input value={med.instrucciones} onChange={e => updateMedCatalogo(i, 'instrucciones', e.target.value)}
                           placeholder="Ej: Con alimentos" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                     </div>
@@ -343,29 +549,154 @@ const VetConsulta = () => {
               </div>
             )}
 
-            <div>
-              <label style={labelStyle}>Agregar medicamento del catálogo</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                {medicamentos.map(med => {
-                  const ya = medsSeleccionados.find(m => m.id_medicamento === med.id_medicamento);
-                  return (
-                    <button key={med.id_medicamento} disabled={!!ya} onClick={() => addMedicamento(med)} style={{
-                      padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                      border: ya ? '1.5px solid #d1fae5' : '1.5px solid #e2e8f0',
-                      background: ya ? '#d1fae5' : 'white',
-                      color: ya ? '#15803d' : '#475569',
-                      cursor: ya ? 'default' : 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 6
-                    }}>
-                      <Icon name={ya ? 'check' : 'plus'} size={12} />
-                      {med.nombre}
-                    </button>
-                  );
-                })}
-                {medicamentos.length === 0 && (
-                  <p style={{ color: '#94a3b8', fontSize: 13 }}>No hay medicamentos disponibles</p>
-                )}
+            {/* Medicamentos personalizados/externos */}
+            {medsPersonalizados.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#7c3aed' }}>Tratamientos Personalizados / Externos</h4>
+                {medsPersonalizados.map((med, i) => (
+                  <div key={i} style={{
+                    background: '#faf5ff', border: '1px solid #d8b4fe', borderRadius: 12,
+                    padding: 16, marginBottom: 12, position: 'relative'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <strong style={{ color: '#7c3aed', fontSize: 14 }}>{med.nombre}</strong>
+                      <button onClick={() => removeCustomMed(i)} style={{
+                        width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+                        background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}><Icon name="x" size={12} /></button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div><span style={{ fontSize: 12, color: '#64748b' }}><strong>Dosis:</strong> {med.dosis}</span></div>
+                      <div><span style={{ fontSize: 12, color: '#64748b' }}><strong>Frecuencia:</strong> {med.frecuencia || '-'}</span></div>
+                      <div><span style={{ fontSize: 12, color: '#64748b' }}><strong>Duración:</strong> {med.duracion || '-'}</span></div>
+                      <div><span style={{ fontSize: 12, color: '#64748b' }}><strong>Indicaciones:</strong> {med.instrucciones || '-'}</span></div>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+
+            {/* Botones para agregar */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', width: '100%', marginBottom: 4 }}>Agregar medicamento:</span>
+              {medicamentos.map(med => {
+                const ya = medsCatalogo.find(m => m.id_medicamento === med.id_medicamento);
+                return (
+                  <button key={med.id_medicamento} disabled={!!ya} onClick={() => addMedCatalogo(med)} style={{
+                    padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    border: ya ? '1.5px solid #d1fae5' : '1.5px solid #e2e8f0',
+                    background: ya ? '#d1fae5' : 'white',
+                    color: ya ? '#15803d' : '#475569',
+                    cursor: ya ? 'default' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6
+                  }}>
+                    <Icon name={ya ? 'check' : 'plus'} size={12} />
+                    {med.nombre}
+                  </button>
+                );
+              })}
+              <button onClick={() => setShowCustomMedForm(!showCustomMedForm)} style={{
+                padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                border: '1.5px dashed #7c3aed',
+                background: showCustomMedForm ? '#faf5ff' : 'white',
+                color: '#7c3aed',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6
+              }}>
+                <Icon name="plus" size={12} />
+                Tratamiento personalizado
+              </button>
+            </div>
+
+            {/* Formulario de medicamento personalizado */}
+            {showCustomMedForm && (
+              <div style={{
+                background: '#faf5ff', border: '1.5px dashed #d8b4fe', borderRadius: 12,
+                padding: 16, marginBottom: 16
+              }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#7c3aed' }}>
+                  Agregar Tratamiento Personalizado / Externo
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={labelStyle}>Nombre del medicamento/producto *</label>
+                    <input value={customMed.nombre} onChange={e => setCustomMed(p => ({ ...p, nombre: e.target.value }))}
+                      placeholder="Nombre del medicamento, producto o procedimiento..." style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Dosis *</label>
+                    <input value={customMed.dosis} onChange={e => setCustomMed(p => ({ ...p, dosis: e.target.value }))}
+                      placeholder="Ej: 500mg, 10ml, 1 comprimido..." style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Frecuencia</label>
+                    <input value={customMed.frecuencia} onChange={e => setCustomMed(p => ({ ...p, frecuencia: e.target.value }))}
+                      placeholder="Ej: Cada 8 horas, 2 veces al día..." style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Duración</label>
+                    <input value={customMed.duracion} onChange={e => setCustomMed(p => ({ ...p, duracion: e.target.value }))}
+                      placeholder="Ej: 7 días, 2 semanas..." style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Instrucciones</label>
+                    <input value={customMed.instrucciones} onChange={e => setCustomMed(p => ({ ...p, instrucciones: e.target.value }))}
+                      placeholder="Ej: Con alimentos, vía oral..." style={inputStyle} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={addCustomMed} style={{
+                    padding: '8px 18px', borderRadius: 8, border: 'none',
+                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: 'white',
+                    fontWeight: 600, fontSize: 13, cursor: 'pointer'
+                  }}>Agregar</button>
+                  <button onClick={() => { setShowCustomMedForm(false); setCustomMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' }); }} style={{
+                    padding: '8px 18px', borderRadius: 8, border: '1.5px solid #e2e8f0',
+                    background: 'white', color: '#64748b', fontWeight: 600, fontSize: 13, cursor: 'pointer'
+                  }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {medsCatalogo.length === 0 && medsPersonalizados.length === 0 && !showCustomMedForm && (
+              <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 12 }}>
+                No se han agregado medicamentos. Use los botones de arriba para agregar prescripciones.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* === SECCION 7: RECOMENDACIONES Y OBSERVACIONES === */}
+        <div style={sectionCard}>
+          <div style={sectionHeader()}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="info" size={20} style={{ color: '#0284c7' }} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Recomendaciones y Observaciones</h3>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Indicaciones adicionales para el propietario</p>
+            </div>
+          </div>
+          <div style={{ padding: '20px 24px' }}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Recomendaciones</label>
+              <textarea
+                value={form.recomendaciones}
+                onChange={e => updateField('recomendaciones', e.target.value)}
+                rows={3}
+                placeholder="Indicaciones para el propietario: dieta, ejercicio, cuidados en casa, próxima revisión..."
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Observaciones Adicionales</label>
+              <textarea
+                value={form.observaciones}
+                onChange={e => updateField('observaciones', e.target.value)}
+                rows={2}
+                placeholder="Notas internas, seguimiento pendiente, derivaciones..."
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
             </div>
           </div>
         </div>

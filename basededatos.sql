@@ -241,13 +241,16 @@ CREATE TABLE IF NOT EXISTS notificaciones (
 CREATE TABLE IF NOT EXISTS medicamentos_asignados (
     id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
     id_historial INT NOT NULL,
-    id_medicamento INT NOT NULL,
-    dosis VARCHAR(50),
+    id_medicamento INT NULL,
+    dosis VARCHAR(100),
     frecuencia VARCHAR(100),
-    duracion VARCHAR(50),
+    duracion VARCHAR(100),
     instrucciones TEXT,
+    nombre_personalizado VARCHAR(200) NULL,
+    tipo_tratamiento ENUM('catalogo', 'personalizado') DEFAULT 'catalogo',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_historial) REFERENCES historial_clinico(id_historial) ON DELETE CASCADE,
-    FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento) ON DELETE CASCADE
+    FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

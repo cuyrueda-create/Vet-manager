@@ -351,7 +351,21 @@ const UsuarioMisFacturas = () => {
                     padding: '10px 20px', borderRadius: 10, border: '1.5px solid #e2e8f0',
                     background: 'white', color: '#64748b', fontWeight: 600, fontSize: 14, cursor: 'pointer'
                   }}>Cerrar</button>
-                  <button onClick={() => window.print()} style={{
+                  <button onClick={async () => {
+                    try {
+                      const res = await fetch(`http://localhost:5000/api/facturas/${verFactura.id_factura}/pdf`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      if (!res.ok) throw new Error('Error al descargar');
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `factura_${verFactura.numero}.pdf`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (e) { alert('Error al descargar PDF'); }
+                  }} style={{
                     display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 10, border: 'none',
                     background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white',
                     fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: '0 2px 8px rgba(139,92,246,0.3)'
