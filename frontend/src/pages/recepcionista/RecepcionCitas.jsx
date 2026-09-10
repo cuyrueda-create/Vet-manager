@@ -16,6 +16,7 @@ const RecepcionCitas = () => {
   const [error, setError] = useState('');
   const [filtro, setFiltro] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todas');
+  const [citaSeleccionada, setCitaSeleccionada] = useState(null);
 
   useEffect(() => {
     api.get('/api/citas')
@@ -121,18 +122,10 @@ const RecepcionCitas = () => {
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          {c.estado === 'programada' && (
-                            <>
-                              <button onClick={() => handleUpdateEstado(c.id_cita, 'realizada')} title="Marcar realizada"
-                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #6ee7b7', background: '#d1fae5', color: '#059669', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                                <Icon name="check" size={12} />
-                              </button>
-                              <button onClick={() => handleUpdateEstado(c.id_cita, 'cancelada')} title="Cancelar"
-                                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                                <Icon name="x" size={12} />
-                              </button>
-                            </>
-                          )}
+                          <button onClick={() => setCitaSeleccionada(c)} title="Ver cita"
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #93c5fd', background: '#dbeafe', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            <Icon name="eye" size={12} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -143,6 +136,49 @@ const RecepcionCitas = () => {
           </div>
         )}
       </div>
+
+      {/* Modal Ver Cita */}
+      {citaSeleccionada && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={() => setCitaSeleccionada(null)}>
+          <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Detalle de Cita #{citaSeleccionada.id_cita}</h2>
+              <button onClick={() => setCitaSeleccionada(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <Icon name="x" size={20} style={{ color: '#64748b' }} />
+              </button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                { icon: 'paw', label: 'Mascota', value: citaSeleccionada.mascota_nombre },
+                { icon: 'users', label: 'Cliente', value: `${citaSeleccionada.cliente_nombre} ${citaSeleccionada.cliente_apellido}` },
+                { icon: 'heart', label: 'Veterinario', value: `Dr(a). ${citaSeleccionada.vet_nombre} ${citaSeleccionada.vet_apellido}` },
+                { icon: 'clipboard', label: 'Servicio', value: citaSeleccionada.servicio_nombre },
+                { icon: 'calendar', label: 'Fecha', value: citaSeleccionada.fecha },
+                { icon: 'clock', label: 'Hora', value: citaSeleccionada.hora?.slice(0, 5) },
+                { icon: 'check-circle', label: 'Estado', value: (estadoConfig[citaSeleccionada.estado] || estadoConfig.programada).label }
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={item.icon} size={16} style={{ color: '#64748b' }} />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>{item.label}</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{item.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setCitaSeleccionada(null)} style={{
+                padding: '10px 20px', borderRadius: 10, border: '1.5px solid #e2e8f0',
+                background: 'white', color: '#64748b', fontWeight: 600, fontSize: 14, cursor: 'pointer'
+              }}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

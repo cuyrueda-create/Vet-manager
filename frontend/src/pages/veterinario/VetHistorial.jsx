@@ -252,15 +252,22 @@ const VetHistorial = () => {
                   <div style={{ marginTop: 16 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 10px' }}>Medicamentos asignados</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {medicamentosMascota.map((m, i) => (
-                        <div key={i} style={{ background: '#ecfdf5', border: '1px solid #d1fae5', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <span style={{ fontWeight: 600, color: '#065f46', fontSize: 13 }}>{m.medicamento_nombre}</span>
-                            <span style={{ marginLeft: 8, color: '#6b7280', fontSize: 12 }}>{m.dosis} - {m.frecuencia}</span>
+                      {medicamentosMascota.map((m, i) => {
+                        const nombre = m.nombre_personalizado || m.medicamento_nombre;
+                        const esPersonalizado = m.tipo_tratamiento === 'personalizado' || (!m.medicamento_nombre && m.nombre_personalizado);
+                        return (
+                          <div key={i} style={{ background: esPersonalizado ? '#faf5ff' : '#ecfdf5', border: `1px solid ${esPersonalizado ? '#d8b4fe' : '#d1fae5'}`, borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <span style={{ fontWeight: 600, color: esPersonalizado ? '#7c3aed' : '#065f46', fontSize: 13 }}>
+                                {nombre}
+                                {esPersonalizado && <span style={{ fontSize: 10, marginLeft: 6, background: '#ede9fe', padding: '1px 6px', borderRadius: 4, fontWeight: 500 }}>personalizado</span>}
+                              </span>
+                              <span style={{ marginLeft: 8, color: '#6b7280', fontSize: 12 }}>{m.dosis} - {m.frecuencia}</span>
+                            </div>
+                            {!esPersonalizado && m.precio > 0 && <span style={{ fontWeight: 600, color: '#059669', fontSize: 13 }}>${m.precio.toLocaleString()}</span>}
                           </div>
-                          {m.precio > 0 && <span style={{ fontWeight: 600, color: '#059669', fontSize: 13 }}>${m.precio.toLocaleString()}</span>}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

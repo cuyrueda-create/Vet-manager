@@ -11,7 +11,7 @@ const estadoConfig = {
   cancelada: { color: '#ef4444', bg: '#fee2e2', border: '#fca5a5', label: 'Cancelada', icon: 'x' }
 };
 
-const speciesEmoji = { 'Perro': '🐶', 'Gato': '🐱', 'Ave': '🐦', 'Conejo': '🐰', 'Reptil': '🦎', 'Hamster': '🐹' };
+  const speciesEmoji = { 'Canino': '🐶', 'Felino': '🐱', 'Ave': '🐦', 'Roedor': '🐹', 'Reptil': '🦎', 'Otro': '🐾' };
 
 const RecepcionPerfilCliente = () => {
   const { id } = useParams();
@@ -23,20 +23,30 @@ const RecepcionPerfilCliente = () => {
   const [activeTab, setActiveTab] = useState('mascotas');
 
   const [showNewMascota, setShowNewMascota] = useState(false);
-  const [newMascota, setNewMascota] = useState({ nombre: '', especie: '', raza: '', sexo: 'Desconocido', edad: '', peso: '' });
+  const [newMascota, setNewMascota] = useState({ nombre: '', especie: '', especie_custom: '', raza: '', sexo: 'Desconocido', edad: '', peso: '' });
+  const speciesList = ['Canino', 'Felino', 'Roedor', 'Ave', 'Reptil', 'Otro'];
   const [savingMascota, setSavingMascota] = useState(false);
   const [success, setSuccess] = useState('');
 
+  const [showMedModal, setShowMedModal] = useState(false);
+  const [medicamentos, setMedicamentos] = useState([]);
+  const [medForm, setMedForm] = useState({ id_historial: '', id_medicamento: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' });
+  const [savingMed, setSavingMed] = useState(false);
+
   const handleCreateMascota = async () => {
-    if (!newMascota.nombre || !newMascota.especie) {
+    const especieFinal = newMascota.especie === 'Otro' && newMascota.especie_custom.trim() ? newMascota.especie_custom.trim() : newMascota.especie;
+    if (!newMascota.nombre || !especieFinal) {
       setError('Nombre y especie son requeridos');
       return;
     }
     setSavingMascota(true);
     setError('');
     try {
+      const especieFinal = newMascota.especie === 'Otro' && newMascota.especie_custom.trim() ? newMascota.especie_custom.trim() : newMascota.especie;
       await api.post('/api/mascotas', {
         ...newMascota,
+        especie: especieFinal,
+        especie_custom: undefined,
         id_cliente: parseInt(id),
         edad: newMascota.edad ? parseInt(newMascota.edad) : null,
         peso: newMascota.peso ? parseFloat(newMascota.peso) : null
@@ -44,7 +54,7 @@ const RecepcionPerfilCliente = () => {
       const res = await api.get(`/api/clientes/${id}/perfil`);
       setPerfil(res.data);
       setShowNewMascota(false);
-      setNewMascota({ nombre: '', especie: '', raza: '', sexo: 'Desconocido', edad: '', peso: '' });
+      setNewMascota({ nombre: '', especie: '', especie_custom: '', raza: '', sexo: 'Desconocido', edad: '', peso: '' });
       setSuccess('Mascota registrada exitosamente');
       setTimeout(() => setSuccess(''), 3000);
     } catch (e) {
@@ -60,6 +70,37 @@ const RecepcionPerfilCliente = () => {
       .catch(() => setError('Error al cargar perfil del cliente'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const openMedModal = () => {
+    api.get('/api/medicamentos')
+      .then(r => setMedicamentos(r.data))
+      .catch(() => {});
+    setShowMedModal(true);
+  };
+
+  const handleMedChange = (e) => setMedForm({ ...medForm, [e.target.name]: e.target.value });
+
+  const guardarMedicamento = async () => {
+    if (!medForm.id_historial || !medForm.id_medicamento || !medForm.dosis.trim()) {
+      setError('Selecciona historial, medicamento y dosis'); return;
+    }
+    setSavingMed(true); setError('');
+    try {
+      await api.post(`/api/vet/historial/${medForm.id_historial}/medicamentos`, {
+        id_medicamento: parseInt(medForm.id_medicamento),
+        dosis: medForm.dosis,
+        frecuencia: medForm.frecuencia || null,
+        duracion: medForm.duracion || null,
+        instrucciones: medForm.instrucciones || null
+      });
+      setSuccess('Medicamento asignado exitosamente');
+      setShowMedModal(false);
+      setMedForm({ id_historial: '', id_medicamento: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' });
+      const res = await api.get(`/api/clientes/${id}/perfil`);
+      setPerfil(res.data);
+    } catch (err) { setError(err.response?.data?.detail || 'Error al asignar medicamento'); }
+    finally { setSavingMed(false); }
+  };
 
   const formatMoney = (n) => `$${(n || 0).toLocaleString('es-CO')}`;
 
@@ -213,6 +254,11 @@ const RecepcionPerfilCliente = () => {
                   <Icon name="clipboard" size={16} /> Medicamentos ({perfil.medicamentos.length})
                 </span>
               </button>
+              <button onClick={() => setActiveTab('facturas')} style={tabStyle(activeTab === 'facturas')}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="document" size={16} /> Facturas ({perfil.facturas?.length || 0})
+                </span>
+              </button>
             </div>
 
             {/* Tab: Mascotas */}
@@ -335,7 +381,6 @@ const RecepcionPerfilCliente = () => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{formatMoney(c.servicio_precio)}</p>
-                        <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{c.consultorio_nombre}</p>
                       </div>
                     </div>
                   );
@@ -346,19 +391,35 @@ const RecepcionPerfilCliente = () => {
             {/* Tab: Medicamentos */}
             {activeTab === 'medicamentos' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Medicamentos Asignados</h3>
+                  <button onClick={openMedModal} style={{
+                    padding: '8px 16px', borderRadius: 10, border: 'none',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                  }}>
+                    <Icon name="clipboard" size={14} /> Asignar medicamento
+                  </button>
+                </div>
                 {perfil.medicamentos.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
                     <Icon name="clipboard" size={48} style={{ color: '#cbd5e1', marginBottom: 12 }} />
                     <p style={{ fontSize: 16 }}>Sin medicamentos asignados</p>
                   </div>
-                ) : perfil.medicamentos.map(m => (
-                  <div key={m.id_asignacion} style={{ ...cardStyle, borderLeft: '4px solid #10b981', display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 10, background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon name="clipboard" size={20} style={{ color: '#10b981' }} />
+                ) : perfil.medicamentos.map(m => {
+                  const nombre = m.nombre_personalizado || m.medicamento_nombre;
+                  const esPersonalizado = m.tipo_tratamiento === 'personalizado' || (!m.medicamento_nombre && m.nombre_personalizado);
+                  return (
+                  <div key={m.id_asignacion} style={{ ...cardStyle, borderLeft: `4px solid ${esPersonalizado ? '#8b5cf6' : '#10b981'}`, display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: esPersonalizado ? '#ede9fe' : '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="clipboard" size={20} style={{ color: esPersonalizado ? '#8b5cf6' : '#10b981' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <strong style={{ fontSize: 14, color: '#1e293b' }}>{m.medicamento_nombre}</strong>
+                        <strong style={{ fontSize: 14, color: '#1e293b' }}>{nombre}</strong>
+                        {esPersonalizado && <span style={{ padding: '2px 8px', background: '#ede9fe', borderRadius: 6, fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>personalizado</span>}
                         <span style={{ padding: '2px 8px', background: '#ede9fe', borderRadius: 6, fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>
                           {m.mascota_nombre}
                         </span>
@@ -376,12 +437,47 @@ const RecepcionPerfilCliente = () => {
                       <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{formatMoney(m.precio)}</span>
                     </div>
                   </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Tab: Facturas */}
+            {activeTab === 'facturas' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(!perfil.facturas || perfil.facturas.length === 0) ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                    <Icon name="document" size={48} style={{ color: '#cbd5e1', marginBottom: 12 }} />
+                    <p style={{ fontSize: 16 }}>Sin facturas registradas</p>
+                  </div>
+                ) : perfil.facturas.map(f => (
+                  <div key={f.id_factura} style={{ ...cardStyle, borderLeft: `4px solid ${f.estado === 'pagada' ? '#10b981' : f.estado === 'anulada' ? '#ef4444' : '#f59e0b'}`, display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: f.estado === 'pagada' ? '#d1fae5' : f.estado === 'anulada' ? '#fee2e2' : '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="document" size={20} style={{ color: f.estado === 'pagada' ? '#10b981' : f.estado === 'anulada' ? '#ef4444' : '#f59e0b' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <strong style={{ fontSize: 14, color: '#1e293b' }}>#{f.numero || f.id_factura}</strong>
+                        <span style={{ padding: '2px 8px', background: f.estado === 'pagada' ? '#d1fae5' : f.estado === 'anulada' ? '#fee2e2' : '#fef3c7', borderRadius: 6, fontSize: 11, color: f.estado === 'pagada' ? '#059669' : f.estado === 'anulada' ? '#dc2626' : '#d97706', fontWeight: 600 }}>
+                          {f.estado}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#64748b' }}>
+                        {f.fecha_fmt && <span>{f.fecha_fmt}</span>}
+                        {f.total != null && <span style={{ marginLeft: 8, fontWeight: 600, color: '#1e293b' }}>${Number(f.total).toFixed(2)}</span>}
+                      </div>
+                    </div>
+                    {f.enviado === 1 && (
+                      <span style={{ padding: '2px 8px', background: '#dbeafe', borderRadius: 6, fontSize: 11, color: '#2563eb', fontWeight: 600 }}>Enviado</span>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
           </>
         ) : null}
 
+        {perfil && (<>
         {/* Modal Nueva Mascota */}
         <Modal isOpen={showNewMascota} onClose={() => { setShowNewMascota(false); setNewMascota({ nombre: '', especie: '', raza: '', sexo: 'Desconocido', edad: '', peso: '' }); setError(''); }}>
           <div style={{ padding: 0 }}>
@@ -409,9 +505,20 @@ const RecepcionPerfilCliente = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Especie *</label>
-                  <input value={newMascota.especie} onChange={e => setNewMascota(p => ({ ...p, especie: e.target.value }))} placeholder="Perro, Gato, Ave..."
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  <select value={newMascota.especie} onChange={e => setNewMascota(p => ({ ...p, especie: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
+                    <option value="">Seleccionar especie...</option>
+                    {speciesList.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
+                {newMascota.especie === 'Otro' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Especie (custom) *</label>
+                    <input value={newMascota.especie_custom} onChange={e => setNewMascota(p => ({ ...p, especie_custom: e.target.value }))}
+                      placeholder="Escriba la especie..."
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                )}
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Raza</label>
                   <input value={newMascota.raza} onChange={e => setNewMascota(p => ({ ...p, raza: e.target.value }))}
@@ -421,7 +528,6 @@ const RecepcionPerfilCliente = () => {
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Sexo</label>
                   <select value={newMascota.sexo} onChange={e => setNewMascota(p => ({ ...p, sexo: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
-                    <option value="Desconocido">Desconocido</option>
                     <option value="M">Macho</option>
                     <option value="H">Hembra</option>
                   </select>
@@ -455,6 +561,88 @@ const RecepcionPerfilCliente = () => {
             </div>
           </div>
         </Modal>
+
+        {/* Modal Asignar Medicamento */}
+        <Modal isOpen={showMedModal} onClose={() => { setShowMedModal(false); setMedForm({ id_historial: '', id_medicamento: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' }); setError(''); }}>
+          <div style={{ padding: 0 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px',
+              borderBottom: '1px solid #f1f5f9'
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, background: '#d1fae5',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Icon name="clipboard" size={20} style={{ color: '#10b981' }} />
+              </div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Asignar Medicamento</h2>
+              </div>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Registro de historial *</label>
+                  <select name="id_historial" value={medForm.id_historial} onChange={handleMedChange}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} required>
+                    <option value="">Seleccionar registro...</option>
+                    {perfil.historial.map(h => (
+                      <option key={h.id_historial} value={h.id_historial}>#{h.id_historial} — {h.mascota_nombre} - {h.diagnostico?.slice(0, 40) || 'Sin diagnostico'}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Medicamento *</label>
+                  <select name="id_medicamento" value={medForm.id_medicamento} onChange={handleMedChange}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} required>
+                    <option value="">Seleccionar medicamento...</option>
+                    {medicamentos.map(m => (
+                      <option key={m.id_medicamento} value={m.id_medicamento}>{m.nombre} - ${m.precio?.toLocaleString() || 0}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis *</label>
+                  <input name="dosis" value={medForm.dosis} onChange={handleMedChange} placeholder="Ej: 500mg cada 8 horas"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} required />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Frecuencia</label>
+                    <input name="frecuencia" value={medForm.frecuencia} onChange={handleMedChange} placeholder="Ej: Cada 8 horas"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Duracion</label>
+                    <input name="duracion" value={medForm.duracion} onChange={handleMedChange} placeholder="Ej: 7 dias"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Instrucciones</label>
+                  <textarea name="instrucciones" value={medForm.instrucciones} onChange={handleMedChange} rows={2} placeholder="Notas adicionales..."
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                </div>
+              </div>
+            </div>
+            <div style={{
+              display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px',
+              borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderRadius: '0 0 16px 16px'
+            }}>
+              <button onClick={() => { setShowMedModal(false); setMedForm({ id_historial: '', id_medicamento: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' }); setError(''); }} style={{
+                padding: '10px 20px', borderRadius: 10, border: '1.5px solid #e2e8f0',
+                background: 'white', color: '#64748b', fontWeight: 600, fontSize: 14, cursor: 'pointer'
+              }}>Cancelar</button>
+              <button disabled={savingMed} onClick={guardarMedicamento} style={{
+                padding: '10px 20px', borderRadius: 10, border: 'none',
+                background: savingMed ? '#6ee7b7' : 'linear-gradient(135deg, #10b981, #059669)',
+                color: 'white', fontWeight: 600, fontSize: 14, cursor: savingMed ? 'not-allowed' : 'pointer',
+                boxShadow: savingMed ? 'none' : '0 2px 8px rgba(16,185,129,0.3)'
+              }}>{savingMed ? 'Asignando...' : 'Asignar'}</button>
+            </div>
+          </div>
+        </Modal>
+        </>)}
       </div>
     </div>
   );

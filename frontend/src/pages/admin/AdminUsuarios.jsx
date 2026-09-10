@@ -3,7 +3,7 @@ import api from '../../api/axiosConfig';
 import Navbar from '../../components/Navbar';
 import Icon from '../../components/Icon';
 
-const ROLES = ['usuario'];
+const ROLES = ['recepcionista', 'veterinario'];
 
 const AdminUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -12,7 +12,7 @@ const AdminUsuarios = () => {
   const [success, setSuccess] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
-    nombre: '', apellido: '', email: '', contraseña: '', rol: 'usuario',
+    nombre: '', apellido: '', email: '', contraseña: '', rol: 'recepcionista',
     telefono: '', direccion: '', tipo_documento: '', numero_documento: ''
   });
 
@@ -52,7 +52,7 @@ const AdminUsuarios = () => {
       await api.post('/api/v1/admin/usuarios', createForm);
       setSuccess('Usuario creado exitosamente');
       setShowCreate(false);
-      setCreateForm({ nombre: '', apellido: '', email: '', contraseña: '', rol: 'usuario', telefono: '', direccion: '', tipo_documento: '', numero_documento: '' });
+      setCreateForm({ nombre: '', apellido: '', email: '', contraseña: '', rol: 'recepcionista', telefono: '', direccion: '', tipo_documento: '', numero_documento: '' });
       loadUsuarios();
     } catch (err) { setError(err.response?.data?.detail || 'Error al crear usuario'); }
     finally { setSavingCreate(false); }
@@ -156,10 +156,10 @@ const AdminUsuarios = () => {
                   {[
                     { label: 'Nombre *', name: 'nombre' },
                     { label: 'Apellido *', name: 'apellido' },
-                    { label: 'Email *', name: 'email', type: 'email' },
+                    { label: 'Email *', name: 'email', type: 'email', maxLength: 100 },
                     { label: 'Contraseña *', name: 'contraseña', type: 'password' },
-                    { label: 'Telefono *', name: 'telefono', maxLength: 10, placeholder: 'Max. 10 caracteres' },
-                    { label: 'Direccion *', name: 'direccion' },
+                    { label: 'Telefono *', name: 'telefono', maxLength: 20, placeholder: 'Max. 20 caracteres' },
+                    { label: 'Direccion *', name: 'direccion', maxLength: 150 },
                     { label: 'Tipo de documento *', name: 'tipo_documento', placeholder: 'Ej. CC, CE, TI' },
                     { label: (docLimits[createForm.tipo_documento] ? `Numero de documento * (Max. ${docLimits[createForm.tipo_documento]} caracteres)` : 'Numero de documento *'), name: 'numero_documento', maxLength: docLimits[createForm.tipo_documento] || 15, placeholder: `Max. ${docLimits[createForm.tipo_documento] || 15} caracteres` }
                   ].map(f => (

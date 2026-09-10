@@ -26,19 +26,27 @@ const AdminBloc = () => {
   };
 
   const copiarCredenciales = (u) => {
-    const texto = `=== ${u.nombre} ${u.apellido} ===\nEmail: ${u.email}\nRol: ${u.rol}\nEstado: ${u.is_active ? 'Activo' : 'Inactivo'}\nContraseña: ${u.contraseña_texto}`;
-    navigator.clipboard.writeText(texto);
-    setSuccess(`Credenciales de ${u.nombre} copiadas`);
-    setTimeout(() => setSuccess(''), 3000);
+    const texto = `=== ${u.nombre} ${u.apellido} ===\nEmail: ${u.email}\nRol: ${u.rol}\nEstado: ${u.is_active ? 'Activo' : 'Inactivo'}`;
+    try {
+      navigator.clipboard.writeText(texto);
+      setSuccess(`Datos de ${u.nombre} copiados`);
+    } catch {
+      setError('No se pudo copiar al portapapeles');
+    }
+    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
   };
 
   const copiarTodo = () => {
     const texto = usuarios.map(u =>
-      `${u.nombre} ${u.apellido} | ${u.email} | ${u.rol} | ${u.is_active ? 'Activo' : 'Inactivo'} | ${u.contraseña_texto}`
+      `${u.nombre} ${u.apellido} | ${u.email} | ${u.rol} | ${u.is_active ? 'Activo' : 'Inactivo'}`
     ).join('\n');
-    navigator.clipboard.writeText(texto);
-    setSuccess('Todas las credenciales copiadas al portapapeles');
-    setTimeout(() => setSuccess(''), 3000);
+    try {
+      navigator.clipboard.writeText(texto);
+      setSuccess('Datos copiados al portapapeles');
+    } catch {
+      setError('No se pudo copiar al portapapeles');
+    }
+    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
   };
 
   const filtrados = usuarios.filter(u => {
@@ -125,7 +133,7 @@ const AdminBloc = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['ID', 'Nombre', 'Email', 'Contraseña', 'Rol', 'Estado', 'Telefono', 'Doc.', 'Acciones'].map(h => (
+                  {['ID', 'Nombre', 'Email', 'Rol', 'Estado', 'Telefono', 'Doc.', 'Acciones'].map(h => (
                     <th key={h} style={{
                       padding: '14px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700,
                       color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -136,12 +144,11 @@ const AdminBloc = () => {
               </thead>
               <tbody>
                 {filtrados.length === 0 ? (
-                  <tr><td colSpan={9} style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
+                  <tr><td colSpan={8} style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
                     No hay usuarios para mostrar
                   </td></tr>
                 ) : filtrados.map(u => {
                   const rc = rolConfig[u.rol] || rolConfig.usuario;
-                  const hashVisible = expandedId === u.id_usuario ? u.contrasea : (u.contrasea ? u.contrasea.substring(0, 20) + '...' : '-');
                   return (
                     <tr key={u.id_usuario} style={{ borderBottom: '1px solid #f1f5f9' }}
                       onMouseEnter={ev => ev.currentTarget.style.background = '#fafbfc'}
@@ -153,18 +160,6 @@ const AdminBloc = () => {
                         <strong style={{ color: '#1e293b', fontSize: 14 }}>{u.nombre} {u.apellido}</strong>
                       </td>
                       <td style={{ padding: '12px 16px', fontSize: 13, color: '#334155' }}>{u.email}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <code
-                          style={{
-                            display: 'inline-block', padding: '4px 8px', borderRadius: 6,
-                            background: '#f0fdf4', border: '1px solid #bbf7d0',
-                            fontSize: 12, color: '#15803d', fontWeight: 600,
-                            fontFamily: 'monospace'
-                          }}
-                        >
-                          {u.contraseña_texto || 'Cuy123**'}
-                        </code>
-                      </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,

@@ -332,11 +332,13 @@ CREATE TABLE IF NOT EXISTS notificaciones (
 CREATE TABLE IF NOT EXISTS medicamentos_asignados (
     id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
     id_historial INT NOT NULL,
-    id_medicamento INT NOT NULL,
+    id_medicamento INT NULL,
     dosis VARCHAR(100) NOT NULL,
     frecuencia VARCHAR(100) NULL,
     duracion VARCHAR(100) NULL,
     instrucciones TEXT NULL,
+    nombre_personalizado VARCHAR(200) NULL,
+    tipo_tratamiento ENUM('catalogo', 'personalizado') DEFAULT 'catalogo',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_historial) REFERENCES historial_clinico(id_historial),
     FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)

@@ -1,7 +1,8 @@
 # app/main.py
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import mysql.connector
 from mysql.connector import Error
@@ -15,6 +16,7 @@ from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import io
 
 # ==================== IMPORTAR ROUTERS ====================
 from app.api.v1.clientes import router as clientes_router
@@ -244,6 +246,45 @@ def migrate_medicamentos_asignados():
         cursor.close()
         conn.close()
 
+def migrate_veterinario_horarios():
+    """Crea la tabla de horarios de veterinarios si no existe"""
+    conn = get_db_connection()
+    if not conn:
+        print("⚠️ No se pudo conectar a la BD para migración de horarios")
+        return
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS veterinario_horarios (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                id_usuario_vet INT NOT NULL,
+                dia_semana TINYINT NOT NULL COMMENT '0=Lunes 6=Domingo',
+                hora_inicio TIME NOT NULL,
+                hora_fin TIME NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_vet_dia (id_usuario_vet, dia_semana),
+                KEY idx_vet (id_usuario_vet),
+                CONSTRAINT fk_horarios_vet FOREIGN KEY (id_usuario_vet) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
+            )
+        """)
+        print("✅ Tabla veterinario_horarios verificada")
+    except Exception as e:
+        print(f"⚠️ Error creando tabla horarios: {e}")
+    try:
+        cursor.execute("""
+            INSERT IGNORE INTO veterinario_horarios (id_usuario_vet, dia_semana, hora_inicio, hora_fin)
+            SELECT u.id_usuario, dias.dia, '08:00:00', '17:00:00'
+            FROM usuarios u
+            CROSS JOIN (SELECT 0 AS dia UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4) AS dias
+            WHERE u.rol = 'veterinario' AND u.is_active = 1
+        """)
+    except:
+        pass
+    conn.commit()
+    cursor.close()
+    conn.close()
+
 def hash_existing_passwords():
     """Convierte contraseñas en texto plano a pbkdf2_sha256"""
     conn = get_db_connection()
@@ -327,6 +368,7 @@ def startup():
     migrate_roles()
     migrate_facturas_pago()
     migrate_medicamentos_asignados()
+    migrate_veterinario_horarios()
     hash_existing_passwords()
     print("Migraciones completadas")
 
@@ -347,29 +389,33 @@ pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 # ==================== MODELOS ====================
 
 class UsuarioCreate(BaseModel):
-    nombre: str
-    apellido: str
-    email: EmailStr
-    telefono: str = ""
-    direccion: str = ""
+    nombre: str = Field(max_length=60)
+    apellido: str = Field(max_length=60)
+    email: EmailStr = Field(max_length=100)
+    telefono: str = Field(default="", max_length=20)
+    direccion: str = Field(default="", max_length=150)
     contraseña: str
     rol: str = "usuario"
-    tipo_documento: Optional[str] = None
-    numero_documento: Optional[str] = None
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
 
 class UsuarioLogin(BaseModel):
     email: EmailStr
-    contraseña: str
+    contraseña: Optional[str] = None
+    password: Optional[str] = None
+
+    def get_password(self):
+        return self.contraseña or self.password
 
 class AdminCreate(BaseModel):
-    nombre: str
-    email: EmailStr
-    telefono: str = ""
+    nombre: str = Field(max_length=60)
+    email: EmailStr = Field(max_length=100)
+    telefono: str = Field(default="", max_length=20)
     contraseña: str
-    numero_documento: Optional[str] = None
-    nombre_negocio: str
-    direccion_negocio: str = ""
-    especialidad: str = "Veterinaria"
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
+    nombre_negocio: str = Field(max_length=100)
+    direccion_negocio: str = Field(default="", max_length=200)
+    especialidad: str = Field(default="Veterinaria", max_length=100)
     anos_experiencia: int = 0
 
 class UsuarioResponse(BaseModel):
@@ -394,16 +440,16 @@ class PasswordReset(BaseModel):
     new_password: str
 
 class UsuarioUpdateMe(BaseModel):
-    nombre: Optional[str] = None
-    apellido: Optional[str] = None
-    email: Optional[EmailStr] = None
-    telefono: Optional[str] = None
-    direccion: Optional[str] = None
-    tipo_documento: Optional[str] = None
-    numero_documento: Optional[str] = None
-    nombre_negocio: Optional[str] = None
-    direccion_negocio: Optional[str] = None
-    especialidad: Optional[str] = None
+    nombre: Optional[str] = Field(default=None, max_length=60)
+    apellido: Optional[str] = Field(default=None, max_length=60)
+    email: Optional[EmailStr] = Field(default=None, max_length=100)
+    telefono: Optional[str] = Field(default=None, max_length=20)
+    direccion: Optional[str] = Field(default=None, max_length=150)
+    tipo_documento: Optional[str] = Field(default=None, max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
+    nombre_negocio: Optional[str] = Field(default=None, max_length=100)
+    direccion_negocio: Optional[str] = Field(default=None, max_length=200)
+    especialidad: Optional[str] = Field(default=None, max_length=100)
     anos_experiencia: Optional[int] = None
 
 class ChangePassword(BaseModel):
@@ -412,10 +458,10 @@ class ChangePassword(BaseModel):
 
 class MascotaCreate(BaseModel):
     id_cliente: int
-    nombre: str
-    especie: str
-    raza: Optional[str] = None
-    sexo: str = "Desconocido"
+    nombre: str = Field(max_length=60)
+    especie: str = Field(max_length=40)
+    raza: Optional[str] = Field(default=None, max_length=40)
+    sexo: str = Field(default="Desconocido", max_length=20)
     edad: Optional[int] = None
     peso: Optional[float] = None
     observaciones: Optional[str] = None
@@ -1092,7 +1138,7 @@ async def login(user_data: UsuarioLogin):
         
         user = cursor.fetchone()
         
-        if not user or not verify_password(user_data.contraseña, user["contrasea"]):
+        if not user or not verify_password(user_data.get_password(), user["contrasea"]):
             raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
         if not user.get("is_active"):
@@ -1645,7 +1691,11 @@ async def get_citas(current_user: dict = Depends(get_current_user)):
                    TIME_FORMAT(c.hora, '%H:%i') AS hora,
                    c.estado, c.notas,
                    m.id_mascota, m.nombre AS mascota_nombre, m.especie,
+                   m.raza AS mascota_raza, m.peso AS mascota_peso,
+                   m.sexo AS mascota_sexo, m.edad AS mascota_edad,
                    cl.id_cliente, cl.nombre AS cliente_nombre, cl.apellido AS cliente_apellido,
+                   cl.telefono AS cliente_telefono, cl.email AS cliente_email,
+                   cl.direccion AS cliente_direccion,
                    s.id_servicio, s.nombre AS servicio_nombre, s.precio,
                    u.id_usuario AS id_veterinario, u.nombre AS vet_nombre, u.apellido AS vet_apellido,
                    con.id_consultorio, con.nombre AS consultorio_nombre,
@@ -1918,16 +1968,21 @@ async def vet_registrar_consulta(data: dict, current_user: dict = Depends(get_cu
         medicamentos = data.get("medicamentos", [])
         for med in medicamentos:
             id_med = med.get("id_medicamento")
-            if not id_med:
+            nombre_custom = med.get("nombre_personalizado", "").strip()
+            # Accept both catalog and custom medications
+            if not id_med and not nombre_custom:
                 continue
             cursor.execute("""
-                INSERT INTO medicamentos_asignados (id_historial, id_medicamento, dosis, frecuencia, duracion, instrucciones)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (historial_id, id_med,
+                INSERT INTO medicamentos_asignados 
+                    (id_historial, id_medicamento, dosis, frecuencia, duracion, instrucciones, nombre_personalizado, tipo_tratamiento)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (historial_id, id_med if id_med else None,
                   med.get("dosis", ""),
                   med.get("frecuencia", ""),
                   med.get("duracion", ""),
-                  med.get("instrucciones", "")))
+                  med.get("instrucciones", ""),
+                  nombre_custom if nombre_custom else None,
+                  'personalizado' if nombre_custom and not id_med else 'catalogo'))
 
         # --- 3. Cambiar estado de la cita a realizada ---
         cursor.execute("UPDATE citas SET estado = 'realizada' WHERE id_cita = %s", (id_cita,))
@@ -2045,6 +2100,330 @@ async def listar_reportes(current_user: dict = Depends(get_current_user)):
     finally:
         cursor.close()
         connection.close()
+
+# ==================== REPORTES ADMIN ====================
+
+@app.get("/api/reportes/admin/financiero")
+async def reporte_financiero_admin(
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        where = ""
+        params = []
+        if fecha_inicio and fecha_fin:
+            where = " WHERE f.fecha BETWEEN %s AND %s"
+            params = [fecha_inicio, fecha_fin + " 23:59:59"]
+        cursor.execute(f"SELECT COALESCE(SUM(f.total), 0) AS total_ingresos, COUNT(f.id_factura) AS total_facturas FROM facturas f {where}", params)
+        ingresos = cursor.fetchone()
+        cursor.execute(f"SELECT COALESCE(f.estado, 'emitida') AS metodo, COUNT(*) AS cantidad, SUM(f.total) AS total FROM facturas f {where}{' AND' if where else ' WHERE'} f.estado = 'pagada' GROUP BY f.estado ORDER BY total DESC", params)
+        metodos = cursor.fetchall()
+        cursor.execute(f"SELECT DATE_FORMAT(f.fecha, '%Y-%m') AS mes, SUM(f.total) AS total, COUNT(*) AS facturas FROM facturas f {where}{' AND' if where else ' WHERE'} f.estado = 'pagada' GROUP BY mes ORDER BY mes DESC LIMIT 12", params)
+        por_mes = cursor.fetchall()
+        return {"ingresos": ingresos, "metodos_pago": metodos, "ingresos_por_mes": por_mes}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/admin/personal")
+async def reporte_personal_admin(
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        where = ""
+        params = []
+        if fecha_inicio and fecha_fin:
+            where = " AND c.fecha BETWEEN %s AND %s"
+            params = [fecha_inicio, fecha_fin]
+        cursor.execute(f"""
+            SELECT u.id_usuario, u.nombre, u.apellido,
+                COUNT(c.id_cita) AS total_citas,
+                SUM(CASE WHEN c.estado = 'realizada' THEN 1 ELSE 0 END) AS realizadas,
+                SUM(CASE WHEN c.estado = 'cancelada' THEN 1 ELSE 0 END) AS canceladas,
+                SUM(CASE WHEN c.estado = 'programada' THEN 1 ELSE 0 END) AS pendientes
+            FROM usuarios u
+            LEFT JOIN citas c ON c.id_usuario_vet = u.id_usuario {where}
+            WHERE u.rol = 'veterinario'
+            GROUP BY u.id_usuario, u.nombre, u.apellido
+            ORDER BY total_citas DESC
+        """, params)
+        vets = cursor.fetchall()
+        cursor.execute(f"""
+            SELECT u.id_usuario, u.nombre, u.apellido,
+                COUNT(c.id_cita) AS total_citas,
+                SUM(CASE WHEN c.estado = 'realizada' THEN 1 ELSE 0 END) AS realizadas
+            FROM usuarios u
+            LEFT JOIN citas c ON c.id_usuario = u.id_usuario {where}
+            WHERE u.rol = 'recepcionista'
+            GROUP BY u.id_usuario, u.nombre, u.apellido
+            ORDER BY total_citas DESC
+        """, params)
+        receps = cursor.fetchall()
+        return {"veterinarios": vets, "recepcionistas": receps}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/admin/clientes")
+async def reporte_clientes_admin(
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        whereClientes = ""
+        params = []
+        if fecha_inicio and fecha_fin:
+            whereClientes = " WHERE created_at BETWEEN %s AND %s"
+            params = [fecha_inicio + " 00:00:00", fecha_fin + " 23:59:59"]
+        cursor.execute(f"SELECT DATE_FORMAT(created_at, '%Y-%m') AS mes, COUNT(*) AS nuevos_clientes FROM clientes{whereClientes} GROUP BY mes ORDER BY mes DESC LIMIT 12", params)
+        nuevos = cursor.fetchall()
+        cursor.execute("SELECT COALESCE(especie, 'Sin especificar') AS especie, COUNT(*) AS total FROM mascotas GROUP BY especie ORDER BY total DESC")
+        especies = cursor.fetchall()
+        cursor.execute("""
+            SELECT CONCAT(cl.nombre, ' ', cl.apellido) AS cliente, COUNT(ci.id_cita) AS total_citas
+            FROM clientes cl
+            JOIN mascotas m ON m.id_cliente = cl.id_cliente
+            JOIN citas ci ON ci.id_mascota = m.id_mascota
+            GROUP BY cl.id_cliente ORDER BY total_citas DESC LIMIT 10
+        """)
+        top_clientes = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) AS total FROM clientes")
+        total = cursor.fetchone()
+        return {"nuevos_por_mes": nuevos, "mascotas_por_especie": especies, "top_clientes": top_clientes, "total_clientes": total["total"]}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/admin/inventario")
+async def reporte_inventario_admin(current_user: dict = Depends(get_current_user)):
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT COUNT(*) AS total_medicamentos, COALESCE(SUM(stock), 0) AS stock_total FROM medicamentos")
+        resumen = cursor.fetchone()
+        cursor.execute("SELECT id_medicamento, nombre, stock, precio, CASE WHEN stock <= 5 THEN 'critico' WHEN stock <= 10 THEN 'bajo' ELSE 'normal' END AS estado FROM medicamentos ORDER BY stock ASC")
+        medicamentos = cursor.fetchall()
+        cursor.execute("""
+            SELECT m.nombre, m.id_medicamento, SUM(fd.cantidad) AS total_vendido, m.stock AS stock_actual
+            FROM factura_detalle fd
+            JOIN medicamentos m ON fd.descripcion LIKE CONCAT(m.nombre, '%')
+            GROUP BY m.id_medicamento, m.nombre, m.stock ORDER BY total_vendido DESC LIMIT 15
+        """)
+        consumo = cursor.fetchall()
+        return {"resumen": resumen, "medicamentos": medicamentos, "consumo": consumo}
+    finally:
+        cursor.close()
+
+# ==================== REPORTES VETERINARIO ====================
+
+@app.get("/api/reportes/vet/atenciones")
+async def reporte_atenciones_vet(
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "veterinario":
+        raise HTTPException(status_code=403, detail="Solo veterinarios")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        where = " AND c.id_usuario_vet = %s"
+        params = [current_user["id_usuario"]]
+        if fecha_inicio and fecha_fin:
+            where += " AND c.fecha BETWEEN %s AND %s"
+            params.extend([fecha_inicio, fecha_fin])
+        cursor.execute(f"""
+            SELECT DATE_FORMAT(c.fecha, '%Y-%m') AS mes,
+                COUNT(*) AS total,
+                SUM(CASE WHEN c.estado = 'realizada' THEN 1 ELSE 0 END) AS realizadas
+            FROM citas c WHERE 1=1 {where}
+            GROUP BY mes ORDER BY mes DESC LIMIT 12
+        """, params)
+        por_mes = cursor.fetchall()
+        cursor.execute(f"""
+            SELECT m.nombre AS mascota, CONCAT(cl.nombre, ' ', cl.apellido) AS cliente,
+                CONCAT(c.fecha, ' ', c.hora) AS fecha_hora, c.notas, c.estado
+            FROM citas c
+            JOIN mascotas m ON c.id_mascota = m.id_mascota
+            JOIN clientes cl ON m.id_cliente = cl.id_cliente
+            WHERE 1=1 {where}
+            ORDER BY c.fecha DESC, c.hora DESC LIMIT 50
+        """, params)
+        pacientes = cursor.fetchall()
+        cursor.execute(f"SELECT COUNT(*) AS total FROM citas c WHERE 1=1 {where}", params)
+        total = cursor.fetchone()
+        return {"por_mes": por_mes, "pacientes": pacientes, "total_atenciones": total["total"]}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/vet/diagnosticos")
+async def reporte_diagnosticos_vet(
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "veterinario":
+        raise HTTPException(status_code=403, detail="Solo veterinarios")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        where = " AND hc.id_usuario = %s"
+        params = [current_user["id_usuario"]]
+        if fecha_inicio and fecha_fin:
+            where += " AND hc.fecha BETWEEN %s AND %s"
+            params.extend([fecha_inicio + " 00:00:00", fecha_fin + " 23:59:59"])
+        cursor.execute(f"SELECT hc.diagnostico, COUNT(*) AS veces FROM historial_clinico hc WHERE hc.diagnostico IS NOT NULL AND hc.diagnostico != '' {where} GROUP BY hc.diagnostico ORDER BY veces DESC LIMIT 15", params)
+        diagnosticos = cursor.fetchall()
+        cursor.execute(f"SELECT hc.tratamiento, COUNT(*) AS veces FROM historial_clinico hc WHERE hc.tratamiento IS NOT NULL AND hc.tratamiento != '' {where} GROUP BY hc.tratamiento ORDER BY veces DESC LIMIT 15", params)
+        tratamientos = cursor.fetchall()
+        return {"diagnosticos": diagnosticos, "tratamientos": tratamientos}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/vet/seguimiento")
+async def reporte_seguimiento_vet(current_user: dict = Depends(get_current_user)):
+    if current_user["rol"] != "veterinario":
+        raise HTTPException(status_code=403, detail="Solo veterinarios")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT c.id_cita, CONCAT(c.fecha, ' ', c.hora) AS fecha_hora, c.notas, c.estado,
+                m.nombre AS mascota, CONCAT(cl.nombre, ' ', cl.apellido) AS cliente
+            FROM citas c
+            JOIN mascotas m ON c.id_mascota = m.id_mascota
+            JOIN clientes cl ON m.id_cliente = cl.id_cliente
+            WHERE c.id_usuario_vet = %s AND c.estado IN ('programada', 'en_proceso')
+            ORDER BY c.fecha ASC, c.hora ASC LIMIT 20
+        """, (current_user["id_usuario"],))
+        pendientes = cursor.fetchall()
+        cursor.execute("""
+            SELECT c.id_cita, CONCAT(c.fecha, ' ', c.hora) AS fecha_hora, c.notas, c.estado,
+                m.nombre AS mascota, CONCAT(cl.nombre, ' ', cl.apellido) AS cliente
+            FROM citas c
+            JOIN mascotas m ON c.id_mascota = m.id_mascota
+            JOIN clientes cl ON m.id_cliente = cl.id_cliente
+            WHERE c.id_usuario_vet = %s AND c.estado = 'realizada'
+            ORDER BY c.fecha DESC, c.hora DESC LIMIT 20
+        """, (current_user["id_usuario"],))
+        realizadas = cursor.fetchall()
+        cursor.execute("""
+            SELECT ma.dosis, ma.frecuencia, ma.duracion, ma.instrucciones,
+                m.nombre AS mascota, CONCAT(cl.nombre, ' ', cl.apellido) AS cliente,
+                COALESCE(med.nombre, ma.nombre_personalizado) AS medicamento
+            FROM medicamentos_asignados ma
+            JOIN historial_clinico hc ON ma.id_historial = hc.id_historial
+            JOIN mascotas m ON hc.id_mascota = m.id_mascota
+            JOIN clientes cl ON m.id_cliente = cl.id_cliente
+            LEFT JOIN medicamentos med ON ma.id_medicamento = med.id_medicamento
+            WHERE hc.id_usuario = %s
+            ORDER BY ma.created_at DESC LIMIT 20
+        """, (current_user["id_usuario"],))
+        medicamentos = cursor.fetchall()
+        return {"pendientes": pendientes, "realizadas": realizadas, "medicamentos": medicamentos}
+    finally:
+        cursor.close()
+
+# ==================== REPORTES RECEPCIONISTA ====================
+
+@app.get("/api/reportes/recep/caja")
+async def reporte_caja_diaria(
+    fecha: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "recepcionista":
+        raise HTTPException(status_code=403, detail="Solo recepcionistas")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        fecha_actual = fecha or str(__import__('datetime').date.today())
+        cursor.execute("SELECT COALESCE(SUM(f.total), 0) AS total_cobrado, COUNT(*) AS facturas_pagadas FROM facturas f WHERE DATE(f.fecha) = %s AND f.estado = 'pagada'", (fecha_actual,))
+        resumen = cursor.fetchone()
+        cursor.execute("SELECT COALESCE(f.estado, 'emitida') AS metodo, COUNT(*) AS cantidad, SUM(f.total) AS total FROM facturas f WHERE DATE(f.fecha) = %s AND f.estado = 'pagada' GROUP BY f.estado ORDER BY total DESC", (fecha_actual,))
+        metodos = cursor.fetchall()
+        cursor.execute("""
+            SELECT f.id_factura, f.total, f.estado,
+                CONCAT(cl.nombre, ' ', cl.apellido) AS cliente,
+                DATE_FORMAT(f.fecha, '%H:%i') AS hora
+            FROM facturas f
+            JOIN clientes cl ON f.id_cliente = cl.id_cliente
+            WHERE DATE(f.fecha) = %s AND f.estado = 'pagada'
+            ORDER BY f.fecha ASC
+        """, (fecha_actual,))
+        detalle = cursor.fetchall()
+        return {"fecha": fecha_actual, "resumen": resumen, "metodos_pago": metodos, "detalle": detalle}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/recep/citas")
+async def reporte_flujo_citas(
+    fecha: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["rol"] != "recepcionista":
+        raise HTTPException(status_code=403, detail="Solo recepcionistas")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        fecha_actual = fecha or str(__import__('datetime').date.today())
+        cursor.execute("SELECT c.estado, COUNT(*) AS cantidad FROM citas c WHERE c.fecha = %s GROUP BY c.estado", (fecha_actual,))
+        estados = cursor.fetchall()
+        cursor.execute("""
+            SELECT c.id_cita, TIME_FORMAT(c.hora, '%H:%i') AS hora, c.estado, c.notas,
+                m.nombre AS mascota,
+                CONCAT(v.nombre, ' ', v.apellido) AS veterinario
+            FROM citas c
+            JOIN mascotas m ON c.id_mascota = m.id_mascota
+            JOIN usuarios v ON c.id_usuario_vet = v.id_usuario
+            WHERE c.fecha = %s
+            ORDER BY c.hora ASC
+        """, (fecha_actual,))
+        detalle = cursor.fetchall()
+        total = sum(e["cantidad"] for e in estados)
+        return {"fecha": fecha_actual, "estados": estados, "total": total, "detalle": detalle}
+    finally:
+        cursor.close()
+
+@app.get("/api/reportes/recep/pendiente")
+async def reporte_facturacion_pendiente(current_user: dict = Depends(get_current_user)):
+    if current_user["rol"] != "recepcionista":
+        raise HTTPException(status_code=403, detail="Solo recepcionistas")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT c.id_cita, CONCAT(c.fecha, ' ', TIME_FORMAT(c.hora, '%H:%i')) AS fecha, c.notas,
+                m.nombre AS mascota,
+                CONCAT(cl.nombre, ' ', cl.apellido) AS cliente,
+                cl.telefono, cl.email
+            FROM citas c
+            JOIN mascotas m ON c.id_mascota = m.id_mascota
+            JOIN clientes cl ON m.id_cliente = cl.id_cliente
+            LEFT JOIN facturas f ON f.id_cita = c.id_cita AND f.estado = 'pagada'
+            WHERE c.estado = 'realizada' AND f.id_factura IS NULL
+            ORDER BY c.fecha DESC, c.hora DESC
+        """)
+        pendientes = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) AS total FROM citas c LEFT JOIN facturas f ON f.id_cita = c.id_cita AND f.estado = 'pagada' WHERE c.estado = 'realizada' AND f.id_factura IS NULL")
+        total = cursor.fetchone()
+        return {"pendientes": pendientes, "total_pendientes": total["total"]}
+    finally:
+        cursor.close()
 
 @app.post("/api/citas", status_code=201)
 async def create_cita(data: dict, current_user: dict = Depends(get_current_user)):
@@ -2741,9 +3120,10 @@ async def get_perfil_cliente(cliente_id: int, current_user: dict = Depends(get_c
             cursor.execute("""
                 SELECT ma.id_asignacion, ma.dosis, ma.frecuencia, ma.duracion, ma.instrucciones,
                        m.nombre AS medicamento_nombre, m.precio, m.descripcion,
+                       ma.nombre_personalizado, ma.tipo_tratamiento,
                        h.id_mascota
                 FROM medicamentos_asignados ma
-                INNER JOIN medicamentos m ON ma.id_medicamento = m.id_medicamento
+                LEFT JOIN medicamentos m ON ma.id_medicamento = m.id_medicamento
                 INNER JOIN historial_clinico h ON ma.id_historial = h.id_historial
                 WHERE h.id_mascota = %s
                 ORDER BY m.nombre
@@ -2781,12 +3161,31 @@ async def get_perfil_cliente(cliente_id: int, current_user: dict = Depends(get_c
         historial.sort(key=lambda x: x.get("fecha", ""), reverse=True)
         citas_recientes.sort(key=lambda x: (x.get("fecha", ""), x.get("hora", "")), reverse=True)
         
+        # Obtener facturas del cliente
+        cursor.execute("""
+            SELECT f.id_factura, f.numero, f.fecha, f.subtotal, f.iva, f.total, f.estado, f.enviado,
+                   DATE_FORMAT(f.fecha, '%Y-%m-%d %H:%i') AS fecha_fmt,
+                   DATE_FORMAT(f.fecha_vencimiento, '%Y-%m-%d %H:%i') AS fecha_venc_fmt
+            FROM facturas f
+            WHERE f.id_cliente = %s
+            ORDER BY f.fecha DESC
+        """, (cliente_id,))
+        facturas = cursor.fetchall()
+        for f in facturas:
+            if f.get("subtotal"):
+                f["subtotal"] = float(f["subtotal"])
+            if f.get("iva"):
+                f["iva"] = float(f["iva"])
+            if f.get("total"):
+                f["total"] = float(f["total"])
+        
         return {
             "cliente": cliente,
             "mascotas": mascotas,
             "historial": historial,
             "medicamentos": medicamentos,
-            "citas_recientes": citas_recientes[:10]
+            "citas_recientes": citas_recientes[:10],
+            "facturas": facturas
         }
     except HTTPException:
         raise
@@ -2885,9 +3284,9 @@ async def get_usuario_historial(current_user: dict = Depends(get_current_user)):
         for entry in historial:
             cursor.execute("""
                 SELECT ma.dosis, ma.frecuencia, ma.duracion, ma.instrucciones,
-                       med.nombre AS medicamento_nombre
+                       med.nombre AS medicamento_nombre, ma.nombre_personalizado, ma.tipo_tratamiento
                 FROM medicamentos_asignados ma
-                INNER JOIN medicamentos med ON ma.id_medicamento = med.id_medicamento
+                LEFT JOIN medicamentos med ON ma.id_medicamento = med.id_medicamento
                 WHERE ma.id_historial = %s
             """, (entry["id_historial"],))
             entry["medicamentos"] = cursor.fetchall()
@@ -3002,7 +3401,7 @@ async def create_factura(data: FacturaCreate, current_user: dict = Depends(get_c
         cliente = cursor.fetchone()
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
-        if current_user["rol"] != "administrador":
+        if current_user["rol"] != "administrador" and current_user["rol"] != "recepcionista":
             cursor.execute("SELECT id_cliente FROM clientes WHERE id_cliente = %s AND id_usuario = %s",
                            (data.id_cliente, current_user["id_usuario"]))
             if not cursor.fetchone():
@@ -3275,6 +3674,193 @@ async def get_factura(factura_id: int, current_user: dict = Depends(get_current_
         cursor.close()
         connection.close()
 
+@app.get("/api/facturas/{factura_id}/pdf")
+async def descargar_factura_pdf(factura_id: int, current_user: dict = Depends(get_current_user)):
+    from fpdf import FPDF
+
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT f.id_factura, f.numero,
+                   DATE_FORMAT(f.fecha, '%Y-%m-%d %H:%i') AS fecha,
+                   f.subtotal, f.iva, f.total, f.estado,
+                   DATE_FORMAT(f.fecha_vencimiento, '%Y-%m-%d') AS fecha_venc_fmt,
+                   c.nombre AS cliente_nombre, c.apellido AS cliente_apellido,
+                   c.telefono AS cliente_telefono, c.email AS cliente_email,
+                   c.tipo_documento AS cliente_tipo_doc, c.numero_documento AS cliente_num_doc,
+                   c.direccion AS cliente_direccion,
+                   u.nombre AS usuario_nombre, u.apellido AS usuario_apellido,
+                   m.nombre AS mascota_nombre
+            FROM facturas f
+            INNER JOIN clientes c ON f.id_cliente = c.id_cliente
+            INNER JOIN usuarios u ON f.id_usuario = u.id_usuario
+            LEFT JOIN citas ct ON f.id_cita = ct.id_cita
+            LEFT JOIN mascotas m ON ct.id_mascota = m.id_mascota
+            WHERE f.id_factura = %s
+        """, (factura_id,))
+        factura = cursor.fetchone()
+        if not factura:
+            raise HTTPException(status_code=404, detail="Factura no encontrada")
+
+        if current_user["rol"] not in ("administrador", "recepcionista"):
+            if current_user["rol"] == "usuario":
+                cursor.execute("""
+                    SELECT f.id_factura FROM facturas f
+                    INNER JOIN clientes c ON f.id_cliente = c.id_cliente
+                    WHERE f.id_factura = %s AND (c.id_usuario = %s OR c.email = %s) AND f.estado != 'anulada'
+                """, (factura_id, current_user["id_usuario"], current_user["email"]))
+            else:
+                cursor.execute("SELECT id_factura FROM facturas WHERE id_factura = %s AND id_usuario = %s",
+                               (factura_id, current_user["id_usuario"]))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=403, detail="No tienes permisos sobre esta factura")
+
+        cursor.execute("SELECT * FROM factura_detalle WHERE id_factura = %s ORDER BY id_detalle", (factura_id,))
+        detalles = cursor.fetchall()
+
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=20)
+
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(59, 130, 246)
+        pdf.cell(0, 12, "Vet Manager", new_x="LMARGIN", new_y="NEXT", align="L")
+
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(0, 6, "Sistema de Gestion Veterinaria", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.ln(6)
+
+        pdf.set_draw_color(226, 232, 240)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(6)
+
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(120, 10, f"FACTURA {factura['numero']}", new_x="RIGHT")
+        pdf.set_font("Helvetica", "", 11)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(0, 10, f"Fecha: {factura['fecha']}", new_x="LMARGIN", new_y="NEXT", align="R")
+
+        estado = factura["estado"].upper()
+        if estado == "PAGADA":
+            pdf.set_text_color(16, 185, 129)
+        elif estado == "ANULADA":
+            pdf.set_text_color(239, 68, 68)
+        else:
+            pdf.set_text_color(245, 158, 11)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 8, f"Estado: {estado}", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.set_text_color(30, 41, 59)
+        pdf.ln(6)
+
+        pdf.set_draw_color(226, 232, 240)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(4)
+
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(95, 7, "CLIENTE", new_x="RIGHT")
+        pdf.cell(0, 7, "INFORMACION", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(51, 65, 85)
+        x_left = pdf.get_x()
+        y_start = pdf.get_y()
+
+        pdf.cell(95, 6, f"{factura['cliente_nombre']} {factura['cliente_apellido']}", new_x="LMARGIN", new_y="NEXT")
+        if factura.get("cliente_num_doc"):
+            pdf.cell(95, 6, f"Doc: {factura['cliente_tipo_doc']} {factura['cliente_num_doc']}", new_x="LMARGIN", new_y="NEXT")
+        if factura.get("cliente_telefono"):
+            pdf.cell(95, 6, f"Tel: {factura['cliente_telefono']}", new_x="LMARGIN", new_y="NEXT")
+        if factura.get("cliente_email"):
+            pdf.cell(95, 6, f"Email: {factura['cliente_email']}", new_x="LMARGIN", new_y="NEXT")
+        if factura.get("cliente_direccion"):
+            pdf.cell(95, 6, f"Dir: {factura['cliente_direccion']}", new_x="LMARGIN", new_y="NEXT")
+
+        y_client_end = pdf.get_y()
+        pdf.set_xy(x_left + 95, y_start)
+        if factura.get("mascota_nombre"):
+            pdf.cell(0, 6, f"Mascota: {factura['mascota_nombre']}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, f"Generada por: {factura['usuario_nombre']} {factura['usuario_apellido']}", new_x="LMARGIN", new_y="NEXT")
+        if factura.get("fecha_venc_fmt"):
+            pdf.cell(0, 6, f"Vence: {factura['fecha_venc_fmt']}", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.set_y(max(y_client_end, pdf.get_y()) + 6)
+
+        pdf.set_draw_color(226, 232, 240)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(4)
+
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(90, 8, "DESCRIPCION", border=1, fill=True)
+        pdf.cell(20, 8, "CANT.", border=1, fill=True, align="C")
+        pdf.cell(35, 8, "PRECIO U.", border=1, fill=True, align="C")
+        pdf.cell(35, 8, "SUBTOTAL", border=1, fill=True, align="C")
+        pdf.ln()
+
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(51, 65, 85)
+        for d in detalles:
+            desc = str(d.get("descripcion", ""))[:50]
+            pdf.cell(90, 7, desc, border=1)
+            pdf.cell(20, 7, str(d.get("cantidad", 0)), border=1, align="C")
+            precio = float(d.get("precio_unitario", 0))
+            sub = float(d.get("subtotal", 0))
+            pdf.cell(35, 7, f"${precio:,.0f}", border=1, align="R")
+            pdf.cell(35, 7, f"${sub:,.0f}", border=1, align="R")
+            pdf.ln()
+
+        pdf.ln(4)
+        pdf.set_x(100)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(100, 116, 139)
+        sub = float(factura["subtotal"])
+        iva = float(factura["iva"])
+        total = float(factura["total"])
+        pdf.cell(45, 7, "Subtotal:", align="R")
+        pdf.cell(35, 7, f"${sub:,.0f}", align="R")
+        pdf.ln()
+        pdf.cell(45, 7, "IVA (19%):", align="R")
+        pdf.cell(35, 7, f"${iva:,.0f}", align="R")
+        pdf.ln()
+        pdf.set_draw_color(226, 232, 240)
+        pdf.line(100, pdf.get_y(), 190, pdf.get_y())
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(45, 8, "TOTAL:", align="R")
+        pdf.cell(35, 8, f"${total:,.0f}", align="R")
+        pdf.ln(12)
+
+        pdf.set_draw_color(226, 232, 240)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(148, 163, 184)
+        pdf.cell(0, 6, "Gracias por confiar en Vet Manager!", new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.cell(0, 6, "Factura generada electronicamente", new_x="LMARGIN", new_y="NEXT", align="C")
+
+        pdf_buffer = io.BytesIO()
+        pdf_buffer.write(pdf.output())
+        pdf_buffer.seek(0)
+
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=factura_{factura['numero']}.pdf"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 @app.delete("/api/facturas/{factura_id}")
 async def anular_factura(factura_id: int, current_user: dict = Depends(get_current_user)):
     connection = get_db_connection()
@@ -3317,8 +3903,8 @@ async def pagar_factura(factura_id: int, current_user: dict = Depends(get_curren
         if not factura:
             raise HTTPException(status_code=404, detail="Factura no encontrada")
 
-        if current_user["rol"] != "administrador":
-            raise HTTPException(status_code=403, detail="Solo el administrador puede registrar pagos")
+        if current_user["rol"] != "administrador" and current_user["rol"] != "recepcionista":
+            raise HTTPException(status_code=403, detail="Solo administrador o recepcionista pueden registrar pagos")
 
         if factura["estado"] == "pagada":
             raise HTTPException(status_code=400, detail="La factura ya esta pagada")
@@ -3326,6 +3912,19 @@ async def pagar_factura(factura_id: int, current_user: dict = Depends(get_curren
             raise HTTPException(status_code=400, detail="No se puede pagar una factura anulada")
 
         cursor.execute("UPDATE facturas SET estado = 'pagada' WHERE id_factura = %s", (factura_id,))
+
+        # Reducir stock de medicamentos vendidos
+        cursor.execute("SELECT descripcion, cantidad FROM factura_detalle WHERE id_factura = %s", (factura_id,))
+        detalles = cursor.fetchall()
+        for detalle in detalles:
+            desc = detalle["descripcion"].strip()
+            # Buscar si el detalle corresponde a un medicamento por nombre
+            cursor.execute("SELECT id_medicamento, stock FROM medicamentos WHERE nombre = %s", (desc,))
+            med = cursor.fetchone()
+            if med and med["stock"] >= detalle["cantidad"]:
+                cursor.execute("UPDATE medicamentos SET stock = stock - %s WHERE id_medicamento = %s",
+                               (detalle["cantidad"], med["id_medicamento"]))
+
         connection.commit()
         return {"message": "Factura marcada como pagada exitosamente"}
     except HTTPException:
@@ -3485,6 +4084,73 @@ async def eliminar_notificacion(notif_id: int, current_user: dict = Depends(get_
         cursor.close()
         connection.close()
 
+# ==================== FOTO DE PERFIL ====================
+
+@app.get("/api/usuarios/{usuario_id}/foto")
+async def get_foto_perfil(usuario_id: int, current_user: dict = Depends(get_current_user)):
+    """Obtener foto de perfil de un usuario"""
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT foto_perfil FROM usuarios WHERE id_usuario = %s", (usuario_id,))
+        row = cursor.fetchone()
+        if not row or not row.get("foto_perfil"):
+            return {"foto": None}
+        import base64
+        foto_b64 = base64.b64encode(row["foto_perfil"]).decode("utf-8")
+        return {"foto": foto_b64}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.put("/api/usuarios/{usuario_id}/foto")
+async def update_foto_perfil(usuario_id: int, data: dict, current_user: dict = Depends(get_current_user)):
+    """Actualizar foto de perfil (solo el propio usuario o admin)"""
+    if current_user["rol"] != "administrador" and current_user["id_usuario"] != usuario_id:
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    if "foto" not in data:
+        raise HTTPException(status_code=400, detail="Campo requerido: foto (base64)")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor()
+    try:
+        import base64
+        foto_bytes = base64.b64decode(data["foto"]) if data["foto"] else None
+        cursor.execute("UPDATE usuarios SET foto_perfil = %s WHERE id_usuario = %s", (foto_bytes, usuario_id))
+        connection.commit()
+        return {"message": "Foto de perfil actualizada"}
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.delete("/api/usuarios/{usuario_id}/foto")
+async def delete_foto_perfil(usuario_id: int, current_user: dict = Depends(get_current_user)):
+    """Eliminar foto de perfil"""
+    if current_user["rol"] != "administrador" and current_user["id_usuario"] != usuario_id:
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor()
+    try:
+        cursor.execute("UPDATE usuarios SET foto_perfil = NULL WHERE id_usuario = %s", (usuario_id,))
+        connection.commit()
+        return {"message": "Foto eliminada"}
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 # ==================== ENDPOINTS MEDICAMENTOS ASIGNADOS ====================
 
 @app.get("/api/medicamentos")
@@ -3508,11 +4174,115 @@ async def get_medicamentos(current_user: dict = Depends(get_current_user)):
         cursor.close()
         connection.close()
 
-@app.get("/api/vet/historial/{historial_id}/medicamentos")
+@app.get("/api/admin/medicamentos")
+async def admin_get_medicamentos(current_user: dict = Depends(get_current_user)):
+    """Listar todos los medicamentos (admin)"""
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id_medicamento, nombre, descripcion, dosis, precio, stock
+            FROM medicamentos ORDER BY nombre
+        """)
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.post("/api/admin/medicamentos", status_code=201)
+async def admin_create_medicamento(data: dict, current_user: dict = Depends(get_current_user)):
+    """Crear medicamento (admin)"""
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    required = ["nombre", "precio"]
+    for field in required:
+        if field not in data or data[field] in (None, ""):
+            raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO medicamentos (nombre, descripcion, dosis, precio, stock)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (data["nombre"], data.get("descripcion", ""), data.get("dosis", ""), data["precio"], data.get("stock", 0)))
+        connection.commit()
+        return {"message": "Medicamento creado", "id": cursor.lastrowid}
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.put("/api/admin/medicamentos/{medicamento_id}")
+async def admin_update_medicamento(medicamento_id: int, data: dict, current_user: dict = Depends(get_current_user)):
+    """Actualizar medicamento (admin)"""
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SELECT id_medicamento FROM medicamentos WHERE id_medicamento = %s", (medicamento_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Medicamento no encontrado")
+        fields = []
+        values = []
+        for key in ["nombre", "descripcion", "dosis", "precio", "stock"]:
+            if key in data:
+                fields.append(f"{key} = %s")
+                values.append(data[key])
+        if not fields:
+            raise HTTPException(status_code=400, detail="Sin campos para actualizar")
+        values.append(medicamento_id)
+        cursor.execute(f"UPDATE medicamentos SET {', '.join(fields)} WHERE id_medicamento = %s", values)
+        connection.commit()
+        return {"message": "Medicamento actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+@app.delete("/api/admin/medicamentos/{medicamento_id}")
+async def admin_delete_medicamento(medicamento_id: int, current_user: dict = Depends(get_current_user)):
+    """Eliminar medicamento (admin)"""
+    if current_user["rol"] != "administrador":
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexion")
+    cursor = connection.cursor()
+    try:
+        cursor.execute("DELETE FROM medicamentos WHERE id_medicamento = %s", (medicamento_id,))
+        connection.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Medicamento no encontrado")
+        return {"message": "Medicamento eliminado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
 async def get_medicamentos_historial(historial_id: int, current_user: dict = Depends(get_current_user)):
     """Ver medicamentos asignados en un historial clinico"""
-    if current_user["rol"] not in ("veterinario", "administrador"):
-        raise HTTPException(status_code=403, detail="Solo veterinarios pueden ver medicamentos asignados")
+    if current_user["rol"] not in ("veterinario", "administrador", "recepcionista"):
+        raise HTTPException(status_code=403, detail="Sin permisos para ver medicamentos asignados")
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexion")
@@ -3535,13 +4305,16 @@ async def get_medicamentos_historial(historial_id: int, current_user: dict = Dep
 
 @app.post("/api/vet/historial/{historial_id}/medicamentos", status_code=201)
 async def asignar_medicamento(historial_id: int, data: dict, current_user: dict = Depends(get_current_user)):
-    """Asignar medicamento a un registro de historial clinico"""
-    if current_user["rol"] not in ("veterinario", "administrador"):
-        raise HTTPException(status_code=403, detail="Solo veterinarios pueden asignar medicamentos")
-    required = ["id_medicamento", "dosis"]
-    for field in required:
-        if field not in data or data[field] in (None, ""):
-            raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+    """Asignar medicamento a un registro de historial clinico (catalogo o personalizado)"""
+    if current_user["rol"] not in ("veterinario", "administrador", "recepcionista"):
+        raise HTTPException(status_code=403, detail="Sin permisos para asignar medicamentos")
+    id_medicamento = data.get("id_medicamento")
+    nombre_personalizado = data.get("nombre_personalizado", "").strip()
+    dosis = data.get("dosis", "")
+    if not dosis:
+        raise HTTPException(status_code=400, detail="Campo requerido: dosis")
+    if not id_medicamento and not nombre_personalizado:
+        raise HTTPException(status_code=400, detail="Debe proporcionar id_medicamento o nombre_personalizado")
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexion")
@@ -3551,10 +4324,13 @@ async def asignar_medicamento(historial_id: int, data: dict, current_user: dict 
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Historial clinico no encontrado")
         cursor.execute("""
-            INSERT INTO medicamentos_asignados (id_historial, id_medicamento, dosis, frecuencia, duracion, instrucciones)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (historial_id, data["id_medicamento"], data["dosis"],
-              data.get("frecuencia"), data.get("duracion"), data.get("instrucciones")))
+            INSERT INTO medicamentos_asignados 
+                (id_historial, id_medicamento, dosis, frecuencia, duracion, instrucciones, nombre_personalizado, tipo_tratamiento)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (historial_id, id_medicamento if id_medicamento else None, dosis,
+              data.get("frecuencia"), data.get("duracion"), data.get("instrucciones"),
+              nombre_personalizado if nombre_personalizado else None,
+              'personalizado' if nombre_personalizado and not id_medicamento else 'catalogo'))
         connection.commit()
         return {"message": "Medicamento asignado exitosamente", "id_asignacion": cursor.lastrowid}
     except HTTPException:
@@ -3569,8 +4345,8 @@ async def asignar_medicamento(historial_id: int, data: dict, current_user: dict 
 @app.delete("/api/vet/historial/medicamentos/{asignacion_id}")
 async def eliminar_medicamento_asignado(asignacion_id: int, current_user: dict = Depends(get_current_user)):
     """Eliminar medicamento asignado"""
-    if current_user["rol"] not in ("veterinario", "administrador"):
-        raise HTTPException(status_code=403, detail="Solo veterinarios pueden eliminar medicamentos")
+    if current_user["rol"] not in ("veterinario", "administrador", "recepcionista"):
+        raise HTTPException(status_code=403, detail="Sin permisos para eliminar medicamentos")
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexion")
@@ -3621,9 +4397,10 @@ async def get_medicamentos_mascota(mascota_id: int, current_user: dict = Depends
     try:
         cursor.execute("""
             SELECT ma.id_asignacion, ma.dosis, ma.frecuencia, ma.duracion, ma.instrucciones,
-                   m.id_medicamento, m.nombre AS medicamento_nombre, m.precio, m.descripcion
+                   m.id_medicamento, m.nombre AS medicamento_nombre, m.precio, m.descripcion,
+                   ma.nombre_personalizado, ma.tipo_tratamiento
             FROM medicamentos_asignados ma
-            INNER JOIN medicamentos m ON ma.id_medicamento = m.id_medicamento
+            LEFT JOIN medicamentos m ON ma.id_medicamento = m.id_medicamento
             INNER JOIN historial_clinico h ON ma.id_historial = h.id_historial
             WHERE h.id_mascota = %s
             ORDER BY m.nombre
@@ -3660,6 +4437,167 @@ async def get_veterinarios_disponibles(current_user: dict = Depends(get_current_
     finally:
         cursor.close()
         connection.close()
+
+# ==================== DISPONIBILIDAD VETERINARIOS ====================
+
+@app.get("/api/vet/disponibilidad")
+async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_user: dict = Depends(get_current_user)):
+    """
+    Retorna la disponibilidad de todos los veterinarios activos para una fecha específica.
+    Estados: 'disponible', 'ocupado', 'no_trabaja'
+    """
+    from datetime import datetime, timedelta
+    def time_to_minutes(t):
+        if t is None: return 0
+        if isinstance(t, timedelta): return int(t.total_seconds()) // 60
+        if isinstance(t, str): parts = t.split(":"); return int(parts[0]) * 60 + int(parts[1])
+        return t.hour * 60 + t.minute
+    def time_to_str(t):
+        if t is None: return None
+        if isinstance(t, timedelta): total = int(t.total_seconds()); return f"{total // 3600:02d}:{(total % 3600) // 60:02d}"
+        if isinstance(t, str): return t[:5]
+        return f"{t.hour:02d}:{t.minute:02d}"
+    try:
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+    
+    dia_semana = fecha_dt.weekday()
+    
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT u.id_usuario, u.nombre, u.apellido, u.especialidad,
+                   vh.hora_inicio, vh.hora_fin
+            FROM usuarios u
+            LEFT JOIN veterinario_horarios vh ON vh.id_usuario_vet = u.id_usuario 
+                AND vh.dia_semana = %s AND vh.is_active = 1
+            WHERE u.rol = 'veterinario' AND u.is_active = 1
+            ORDER BY u.nombre
+        """, (dia_semana,))
+        vets = cursor.fetchall()
+        
+        if vets:
+            vet_ids = [v["id_usuario"] for v in vets]
+            placeholders = ",".join(["%s"] * len(vet_ids))
+            cursor.execute(f"""
+                SELECT id_usuario_vet, COUNT(*) AS total_citas
+                FROM citas
+                WHERE fecha = %s AND estado IN ('programada', 'en_proceso')
+                    AND id_usuario_vet IN ({placeholders})
+                GROUP BY id_usuario_vet
+            """, [fecha] + vet_ids)
+            citas_count = {r["id_usuario_vet"]: r["total_citas"] for r in cursor.fetchall()}
+        else:
+            citas_count = {}
+        
+        resultado = []
+        for v in vets:
+            if v["hora_inicio"] is None:
+                estado = "no_trabaja"
+            else:
+                total_citas = citas_count.get(v["id_usuario"], 0)
+                hi = time_to_minutes(v["hora_inicio"])
+                hf = time_to_minutes(v["hora_fin"])
+                total_slots = (hf - hi) // 30
+                estado = "disponible" if total_citas < total_slots else "ocupado"
+            
+            resultado.append({
+                "id_usuario": v["id_usuario"],
+                "nombre": f"{v['nombre']} {v['apellido']}",
+                "especialidad": v["especialidad"],
+                "estado": estado,
+                "hora_inicio": time_to_str(v["hora_inicio"]),
+                "hora_fin": time_to_str(v["hora_fin"]),
+                "citas_existentes": citas_count.get(v["id_usuario"], 0)
+            })
+        
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/vet/horarios")
+async def get_horarios_vet(id_vet: int, fecha: str, current_user: dict = Depends(get_current_user)):
+    """
+    Retorna los horarios disponibles para un veterinario en una fecha específica.
+    Cada slot tiene estado: 'disponible' o 'ocupado'.
+    """
+    from datetime import datetime, timedelta
+    def time_to_minutes(t):
+        if t is None: return 0
+        if isinstance(t, timedelta): return int(t.total_seconds()) // 60
+        if isinstance(t, str): parts = t.split(":"); return int(parts[0]) * 60 + int(parts[1])
+        return t.hour * 60 + t.minute
+    def time_to_str(t):
+        if t is None: return None
+        if isinstance(t, timedelta): total = int(t.total_seconds()); return f"{total // 3600:02d}:{(total % 3600) // 60:02d}"
+        if isinstance(t, str): return t[:5]
+        return f"{t.hour:02d}:{t.minute:02d}"
+    try:
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+    
+    dia_semana = fecha_dt.weekday()
+    now = datetime.now()
+    es_hoy = fecha_dt.date() == now.date()
+    
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT hora_inicio, hora_fin FROM veterinario_horarios
+            WHERE id_usuario_vet = %s AND dia_semana = %s AND is_active = 1
+        """, (id_vet, dia_semana))
+        horario = cursor.fetchone()
+        
+        if not horario:
+            return {"trabaja": False, "horarios": []}
+        
+        hi_min = time_to_minutes(horario["hora_inicio"])
+        hf_min = time_to_minutes(horario["hora_fin"])
+        
+        slots = []
+        t = hi_min
+        while t < hf_min:
+            hh = str(t // 60).zfill(2)
+            mm = str(t % 60).zfill(2)
+            slots.append(f"{hh}:{mm}")
+            t += 30
+        
+        cursor.execute("""
+            SELECT hora FROM citas
+            WHERE id_usuario_vet = %s AND fecha = %s AND estado IN ('programada', 'en_proceso')
+        """, (id_vet, fecha))
+        horas_ocupadas = set()
+        for r in cursor.fetchall():
+            horas_ocupadas.add(time_to_str(r["hora"]))
+        
+        horarios = []
+        for slot in slots:
+            if es_hoy:
+                slot_h, slot_m = map(int, slot.split(":"))
+                if slot_h * 60 + slot_m <= now.hour * 60 + now.minute:
+                    continue
+            estado = "ocupado" if slot in horas_ocupadas else "disponible"
+            horarios.append({"hora": slot, "estado": estado})
+        
+        return {"trabaja": True, "hora_inicio": time_to_str(horario["hora_inicio"]), "hora_fin": time_to_str(horario["hora_fin"]), "horarios": horarios}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
 
 # ==================== RUTAS DE CLIENTES ====================
 

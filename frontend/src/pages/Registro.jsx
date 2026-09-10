@@ -24,9 +24,7 @@ const strengthConfig = {
 };
 
 const formatTelefono = (value) => {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length > 10) return digits.slice(0, 10);
-  return digits;
+  return value.replace(/\D/g, '').slice(0, 20);
 };
 
 const Registro = () => {
@@ -68,8 +66,8 @@ const Registro = () => {
       return;
     }
 
-    if (!/^3\d{9}$/.test(formData.telefono)) {
-      setError('El teléfono debe ser un número colombiano válido (10 dígitos, empieza con 3)');
+    if (!formData.telefono.trim()) {
+      setError('El teléfono es requerido');
       return;
     }
 
@@ -78,7 +76,7 @@ const Registro = () => {
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
-      telefono: `+57${formData.telefono}`,
+      telefono: formData.telefono.startsWith('+57') ? formData.telefono : `+57${formData.telefono}`,
       direccion: formData.direccion,
       contraseña: formData.contraseña,
     });
@@ -209,6 +207,7 @@ const Registro = () => {
               placeholder="correo@ejemplo.com"
               value={formData.email}
               onChange={handleChange}
+              maxLength={100}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -242,6 +241,7 @@ const Registro = () => {
                 placeholder="300 123 4567"
                 value={formData.telefono}
                 onChange={handleChange}
+                maxLength={20}
                 style={{
                   flex: 1,
                   padding: '12px 16px',
@@ -263,6 +263,7 @@ const Registro = () => {
               placeholder="Calle, número, ciudad"
               value={formData.direccion}
               onChange={handleChange}
+              maxLength={150}
               style={{
                 width: '100%',
                 padding: '12px 16px',

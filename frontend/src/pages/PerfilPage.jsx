@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 const roleConfig = {
   administrador: { label: 'Administrador', color: '#f59e0b', bg: '#fef3c7', border: '#fcd34d', icon: 'settings' },
   veterinario: { label: 'Veterinario', color: '#10b981', bg: '#d1fae5', border: '#6ee7b7', icon: 'paw' },
+  recepcionista: { label: 'Recepcionista', color: '#8b5cf6', bg: '#ede9fe', border: '#c4b5fd', icon: 'user' },
   usuario: { label: 'Usuario', color: '#3b82f6', bg: '#eff6ff', border: '#93c5fd', icon: 'user' }
 };
 
@@ -25,6 +26,10 @@ const PerfilPage = () => {
   const [pwdForm, setPwdForm] = useState({ contraseña_actual: '', nueva_contraseña: '', confirmar: '' });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [hoverAvatar, setHoverAvatar] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   const docLimits = { CC: 10, CE: 15, TI: 11 };
 
@@ -44,6 +49,48 @@ const PerfilPage = () => {
       .catch(() => setError('Error al cargar tu perfil'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (user?.id_usuario) {
+      api.get(`/api/usuarios/${user.id_usuario}/foto`)
+        .then(r => { if (r.data.foto) setFoto(`data:image/jpeg;base64,${r.data.foto}`); })
+        .catch(() => {});
+    }
+  }, [user?.id_usuario]);
+
+  const handleFotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError('La imagen no puede superar 5MB'); return; }
+    setUploading(true); setError('');
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result.split(',')[1];
+        await api.put(`/api/usuarios/${user.id_usuario}/foto`, { foto: base64 });
+        setFoto(reader.result);
+        setSuccess('Foto de perfil actualizada');
+        setTimeout(() => setSuccess(''), 3000);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Error al subir foto');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFotoDelete = async () => {
+    if (!confirm('Eliminar foto de perfil?')) return;
+    try {
+      await api.delete(`/api/usuarios/${user.id_usuario}/foto`);
+      setFoto(null);
+      setSuccess('Foto eliminada');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Error al eliminar foto');
+    }
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -142,12 +189,44 @@ const PerfilPage = () => {
             <div style={{
               position: 'absolute', bottom: -40, left: 28,
               width: 88, height: 88, borderRadius: '50%',
-              background: rc.bg, border: `4px solid white`,
+              background: foto ? 'transparent' : rc.bg, border: `4px solid white`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}>
-              <Icon name={rc.icon} size={36} style={{ color: rc.color }} />
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              overflow: 'hidden', cursor: 'pointer'
+            }} onClick={() => fileInputRef.current?.click()} title="Cambiar foto"
+              onMouseEnter={() => setHoverAvatar(true)} onMouseLeave={() => setHoverAvatar(false)}>
+              {foto ? (
+                <img src={foto} alt="Perfil" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <Icon name={rc.icon} size={36} style={{ color: rc.color }} />
+              )}
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                height: 28, background: 'rgba(0,0,0,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '0 0 40px 40px',
+                opacity: hoverAvatar ? 1 : 0, transition: 'opacity 0.2s'
+              }}>
+                <Icon name="pencil" size={14} style={{ color: 'white' }} />
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFotoUpload} style={{ display: 'none' }} />
             </div>
+            {editing && foto && (
+              <button onClick={handleFotoDelete} style={{
+                position: 'absolute', bottom: -42, left: 120,
+                padding: '5px 12px', borderRadius: 8, border: '1px solid #fecaca',
+                background: '#fee2e2', color: '#dc2626', cursor: 'pointer',
+                fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4
+              }} title="Eliminar foto">
+                <Icon name="trash" size={12} /> Eliminar foto
+              </button>
+            )}
+            {uploading && (
+              <div style={{
+                position: 'absolute', bottom: -42, left: 28,
+                fontSize: 11, color: '#3b82f6', fontWeight: 600
+              }}>Subiendo...</div>
+            )}
           </div>
 
           {/* Info */}
@@ -224,9 +303,9 @@ const PerfilPage = () => {
                   {[
                     { name: 'nombre', label: 'Nombre', required: true },
                     { name: 'apellido', label: 'Apellido', required: true },
-                    { name: 'email', label: 'Email', type: 'email', required: true },
-                    { name: 'telefono', label: 'Teléfono (Max. 10 caracteres)', placeholder: '+57 300...', maxLength: 10 },
-                    { name: 'direccion', label: 'Dirección', span: 2 },
+                    { name: 'email', label: 'Email', type: 'email', required: true, maxLength: 100 },
+                    { name: 'telefono', label: 'Teléfono (Max. 20 caracteres)', placeholder: '+57 300...', maxLength: 20 },
+                    { name: 'direccion', label: 'Dirección', span: 2, maxLength: 150 },
                     { name: 'tipo_documento', label: 'Tipo Doc.', placeholder: 'CC, TI...' },
                     { name: 'numero_documento', label: (docLimits[form.tipo_documento] ? `N° Documento (Max. ${docLimits[form.tipo_documento]} caracteres)` : 'N° Documento'), maxLength: docLimits[form.tipo_documento] || 15 }
                   ].map(field => (

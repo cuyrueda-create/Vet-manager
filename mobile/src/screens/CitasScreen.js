@@ -55,28 +55,31 @@ export default function CitasScreen() {
     ]);
   };
 
-  const Picker = ({ label, value, onChange, options, labelKey = 'nombre' }) => {
+  const Picker = ({ label, value, onChange, options, labelKey = 'nombre', idKey = 'id' }) => {
     const [open, setOpen] = useState(false);
     return (
       <View style={{ marginBottom: 12 }}>
         <Text style={styles.label}>{label}</Text>
         <TouchableOpacity style={styles.pickerBtn} onPress={() => setOpen(!open)}>
           <Text style={[styles.pickerText, !value && { color: '#94a3b8' }]}>
-            {value ? options.find(o => String(o.id) === String(value))?.[labelKey] || 'Seleccionar...' : 'Seleccionar...'}
+            {value ? options.find(o => String(o[idKey]) === String(value))?.[labelKey] || 'Seleccionar...' : 'Seleccionar...'}
           </Text>
           <Text>{open ? '▲' : '▼'}</Text>
         </TouchableOpacity>
         {open && (
           <View style={styles.pickerList}>
             <ScrollView style={{ maxHeight: 180 }}>
-              {options.map(o => (
-                <TouchableOpacity key={o.id || o.id_mascota} style={styles.pickerItem}
-                  onPress={() => { onChange(String(o.id || o.id_mascota)); setOpen(false); }}>
-                  <Text style={{ color: String(value) === String(o.id || o.id_mascota) ? '#0066b3' : '#1e293b', fontWeight: String(value) === String(o.id || o.id_mascota) ? '700' : '400' }}>
-                    {o[labelKey] || o.nombre} {o.cliente_nombre ? `- ${o.cliente_nombre} ${o.cliente_apellido}` : ''} {o.precio ? `- $${o.precio}` : ''}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {options.map(o => {
+                const optId = String(o[idKey]);
+                return (
+                  <TouchableOpacity key={optId} style={styles.pickerItem}
+                    onPress={() => { onChange(optId); setOpen(false); }}>
+                    <Text style={{ color: String(value) === optId ? '#0066b3' : '#1e293b', fontWeight: String(value) === optId ? '700' : '400' }}>
+                      {o[labelKey] || o.nombre} {o.cliente_nombre ? `- ${o.cliente_nombre} ${o.cliente_apellido}` : ''} {o.precio ? `- $${o.precio}` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         )}
@@ -141,16 +144,16 @@ export default function CitasScreen() {
             <Text style={styles.modalTitle}>Nueva Cita</Text>
 
             <Picker label="Mascota" value={form.id_mascota} onChange={v => setForm({ ...form, id_mascota: v })}
-              options={formData.mascotas} labelKey="nombre" />
+              options={formData.mascotas} labelKey="nombre" idKey="id_mascota" />
 
             <Picker label="Veterinario" value={form.id_usuario_vet} onChange={v => setForm({ ...form, id_usuario_vet: v })}
-              options={formData.veterinarios} labelKey="nombre" />
+              options={formData.veterinarios} labelKey="nombre" idKey="id_usuario" />
 
             <Picker label="Servicio" value={form.id_servicio} onChange={v => setForm({ ...form, id_servicio: v })}
-              options={formData.servicios} labelKey="nombre" />
+              options={formData.servicios} labelKey="nombre" idKey="id_servicio" />
 
             <Picker label="Consultorio" value={form.id_consultorio} onChange={v => setForm({ ...form, id_consultorio: v })}
-              options={formData.consultorios} />
+              options={formData.consultorios} labelKey="nombre" idKey="id_consultorio" />
 
             <Text style={styles.label}>Fecha</Text>
             <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94a3b8"

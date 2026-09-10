@@ -9,15 +9,18 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentUsers, setRecentUsers] = useState([]);
+  const [medStock, setMedStock] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/api/stats'),
-      api.get('/api/v1/admin/bloc')
-    ]).then(([statsRes, usersRes]) => {
+      api.get('/api/v1/admin/bloc'),
+      api.get('/api/reportes/admin/inventario')
+    ]).then(([statsRes, usersRes, medRes]) => {
       setStats(statsRes.data);
       setRecentUsers((usersRes.data || []).slice(0, 6));
+      setMedStock(medRes.data?.resumen || null);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -36,8 +39,9 @@ const AdminDashboard = () => {
     { to: '/admin/personal', icon: 'users', label: 'Personal', desc: 'Veterinarios y recepcionistas', color: '#10b981', bg: '#d1fae5' },
     { to: '/admin/usuarios', icon: 'user', label: 'Usuarios', desc: 'Gestionar cuentas del sistema', color: '#3b82f6', bg: '#eff6ff' },
     { to: '/admin/inventario', icon: 'clipboard', label: 'Inventario', desc: 'Servicios y recursos de la clinica', color: '#f59e0b', bg: '#fef3c7' },
+    { to: '/admin/medicamentos', icon: 'heart', label: 'Medicamentos', desc: 'Catalogo de medicamentos', color: '#10b981', bg: '#d1fae5' },
     { to: '/facturas', icon: 'document', label: 'Facturas', desc: 'Consulta y gestion de facturas', color: '#8b5cf6', bg: '#ede9fe' },
-    { to: '/reporte-vista', icon: 'chart', label: 'Reportes', desc: 'Informes y estadisticas', color: '#ef4444', bg: '#fee2e2' },
+    { to: '/admin/reportes', icon: 'chart', label: 'Reportes', desc: 'Informes y estadisticas', color: '#ef4444', bg: '#fee2e2' },
   ];
 
   return (
@@ -92,6 +96,42 @@ const AdminDashboard = () => {
                 </div>
               </div>
             ))}
+            {medStock && (
+              <div style={{
+                background: '#fff7ed', borderRadius: 12, padding: '16px 18px',
+                display: 'flex', alignItems: 'center', gap: 14
+              }}>
+                <div style={{
+                  width: 42, height: 42, borderRadius: 10,
+                  background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                }}>
+                  <Icon name="heart" size={20} style={{ color: '#f97316' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{medStock.total_medicamentos || 0}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Medicamentos</div>
+                </div>
+              </div>
+            )}
+            {medStock && (
+              <div style={{
+                background: medStock.stock_total <= 10 ? '#fef2f2' : '#f0fdf4', borderRadius: 12, padding: '16px 18px',
+                display: 'flex', alignItems: 'center', gap: 14
+              }}>
+                <div style={{
+                  width: 42, height: 42, borderRadius: 10,
+                  background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                }}>
+                  <Icon name="clipboard" size={20} style={{ color: medStock.stock_total <= 10 ? '#ef4444' : '#10b981' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: medStock.stock_total <= 10 ? '#ef4444' : '#1e293b' }}>{medStock.stock_total || 0}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Stock Total</div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>

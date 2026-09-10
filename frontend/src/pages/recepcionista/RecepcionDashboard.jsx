@@ -44,7 +44,8 @@ const RecepcionDashboard = () => {
     { to: '/recepcion/citas', icon: 'clock', label: 'Citas', desc: 'Ver y gestionar todas las citas', color: '#8b5cf6', bg: '#ede9fe' },
     { to: '/recepcion/clientes', icon: 'users', label: 'Clientes', desc: 'Registrar y buscar clientes', color: '#10b981', bg: '#d1fae5' },
     { to: '/recepcion/mascotas', icon: 'paw', label: 'Mascotas', desc: 'Registrar mascotas', color: '#f59e0b', bg: '#fef3c7' },
-    { to: '/recepcion/facturas', icon: 'document', label: 'Facturas', desc: 'Crear y ver facturas', color: '#8b5cf6', bg: '#ede9fe' }
+    { to: '/recepcion/facturas', icon: 'document', label: 'Facturas', desc: 'Crear y ver facturas', color: '#8b5cf6', bg: '#ede9fe' },
+    { to: '/recepcion/reportes', icon: 'chart', label: 'Mis Reportes', desc: 'Caja del dia, citas y pendientes', color: '#ef4444', bg: '#fee2e2' }
   ];
 
   return (

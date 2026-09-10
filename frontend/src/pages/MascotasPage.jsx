@@ -154,8 +154,8 @@ const MascotasPage = () => {
                       <Icon name="user" size={14} style={{ color: '#3b82f6' }} />
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Dueno</p>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{m.cliente_nombre} {m.cliente_apellido}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: '#94a3b8',fontWeight: 'bold' }}>Dueño</p>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#040404' }}>{m.cliente_nombre} {m.cliente_apellido}</p>
                     </div>
                   </div>
                 </div>

@@ -18,6 +18,8 @@ import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminEquipo from './pages/admin/AdminEquipo';
 import AdminBloc from './pages/admin/AdminBloc';
 import AdminInventario from './pages/admin/AdminInventario';
+import AdminMedicamentos from './pages/admin/AdminMedicamentos';
+import AdminReportes from './pages/admin/AdminReportes';
 import UsuarioMisCitas from './pages/usuario/UsuarioMisCitas';
 import UsuarioNuevaCita from './pages/usuario/UsuarioNuevaCita';
 import UsuarioMisMascotas from './pages/usuario/UsuarioMisMascotas';
@@ -27,11 +29,13 @@ import VetMisCitas from './pages/veterinario/VetMisCitas';
 import VetConsulta from './pages/veterinario/VetConsulta';
 import VetHistorial from './pages/veterinario/VetHistorial';
 import VetMedicamentos from './pages/veterinario/VetMedicamentos';
+import VetReportes from './pages/veterinario/VetReportes';
 import RecepcionDashboard from './pages/recepcionista/RecepcionDashboard';
 import RecepcionNuevaCita from './pages/recepcionista/RecepcionNuevaCita';
 import RecepcionClientes from './pages/recepcionista/RecepcionClientes';
 import RecepcionMascotas from './pages/recepcionista/RecepcionMascotas';
 import RecepcionFacturas from './pages/recepcionista/RecepcionFacturas';
+import RecepReportes from './pages/recepcionista/RecepReportes';
 import RecepcionCitas from './pages/recepcionista/RecepcionCitas';
 import RecepcionPerfilCliente from './pages/recepcionista/RecepcionPerfilCliente';
 
@@ -104,6 +108,8 @@ function AppRoutes() {
       <Route path="/admin/personal" element={<AdminRoute><AdminEquipo /></AdminRoute>} />
       <Route path="/admin/bloc" element={<AdminRoute><AdminBloc /></AdminRoute>} />
       <Route path="/admin/inventario" element={<AdminRoute><AdminInventario /></AdminRoute>} />
+      <Route path="/admin/medicamentos" element={<AdminRoute><AdminMedicamentos /></AdminRoute>} />
+      <Route path="/admin/reportes" element={<AdminRoute><AdminReportes /></AdminRoute>} />
 
       {/* Panel USUARIO */}
       <Route path="/usuario" element={<Navigate to="/usuario/dashboard" replace />} />
@@ -120,8 +126,10 @@ function AppRoutes() {
       <Route path="/veterinario/consulta/:id_cita" element={<VeterinarioRoute><VetConsulta /></VeterinarioRoute>} />
       <Route path="/veterinario/historial" element={<VeterinarioRoute><VetHistorial /></VeterinarioRoute>} />
       <Route path="/veterinario/medicamentos" element={<VeterinarioRoute><VetMedicamentos /></VeterinarioRoute>} />
+      <Route path="/veterinario/reportes" element={<VeterinarioRoute><VetReportes /></VeterinarioRoute>} />
 
       {/* Panel RECEPCIONISTA */}
+      <Route path="/recepcion" element={<RecepcionRoute><RecepcionDashboard /></RecepcionRoute>} />
       <Route path="/recepcion/dashboard" element={<RecepcionRoute><RecepcionDashboard /></RecepcionRoute>} />
       <Route path="/recepcion/nueva-cita" element={<RecepcionRoute><RecepcionNuevaCita /></RecepcionRoute>} />
       <Route path="/recepcion/citas" element={<RecepcionRoute><RecepcionCitas /></RecepcionRoute>} />
@@ -129,6 +137,7 @@ function AppRoutes() {
       <Route path="/recepcion/cliente/:id" element={<RecepcionRoute><RecepcionPerfilCliente /></RecepcionRoute>} />
       <Route path="/recepcion/mascotas" element={<RecepcionRoute><RecepcionMascotas /></RecepcionRoute>} />
       <Route path="/recepcion/facturas" element={<RecepcionRoute><RecepcionFacturas /></RecepcionRoute>} />
+      <Route path="/recepcion/reportes" element={<RecepcionRoute><RecepReportes /></RecepcionRoute>} />
 
       {/* Módulos compartidos (solo admin y veterinario) */}
       <Route path="/clientes" element={<StaffRoute><ClientesPage /></StaffRoute>} />
