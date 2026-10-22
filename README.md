@@ -49,10 +49,12 @@ git switch -c tipo/descripcion-del-cambio
 Al terminar, guarda y publica tu rama:
 
 ```bash
-git add .
+git add ruta/del/archivo
 git commit -m "tipo: describe el cambio"
 git push -u origin tipo/descripcion-del-cambio
 ```
+
+Revisa los archivos preparados con `git status` y no publiques archivos `.env`, contraseñas ni tokens.
 
 Después, abre un Pull Request desde tu rama hacia `develop` para que otra persona revise el cambio antes de integrarlo.
 
