@@ -36,6 +36,28 @@ Vet-manager/
 - **Reportes por rol**: financieros, de personal, clientes e inventario (admin); atenciones, diagnósticos y seguimiento (veterinario); caja, citas y pendientes (recepción).
 - **Aislamiento por usuario**: cada usuario solo ve sus propios datos.
 
+## 🤝 Flujo de contribución
+
+Para proponer cambios, crea una rama basada en `develop` y trabaja en ella. No hagas cambios directamente en `main` ni en `develop`.
+
+```bash
+git switch develop
+git pull --ff-only
+git switch -c tipo/descripcion-del-cambio
+```
+
+Al terminar, guarda y publica tu rama:
+
+```bash
+git add ruta/del/archivo
+git commit -m "tipo: describe el cambio"
+git push -u origin tipo/descripcion-del-cambio
+```
+
+Revisa los archivos preparados con `git status` y no publiques archivos `.env`, contraseñas ni tokens.
+
+Después, abre un Pull Request desde tu rama hacia `develop` para que otra persona revise el cambio antes de integrarlo.
+
 ## 🚀 Puesta en marcha (Docker)
 
 Requisitos: [Docker](https://www.docker.com/) y Docker Compose.
