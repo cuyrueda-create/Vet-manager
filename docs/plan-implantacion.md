@@ -57,6 +57,8 @@ El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; 
 
 Los valores de reposo son una referencia de despliegue local y no representan mediciones ejecutadas en el servidor final. La carga simulada recomendada es 20 usuarios concurrentes realizando operaciones de lectura, autenticación y consultas a la API. El margen de 50% se aplica a la medición pico para cubrir transitorios y el consumo de la base de datos.
 
+> **Nota:** Los valores de RAM pueden variar según el sistema operativo base.
+
 ### 1.5 Matriz de requisitos
 
 | Requisito | Mínimo | Recomendado | Justificación |
@@ -149,4 +151,6 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
--La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restored backup y pruebas de uso de todos los roles.
+-La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restauración de copias de seguridad y pruebas de uso de todos los roles.
+
+*Este plan garantiza una transición segura y escalable para Vet Manager.*
