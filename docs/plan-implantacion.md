@@ -121,8 +121,9 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 - Validar checksum de tablas y la integridad después de la transformación.
 
 ## 3. Plan de respaldo — Semanas 2 y 6 (CE-4)
-
--Se ejecutarán copias completas de la base de datos y de los volúmenes de Docker, con retención de 7 días diarios y 4 semanas semanales. La restauración se comprobará en un entorno de prueba.
+- Ejecutar copias completas de la base de datos y volúmenes de Docker.
+- Retención: 7 días diarios y 4 semanas semanales.
+- Comprobar la restauración en un entorno de prueba.
 
 ## 4. Hosting y dominio — Semana 3 (CE-1)
 
