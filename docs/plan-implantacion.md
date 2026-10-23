@@ -116,8 +116,9 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 ---
 
 ## 2. Plan de migración de datos — Semanas 2 y 5 (CE-3)
-
--La migración debe conservar el esquema y los datos de la base de datos actual, con copia de seguridad previa, checksum de tablas y validación de integridad después de la transformación.
+- Conservar el esquema y los datos de la base de datos actual.
+- Realizar copia de seguridad previa.
+- Validar checksum de tablas y la integridad después de la transformación.
 
 ## 3. Plan de respaldo — Semanas 2 y 6 (CE-4)
 
