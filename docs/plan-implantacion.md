@@ -79,7 +79,7 @@ Los valores de reposo son una referencia de despliegue local y no representan me
 |---|---|---|
 | Formato | Torre o rack de 1U/2U | Funciona en servidor físico o VM con recursos aislados |
 | Nivel RAID del servidor de base de datos | RAID 1 para discos de datos; RAID 10 si hay disponibilidad de discos suficientes | RAID 1 protege contra fallo de disco, mientras que RAID 10 ofrece mayor rendimiento y tolerancia |
-| Plataforma de ejecución | Bare metal o VM Linux con Docker | El proyecto no depende de una hipervisor específica; Docker simplifica el despliegue |
+| Plataforma de ejecución | Bare metal o VM Linux con Docker | El proyecto no depende de un hipervisor específica; Docker simplifica el despliegue |
 
 Para una instalación en cliente, se recomienda una máquina de torre o rack con 2 vCPU, 4 GiB RAM y un SSD de 40 GiB. En el servidor de base de datos, se recomienda dos discos SSD de igual capacidad y un RAID 1; si el ingreso de datos es alto, RAID 10 con cuatro discos. El rango RAID 1 evita pérdida de datos por un único disco, pero no recupera una corrupción silenciosa; las copias de seguridad siguen siendo obligatorias.
 
@@ -111,7 +111,7 @@ python3: no instalado
 CUMPLIMIENTO: no confirmado; recursos o Docker no están disponibles en el servidor ejecutado.
 ```
 
-Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de RAM, pero no dispone de Docker operativo ni los runtimes de Node.py y Python en el distro WSL. La verificación debe ejecutarse de nuevo en Ubuntu Server 24.04 LTS con Docker activo antes de aceptar el entorno de producción.
+Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de RAM, pero no dispone de Docker operativo ni los runtimes de Node.js y Python en el distro WSL. La verificación debe ejecutarse de nuevo en Ubuntu Server 24.04 LTS con Docker activo antes de aceptar el entorno de producción.
 
 ---
 
@@ -145,7 +145,7 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 
 ## 9. Mantenimiento, soporte y capacitación — Semana 8 (CE-5)
 
--La operación incluiráactualizaciones de imágenes, copias de seguridad, diagnóstico de errores, capacitación de usuarios y procedimiento de soporte por rol.
+-La operación incluirá actualizaciones de imágenes, copias de seguridad, diagnóstico de errores, capacitación de usuarios y procedimiento de soporte por rol.
 
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
