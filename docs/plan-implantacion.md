@@ -149,4 +149,4 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
--La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restored backup y pruebas de uso de todos los roles.
+-La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restauración de copias de seguridad y pruebas de uso de todos los roles.
