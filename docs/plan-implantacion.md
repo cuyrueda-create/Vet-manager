@@ -152,3 +152,5 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
 -La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restauración de copias de seguridad y pruebas de uso de todos los roles.
+
+*Este plan garantiza una transición segura y escalable para Vet Manager.*
