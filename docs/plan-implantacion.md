@@ -57,6 +57,8 @@ El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; 
 
 Los valores de reposo son una referencia de despliegue local y no representan mediciones ejecutadas en el servidor final. La carga simulada recomendada es 20 usuarios concurrentes realizando operaciones de lectura, autenticación y consultas a la API. El margen de 50% se aplica a la medición pico para cubrir transitorios y el consumo de la base de datos.
 
+> **Nota:** Los valores de RAM pueden variar según el sistema operativo base.
+
 ### 1.5 Matriz de requisitos
 
 | Requisito | Mínimo | Recomendado | Justificación |
