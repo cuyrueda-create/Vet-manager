@@ -126,8 +126,9 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 - Comprobar la restauración en un entorno de prueba.
 
 ## 4. Hosting y dominio — Semana 3 (CE-1)
-
--El proyecto se ejecutará en un servidor Linux o una VM con Docker Compose, HTTPS y proxy inverso. El dominio y los registros DNS se configuran en la infraestructura del cliente; no se incluyen valores reales.
+- El proyecto se ejecutará en un servidor Linux o una VM con Docker Compose.
+- Se implementará **HTTPS** y un **proxy inverso**.
+- El dominio y los registros DNS se configuran en la infraestructura del cliente; no se incluyen valores reales.
 
 ## 5. Plan de instalación y despliegue — Semanas 2 y 4 (CE-1, CE-5)
 
