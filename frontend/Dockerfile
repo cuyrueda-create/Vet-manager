@@ -3,21 +3,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copiar package.json primero (para aprovechar caché)
-COPY package*.json ./
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
-# Instalar dependencias
-RUN npm install
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Copiar el resto del código (ignorando node_modules)
 COPY . .
 
-# Construir la aplicación
-RUN npm run build
-
-# Instalar serve
-RUN npm install -g serve
+RUN pnpm run build
 
 EXPOSE 5173
 
-CMD ["serve", "-s", "dist", "-l", "5173"]
+CMD ["pnpm", "exec", "serve", "-s", "dist", "-l", "5173"]

@@ -1,0 +1,13 @@
+packages: []
+
+overrides:
+  ajv@^8: 8.18.0
+  baseline-browser-mapping@^2: 2.11.0
+  brace-expansion@^1: 1.1.21
+  browserslist@^4: 4.28.7
+  compression@^1: 1.8.2
+  follow-redirects@^1: 1.16.2
+  js-yaml@^4: 4.3.2
+  minimatch@^3: 3.1.4
+  on-headers@^1: 1.1.0
+  zod@^4: 4.6.6
