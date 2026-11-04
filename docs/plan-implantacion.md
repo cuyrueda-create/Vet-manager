@@ -118,14 +118,143 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 ---
 
 ## 2. Plan de migración de datos — Semanas 2 y 5 (CE-3)
-- Conservar el esquema y los datos de la base de datos actual.
-- Realizar copia de seguridad previa.
-- Validar checksum de tablas y la integridad después de la transformación.
+
+### 2.1 Objetivo medible
+
+Trasladar el 100 % de las filas y objetos de la base MySQL `vet_manager` del entorno actual al destino, conservar claves primarias y relaciones, y lograr conteos idénticos por tabla, cero huérfanos en las relaciones verificadas y cero errores de importación antes de reabrir el sistema. La ventana propuesta es de hasta 2 horas; debe medirse en un ensayo y aprobarse con el responsable del negocio.
+
+### 2.2 Inventario de origen
+
+| Origen | Formato / volumen | Responsable | Calidad / estado |
+|---|---|---|---|
+| Servicio `mysql` de `docker-compose.yml`, base `vet_manager` | MySQL 8.0; volumen Docker `mysql_data`; volumen y filas actuales por medir | Responsable de la base de datos | No hay un origen externo ni archivos legados identificados en el repositorio; no asumir que `schema.sql` contiene datos reales del cliente |
+| `database/schema.sql` | DDL MySQL, vista, procedimiento y datos iniciales definidos en el archivo | Equipo de desarrollo | Docker lo usa al inicializar un volumen vacío; no reemplaza datos existentes |
+| Migraciones de arranque de `backend/app/main.py` | Cambios SQL ejecutados por la API | Equipo de desarrollo | Modifican columnas/roles, crean tablas y normalizan contraseñas; ensayar antes del corte |
+
+### 2.3 Estrategia y ventana
+
+- **Estrategia:** corte big bang para una única base MySQL. Ensayar primero en una base separada; durante el corte detener escritores, generar respaldo final, importar y validar antes de reabrir. No se propone migración por fases porque no hay sistema legado ni sincronización continua documentados.
+- **Ventana propuesta:** hasta 2 horas, fuera del horario de atención y confirmada después del ensayo cronometrado.
+- **Punto de no retorno:** autorización para permitir nuevas escrituras en el destino. Hasta entonces se conserva el origen sin cambios.
+
+### 2.4 Tabla de mapeo
+
+Origen y destino usan el mismo modelo MySQL. Se conservan IDs y valores salvo las transformaciones expresas. El volumen y conteos deben medirse cuando Docker esté disponible.
+
+| Origen | Destino | Transformación | Regla de rechazo / control |
+|---|---|---|---|
+| `usuarios` | `usuarios` | Conservar ID; normalizar `admin` a `administrador`, `asistente`/`user` a `usuario`; la API convierte contraseñas legadas en texto plano a PBKDF2 durante el arranque | Rechazar rol fuera del ENUM, email duplicado o nombre obligatorio vacío; nunca incluir contraseñas en reportes |
+| `clientes` | `clientes` | Copia directa, sin normalizar teléfono/email automáticamente | Rechazar email o teléfono duplicado si infringe índices únicos; reportar nombre vacío |
+| `mascotas` | `mascotas` | Conservar ID, `id_cliente`, peso y observaciones | Rechazar cliente inexistente, nombre/especie vacíos o sexo fuera del ENUM |
+| `servicios`, `consultorio` | Mismas tablas | Copia directa conservando IDs | Rechazar nombre obligatorio vacío en servicios; validar referencias de citas |
+| `citas` | `citas` | Conservar IDs, referencias y estado válido | Rechazar mascota, veterinario, servicio o consultorio inexistente, o estado inválido |
+| `insumos`, `inventario` | Mismas tablas | Copia directa, conservando cantidades y referencias | Rechazar cantidad inválida o referencia inexistente |
+| `reportes` | `reportes` | Copia directa; revisar retención y contenido con el cliente | Rechazar usuario generador inexistente |
+| `proveedores`, `productos`, `medicamentos` | Mismas tablas | Copia directa, conservando IDs y referencias | Rechazar proveedor inexistente y revisar precios/stock negativos |
+| `medicamentos_uso_interno` | Misma tabla | Copia directa, conservando movimientos y fechas | Rechazar medicamento inexistente o cantidad inválida |
+| `agenda` | `agenda` | Copia directa, conservando referencia de cita | Rechazar cita inexistente |
+| `historial_clinico` | Misma tabla | Copia directa; restringir acceso por ser dato clínico personal | Rechazar mascota, usuario o cita inexistente |
+| `facturas`, `factura_detalle` | Mismas tablas | Copia directa; conciliar sumas de detalle, subtotal e IVA | Rechazar referencias inexistentes y reportar diferencias de totales |
+| `notificaciones` | Misma tabla | Copia directa, conservando usuario y fechas | Rechazar usuario inexistente |
+| `medicamentos_asignados` | Misma tabla | Conservar tratamientos personalizados y de catálogo | Rechazar historial inexistente; validar medicamento cuando el ID no sea nulo |
+| `veterinario_horarios` | Misma tabla, si ya existe en origen | Conservar horarios configurados; no reemplazarlos por valores predeterminados de la API | Rechazar veterinario inexistente, día fuera de 0-6 o intervalo inválido |
+| Vista `vista_mascotas_clientes`, procedimiento `sp_citas_activas` | Mismos objetos | Recrear desde el esquema | Verificar existencia y ejecutar prueba después de restaurar |
+
+### 2.5 Validaciones y conciliación
+
+1. Registrar conteos exactos de origen y comparar con destino por tabla; deben coincidir.
+2. Verificar `origen = migrados + rechazados`; se esperan cero rechazados. El responsable del negocio debe aprobar cualquier excepción.
+3. Comparar SHA-256 del archivo para verificar transferencia; el hash no sustituye la comparación de filas.
+4. Verificar relaciones huérfanas, objetos SQL, errores de importación y sumas de facturas.
+5. Probar login, clientes, mascotas, citas, historial clínico y facturación con cuentas de prueba, sin incluir datos personales en evidencias.
+
+**Evidencia pendiente:** no se han medido conteos ni ejecutado una migración; Docker Desktop no tenía activo su daemon durante la preparación de esta versión.
+
+### 2.6 Rollback
+
+- **Criterio:** conteos distintos, errores de claves foráneas/importación, fallos en flujos críticos o duración superior a la ventana aprobada.
+- **Método:** detener escritores; no habilitar el destino; conservarlo para análisis; reconectar al origen intacto y validar login, citas y datos clínicos. Si el origen fue alterado, restaurar el respaldo previo en una base nueva y verificarlo antes de cambiar la conexión.
+- **Responsables:** el administrador de base de datos ejecuta; el responsable del negocio autoriza la reapertura.
+- No borrar ni sobrescribir origen o respaldo hasta aprobar conciliación y aceptación.
+
+### 2.7 Matriz de riesgos
+
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|---|---|---|---|
+| Respaldo no restaurable o incompleto | Media | Alto | Ejecutar `scripts/respaldar.sh`, validar gzip/SHA-256 y ensayar antes del corte |
+| Esquema distinto por migraciones de arranque | Alta | Alto | Respaldar primero, ensayar con copia reciente y verificar estructura/migraciones |
+| Claves foráneas, índices únicos o roles rechazan datos | Media | Alto | Validar calidad antes del corte y aprobar reporte de rechazos |
+| Pérdida de escrituras durante el corte | Media | Alto | Comunicar ventana, detener escritores y confirmar punto de retorno antes de reabrir |
+| Exposición de datos personales en respaldos | Media | Alto | Restringir acceso, cifrar almacenamiento y copia externa; excluir respaldos de Git |
+| Secretos de desarrollo reutilizados en producción | Alta | Alto | Rotar y externalizar contraseñas, clave JWT y clave de administración |
 
 ## 3. Plan de respaldo — Semanas 2 y 6 (CE-4)
-- Ejecutar copias completas de la base de datos y volúmenes de Docker.
-- Retención: 7 días diarios y 4 semanas semanales.
-- Comprobar la restauración en un entorno de prueba.
+
+### 3.1 Inventario de lo respaldado
+
+| Elemento | Ubicación / método | Datos personales | Estado |
+|---|---|---|---|
+| Base MySQL `vet_manager`, esquema, vistas, procedimiento y datos | `scripts/respaldar.sh`, `mysqldump` lógico comprimido | Sí: datos de clientes, usuarios y pacientes | Script preparado; pendiente de ejecutar con Docker activo |
+| Archivos subidos o generados | No se identificó un volumen persistente de archivos en Compose; inventariar rutas antes de producción | Posible | Pendiente confirmar con responsable técnico |
+| Configuración de despliegue | Copia controlada de Compose/configuración sin secretos | Puede contener nombres internos | Secretos fuera del repositorio |
+| Volumen Docker `mysql_data` | No es copia independiente; recuperar con dump lógico | Sí | No copiar los archivos internos de MySQL en caliente como sustituto del dump |
+
+### 3.2 Objetivos de recuperación propuestos
+
+| RPO | RTO | Justificación / aprobación |
+|---|---|---|
+| 24 horas | 4 horas | Propuesta inicial para respaldos completos diarios y restauración MySQL 8. No es compromiso medido: validar con el responsable del negocio y ajustar tras simulacro cronometrado. |
+
+### 3.3 Política propuesta
+
+| Aspecto | Decisión |
+|---|---|
+| Tipo y frecuencia | Dump lógico completo diario, fuera del horario de atención. PITR/WAL no está configurado en la arquitectura MySQL actual. |
+| Retención | 7 respaldos diarios y 4 semanales; automatizar y verificar el cálculo antes de producción. |
+| Copia 1 | Dump comprimido con permisos restringidos en almacenamiento local separado del volumen `mysql_data`; no basta ante pérdida del servidor. |
+| Copia 2 | Medio o cuenta de almacenamiento independiente con acceso restringido. |
+| Copia 3 | Ubicación externa al sitio, cifrada, con credenciales distintas y prueba de recuperación. |
+| Cifrado | Cifrar copias fuera del host con clave gestionada fuera del repositorio; el script de esta versión comprime, pero no cifra. No transferir datos personales sin cifrado. |
+| Responsable | Rol de administrador de base de datos; revisar alertas de ejecución y reporte mensual de restauración. |
+
+La regla 3-2-1 exige tres copias totales, dos medios/ubicaciones independientes y una fuera del sitio. El directorio por defecto `backups/mysql` debe excluirse de Git y residir en almacenamiento con capacidad y permisos adecuados.
+
+### 3.4 Procedimiento de restauración (8 pasos)
+
+1. **Detectar y decidir:** registrar incidente, alcance, hora y quién autoriza la recuperación.
+2. **Contener:** detener escrituras y aislar el servicio; conservar logs y no borrar el volumen original.
+3. **Elegir respaldo:** localizar el dump íntegro anterior al incidente y revisar fecha, checksum y retención.
+4. **Respaldar estado actual:** si la base responde, crear un dump de diagnóstico antes de restaurar.
+5. **Restaurar aparte:** crear `vet_manager_restore` y cargar allí el dump, sin sobrescribir la base activa.
+6. **Verificar:** comparar conteos exactos por tabla, objetos/relaciones, flujos funcionales y tiempo de recuperación.
+7. **Reabrir y comunicar:** con aprobación, promover la base restaurada, habilitar escrituras y notificar.
+8. **Registrar:** documentar dump, tiempos, conteos, incidencias, decisión y acciones preventivas.
+
+Ensayo local en el servicio MySQL de Docker (sustituir `FECHA` por el nombre del dump; la base de prueba no debe existir):
+
+```bash
+docker compose exec mysql sh -ec 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "CREATE DATABASE vet_manager_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"'
+gzip -dc backups/mysql/vet_manager-FECHA.sql.gz | docker compose exec -T mysql sh -ec 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot vet_manager_restore'
+```
+
+Comparar `SELECT COUNT(*)` exactos en origen y restauración para cada tabla. No usar `information_schema.tables.table_rows` para conciliación: InnoDB puede devolver estimaciones. Requiere el contenedor `mysql` activo.
+
+### 3.5 Evidencia de restauración
+
+| Tabla | Filas en producción | Filas restauradas | Resultado |
+|---|---:|---:|---|
+| Todas las tablas | Pendiente de medir | Pendiente de medir | No ejecutado: daemon Docker Desktop no disponible el 2026-11-04 |
+
+Tiempo de restauración: pendiente. No se declara éxito hasta adjuntar conteos exactos antes/después y duración medida.
+
+### 3.6 Calendario de pruebas
+
+| Prueba | Frecuencia | Responsable |
+|---|---|---|
+| Confirmar dump no vacío y `gzip -t` exitoso | Cada ejecución | Administrador de base de datos |
+| Restaurar en base aislada y comparar conteos | Mensual y antes de cada migración | Administrador de base de datos + responsable del negocio |
+| Simulacro de pérdida del servidor y acceso a copia externa | Trimestral | Responsable técnico |
+| Revisar permisos, retención, cifrado y acceso a claves | Trimestral y ante cambios de personal | Seguridad / responsable técnico |
 
 ## 4. Hosting y dominio — Semana 3 (CE-1)
 - El proyecto se ejecutará en un servidor Linux o una VM con Docker Compose.
@@ -134,7 +263,48 @@ Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de
 
 ## 5. Plan de instalación y despliegue — Semanas 2 y 4 (CE-1, CE-5)
 
--Instalar Docker Engine y Compose 2, construir las imágenes, aplicar el esquema de MySQL, iniciar los servicios y validar healthchecks, API, frontend y móvil.
+Versión 0 basada en el repositorio: API FastAPI, web React/Vite, aplicación Expo/React Native y MySQL 8. La instalación de producción requiere configurar HTTPS/proxy, secretos y almacenamiento externo de respaldos; el Compose actual publica puertos de desarrollo y contiene valores predeterminados que no deben usarse en producción.
+
+| # | Sección | Contenido |
+|---:|---|---|
+| 1 | Alcance | Instalar API, web y MySQL; la app móvil se compila/publica por separado y consume la API. |
+| 2 | Ambientes | Desarrollo/prueba con Docker Compose; producción en Linux compatible con Docker Engine y Compose v2 después de definir proxy HTTPS y almacenamiento externo. |
+| 3 | Roles | Responsable técnico prepara servidor; administrador de base de datos respalda/restaura; responsable del negocio aprueba ventana, rechazos y aceptación. |
+| 4 | Prerrequisitos | Ubuntu Server 24.04 LTS recomendado, 2 vCPU/4 GiB RAM/40 GiB SSD como referencia de sección 1, Docker Engine y plugin Compose v2, acceso al repositorio, puertos libres 5000/5173/3307 en local y espacio para respaldos. |
+| 5 | Preparación | Confirmar recursos; revisar Compose/esquema; configurar secretos fuera del repositorio; disponer de dump restaurable y copia externa; acordar mantenimiento y punto de retorno. |
+| 6 | Procedimiento | Seguir pasos verificables de la tabla inferior y guardar salidas/horas sin secretos ni datos personales. |
+| 7 | Migración | Seguir sección 2; no migrar ni habilitar escrituras sin respaldo restaurable, conciliación y aprobación. |
+| 8 | Verificación | Healthcheck MySQL, logs API, `/docs`, frontend, autenticación de prueba, flujos de clientes/mascotas/citas y restauración aislada. |
+| 9 | Rollback | Detener escritores, preservar origen y destino fallido, reconectar al origen o restaurar respaldo en una base nueva; abrir solo después de verificar. |
+| 10 | Cronograma | Ventana inicial estimada de 2 horas, pendiente de ensayo medido; responsable técnico comunica inicio, decisión de corte y cierre. |
+
+### Procedimiento verificable
+
+| # | Acción | Comando / método | Resultado esperado |
+|---:|---|---|---|
+| 1 | Confirmar requisitos | `bash scripts/verificar-requisitos.sh` | Docker Compose operativo, recursos y puertos disponibles; resolver incumplimientos antes de continuar. |
+| 2 | Validar Compose y secretos | `docker compose config --quiet` | Configuración válida. Antes de producción, rotar y externalizar las claves/contraseñas predeterminadas de `docker-compose.yml`; no pegarlas en el entregable. |
+| 3 | Crear y verificar respaldo | `bash scripts/respaldar.sh` | Dump `.sql.gz` no vacío, `gzip -t` exitoso y SHA-256 informado; el script no cifra el archivo local. |
+| 4 | Construir e iniciar | `docker compose up -d --build` | Servicios `mysql`, `backend` y `frontend` iniciados; MySQL llega a estado healthy. |
+| 5 | Revisar migraciones de API | `docker compose logs --no-color backend` | Inicio sin errores de conexión/migración; revisar advertencias antes de seguir. |
+| 6 | Verificar API y web | `curl -fsS http://localhost:5000/docs` y `curl -fsS http://localhost:5173/` | Respuestas HTTP exitosas en local; producción usa URL HTTPS aprobadas. |
+| 7 | Probar flujos | Pruebas de login y operaciones con cuentas/datos de prueba | Login, clientes, mascotas, citas y datos por rol funcionan; sin datos reales en capturas. |
+| 8 | Ensayar restauración | Procedimiento de sección 3.4 en `vet_manager_restore` | Conteos exactos iguales y objetos/relaciones verificados; duración registrada. |
+| 9 | Aceptar o revertir | Acta de validación del responsable del negocio | Habilitar escrituras solo tras conciliación y aprobación; si falla, ejecutar sección 2.6. |
+
+Los comandos HTTP son para el Compose local actual. No exponer públicamente 5000, 5173 ni 3307 como configuración final: limitar MySQL a red privada y publicar web/API detrás del proxy HTTPS.
+
+### Cronograma de la ventana
+
+| Fase | Duración inicial | Acumulado | Condición |
+|---|---:|---:|---|
+| Requisitos y respaldo final | 20 min | 20 min | No iniciar si falla el respaldo |
+| Detener escrituras y exportar origen | 20 min | 40 min | Mantenimiento comunicado |
+| Importación / despliegue | 40 min | 80 min | Medir en ensayo; detener si amenaza el límite aprobado |
+| Conteos y pruebas funcionales | 30 min | 110 min | Todos los controles deben aprobarse |
+| Decisión y reapertura | 10 min | 120 min | Punto de no retorno: autorización de escrituras en destino |
+
+Duraciones estimadas, no medidas. Si el ensayo excede la ventana acordada, recalcularla antes del corte real.
 
 ## 6. Configuración y verificación — Semana 5 (CE-1)
 
