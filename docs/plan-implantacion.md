@@ -257,9 +257,95 @@ Tiempo de restauración: pendiente. No se declara éxito hasta adjuntar conteos 
 | Revisar permisos, retención, cifrado y acceso a claves | Trimestral y ante cambios de personal | Seguridad / responsable técnico |
 
 ## 4. Hosting y dominio — Semana 3 (CE-1)
-- El proyecto se ejecutará en un servidor Linux o una VM con Docker Compose.
-- Se implementará **HTTPS** y un **proxy inverso**.
-- El dominio y los registros DNS se configuran en la infraestructura del cliente; no se incluyen valores reales.
+
+### 4.1 Tipo de hosting por componente
+
+| Componente | Tipo propuesto | Proveedor candidato | Justificación |
+|---|---|---|---|
+| Frontend React/Vite | Archivos estáticos servidos por Caddy en contenedor | VPS Linux del cliente; alternativa: Azure Static Web Apps con proxy/API configurados | El frontend se compila a archivos estáticos; en el despliegue actual comparte origen con la API mediante Caddy. |
+| API FastAPI | Contenedor Docker en VPS Linux | VPS Linux del cliente; alternativa: Azure Container Apps | Mantiene el runtime Python y las dependencias actuales; Caddy enruta las peticiones internamente. |
+| MySQL 8 | MySQL privado, sin publicación pública | En MVP, contenedor de Docker Compose en red privada; en producción, Azure Database for MySQL Flexible Server u otro MySQL gestionado | Conserva el motor existente; no migrar a PostgreSQL sin un proyecto de conversión independiente. |
+| App móvil Expo | Distribución móvil; consume la API HTTPS | Google Play / Apple App Store, según plataformas acordadas | No necesita un servidor web propio; requiere una URL pública estable de la API. |
+
+**Decisión v0:** VPS Ubuntu LTS con Docker Compose y Caddy para la primera implantación, porque el repositorio ya contiene los tres servicios y MySQL. La base debe quedar solo en red privada. Alternativa de mayor disponibilidad: API en Azure Container Apps y MySQL gestionado, manteniendo el frontend estático detrás de HTTPS. El proveedor y los costos deben aprobarse con el cliente antes de contratar.
+
+**Alternativa en servidor propio:** VM Ubuntu Server LTS del cliente con Docker Engine/Compose v2, Caddy y almacenamiento externo para respaldos. Requiere que el cliente asuma parches del host, firewall, monitoreo, renovación del dominio y pruebas de recuperación.
+
+### 4.2 Dominio
+
+| Campo | Decisión |
+|---|---|
+| Dominio de producción | Pendiente de elección y aprobación del cliente; no se registra un dominio real en este plan. |
+| Tipo | Dominio propio del cliente recomendado para producción. |
+| Registrador / DNS | Proveedor DNS/registrador que seleccione el cliente. |
+| Pago y renovación | Responsable administrativo designado por el cliente; revisión 30 días antes del vencimiento. |
+| Dominio de prueba local | `vet-manager.test`, nombre reservado para pruebas; no se publica en DNS público. |
+
+### 4.3 Registros DNS propuestos
+
+Los valores reales se incorporarán después de contratar el dominio y asignar la IP pública. TTL inicial bajo durante el cambio y ampliable tras estabilizar el servicio.
+
+| Nombre | Tipo | Valor | TTL | Propósito |
+|---|---|---|---:|---|
+| `@` | A | `<IP-PUBLICA-DEL-SERVIDOR>` | 300 s durante el cambio; luego 3600 s | Sitio y proxy principal. |
+| `www` | CNAME | `<DOMINIO-DEL-CLIENTE>` | 3600 s | Alias del sitio principal; confirmar que el proveedor DNS admite este destino. |
+| TXT de validación | TXT | `<VALOR-DEL-PROVEEDOR>` | Según proveedor | Validación del dominio y/o emisión de certificado cuando el proveedor lo solicite. |
+| MX / SPF / DKIM / DMARC | MX / TXT | Según el proveedor de correo que apruebe el cliente | Según proveedor | Correo transaccional; no cambiar los registros existentes sin autorización. |
+
+La API comparte el origen del frontend y se enruta por camino, por lo que no se requiere un subdominio `api` en esta versión. Los registros de producción siguen pendientes; `vet-manager.test` solo se usa con `curl --resolve`.
+
+### 4.4 Camino de una petición y puertos
+
+**Camino:** navegador o app móvil → DNS del cliente → HTTPS en Caddy → rutas `/api/*`, `/auth/*`, `/data/*`, `/users*`, `/clientes*`, `/mascotas*`, `/health` y documentación API al contenedor `backend:5000`; el resto de rutas se envía al frontend `frontend:5173`. Caddy agrega los encabezados `X-Forwarded-For` y `X-Forwarded-Proto`; MySQL solo recibe tráfico desde la red privada de Docker.
+
+| Puerto | Servicio | Exposición |
+|---:|---|---|
+| 80/tcp | Caddy / redirección HTTPS en producción | Público si se usa ACME HTTP-01; confirmar con el proveedor. |
+| 443/tcp | Caddy HTTPS en producción | Público; único punto de entrada web esperado. |
+| 8443/tcp | Caddy HTTPS para prueba local | Solo loopback (`127.0.0.1`); `tls internal`. |
+| 5000/tcp | FastAPI | Solo loopback para desarrollo; no abrir al exterior en producción. |
+| 5173/tcp | Frontend | Red Docker; no publicar directamente en producción. |
+| 3306/tcp | MySQL dentro del contenedor | Solo red privada de Docker; no abrir a Internet. |
+| 3307/tcp | MySQL desde el host para desarrollo | Solo loopback; cerrar en producción. |
+| 22/tcp | SSH/SFTP | Restringido a IPs administrativas aprobadas y autenticación por llave; nunca contraseña compartida. |
+
+### 4.5 Reverse proxy y prueba local
+
+Archivo de configuración: [`Caddyfile`](../Caddyfile). Compose publica Caddy únicamente en `127.0.0.1:8443`, usa el certificado local `tls internal` y mantiene API y frontend en la red privada. La autoridad local de Caddy debe confiarse en el dispositivo para navegar sin advertencias; `curl -k` se acepta solo para la prueba local, nunca como validación de certificados de producción.
+
+```bash
+docker compose up -d --build
+curl --resolve vet-manager.test:8443:127.0.0.1 -k -i https://vet-manager.test:8443/
+curl --resolve vet-manager.test:8443:127.0.0.1 -k -i https://vet-manager.test:8443/health
+```
+
+**Evidencia local (2026-11-04):** Caddy validó el Caddyfile, emitió certificados internos para `vet-manager.test` y `localhost`, y los probes con `curl --resolve` devolvieron `HTTP 200` para `/` y `/health`, con verificación TLS `0` usando la CA local de Caddy. La ruta `/` sirvió el build React. Para `/health` se usó temporalmente un upstream HTTP de prueba porque MySQL no terminó de descargarse y FastAPI no pudo completar su arranque; por tanto, el enrutamiento HTTPS de Caddy está comprobado, pero la integración completa Caddy → FastAPI → MySQL queda pendiente de repetir con el stack completo.
+
+Comandos Windows usados para confiar la CA local y probar los hosts reservados:
+
+```powershell
+docker cp vet-manager-caddy-proxy-test:/data/caddy/pki/authorities/local/root.crt "$env:TEMP\vet-manager-caddy-root.crt"
+curl.exe --noproxy "*" --ssl-no-revoke --cacert "$env:TEMP\vet-manager-caddy-root.crt" --resolve vet-manager.test:8443:127.0.0.1 -i https://vet-manager.test:8443/
+curl.exe --noproxy "*" --ssl-no-revoke --cacert "$env:TEMP\vet-manager-caddy-root.crt" --resolve vet-manager.test:8443:127.0.0.1 -i https://vet-manager.test:8443/health
+```
+
+La comprobación negativa de que MySQL no es accesible desde una interfaz pública queda pendiente de ejecutar cuando se levante el stack completo.
+
+### 4.6 Transferencia de archivos
+
+| Qué se transfiere | Método | Autenticación | Frecuencia |
+|---|---|---|---|
+| Código/configuración del despliegue | `git pull` o publicación de imagen; SFTP solo para archivos puntuales necesarios | Llave SSH Ed25519; clave privada únicamente en el equipo del operador y llave pública en el usuario restringido del servidor | En cada versión aprobada. |
+| Archivos de respaldo | `scripts/respaldar.sh` crea el dump local; copia externa por SFTP solo después de cifrarlo | Llave SSH y permisos restringidos | Según política de respaldo de la sección 3. |
+
+Ejemplo con valores de marcador, no credenciales reales:
+
+```bash
+sftp -i ~/.ssh/vet_manager_deploy <USUARIO_SFTP>@<HOST-DEL-SERVIDOR>
+put <ARCHIVO> <RUTA-DESTINO-AUTORIZADA>
+```
+
+No subir llaves privadas, `.env`, dumps sin cifrar ni datos de clientes al repositorio. Antes de producción, externalizar y rotar los secretos de desarrollo que siguen definidos en `docker-compose.yml`.
 
 ## 5. Plan de instalación y despliegue — Semanas 2 y 4 (CE-1, CE-5)
 
