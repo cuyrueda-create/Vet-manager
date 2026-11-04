@@ -55,13 +55,16 @@ Servicios:
 
 La base de datos se inicializa automáticamente con `database/schema.sql` y el backend ejecuta sus migraciones al arrancar.
 
+Para desarrollo web y móvil se requiere Node.js 20.19+ y Corepack. Cada proyecto fija `pnpm@10.30.3` en su `package.json`.
+Habilita los shims de Corepack una vez por entorno con `corepack enable` para que las herramientas hijas, como Expo, también usen esa versión.
+
 ### Móvil
 
 ```bash
 cd mobile
-npm install
-npm start        # Expo Dev Server
-npm run android  # o npm run ios
+corepack pnpm install
+corepack pnpm start        # Expo Dev Server
+corepack pnpm android      # o corepack pnpm ios
 ```
 
 Configura la IP de tu máquina en `mobile/src/config/api.js` (`baseURL`) para que el dispositivo acceda al backend.
@@ -80,8 +83,8 @@ uvicorn app.main:app --reload --port 5000
 
 ```bash
 cd frontend
-npm install
-npm run dev      # http://localhost:5173
+corepack pnpm install
+corepack pnpm dev         # http://localhost:5173
 ```
 
 **Base de datos**: levanta MySQL 8 y ejecuta `database/schema.sql`.
