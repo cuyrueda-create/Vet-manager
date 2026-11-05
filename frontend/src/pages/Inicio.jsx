@@ -31,7 +31,7 @@ const Inicio = () => {
         <div className="landing-hero-inner">
           <div className="landing-hero-text">
             <h1>{CONTACTO.nombre}</h1>
-            <p className="hero-tagline">Software profesional para clínicas veterinarias, estéticas y tiendas de mascotas.</p>
+            <p className="hero-tagline">Administra citas, pacientes y clientes de tu clínica veterinaria desde un solo lugar.</p>
             <div className="landing-hero-buttons">
               <button onClick={openRegister} className="btn-hero-primary">Comenzar ahora</button>
               <button onClick={openLogin} className="btn-hero-secondary">Iniciar Sesión</button>
