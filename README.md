@@ -48,20 +48,36 @@ Servicios:
 
 | Servicio | URL / Puerto |
 |----------|--------------|
-| Frontend (web) | http://localhost:5173 |
-| Backend (API) | http://localhost:5000 |
-| API Docs (Swagger) | http://localhost:5000/docs |
-| MySQL | localhost:3307 (base de datos `vet_manager`) |
+| Frontend y API por Caddy | https://localhost:8443 o https://vet-manager.test:8443 |
+| API Docs (Swagger) | https://localhost:8443/docs |
+| MySQL (solo loopback) | localhost:3307 (base de datos `vet_manager`) |
 
-La base de datos se inicializa automáticamente con `database/schema.sql` y el backend ejecuta sus migraciones al arrancar.
+Caddy usa un certificado local `tls internal`. Para el navegador, agrega `127.0.0.1 vet-manager.test` al archivo hosts y confía la CA local de Caddy. Para una prueba con `curl`, exporta esa CA con `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt /tmp/caddy-local-root.crt` y ejecuta `curl --cacert /tmp/caddy-local-root.crt --resolve vet-manager.test:8443:127.0.0.1 https://vet-manager.test:8443/`.
+
+La base de datos se inicializa automáticamente con `database/schema.sql` y el backend ejecuta sus migraciones al arrancar. Caddy enruta las rutas de API al backend y las demás al frontend; MySQL y el backend no se publican como puertos de Internet.
+
+### Migraciones de base de datos
+
+Alembic lleva el registro de versiones para las nuevas migraciones del esquema MySQL. Durante esta transición, las migraciones SQL existentes del arranque siguen ejecutándose antes de Alembic; el baseline inicial no modifica tablas. Para crear una revisión manual:
+
+```bash
+docker compose exec backend alembic revision -m "describe el cambio"
+docker compose exec backend alembic upgrade head
+docker compose exec backend alembic current
+```
+
+El proyecto aún no tiene modelos SQLAlchemy, así que no uses `--autogenerate`; escribe las operaciones de cada revisión manualmente. Alembic no hace respaldos: para crear una copia usa `bash scripts/respaldar.sh`.
+
+Para desarrollo web y móvil se requiere Node.js 20.19+ y Corepack. Cada proyecto fija `pnpm@10.30.3` en su `package.json`.
+Habilita los shims de Corepack una vez por entorno con `corepack enable` para que las herramientas hijas, como Expo, también usen esa versión.
 
 ### Móvil
 
 ```bash
 cd mobile
-npm install
-npm start        # Expo Dev Server
-npm run android  # o npm run ios
+corepack pnpm install
+corepack pnpm start        # Expo Dev Server
+corepack pnpm android      # o corepack pnpm ios
 ```
 
 Configura la IP de tu máquina en `mobile/src/config/api.js` (`baseURL`) para que el dispositivo acceda al backend.
@@ -80,8 +96,8 @@ uvicorn app.main:app --reload --port 5000
 
 ```bash
 cd frontend
-npm install
-npm run dev      # http://localhost:5173
+corepack pnpm install
+corepack pnpm dev         # http://localhost:5173
 ```
 
 **Base de datos**: levanta MySQL 8 y ejecuta `database/schema.sql`.
