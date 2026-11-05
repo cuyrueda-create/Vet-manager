@@ -93,15 +93,15 @@ const Inicio = () => {
           <div className="footer-col">
             <h4>Portales</h4>
             <a href="/admin" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Administrador</a>
-            <button onClick={openLogin} className="footer-link-btn">Iniciar Sesion Cliente</button>
+            <button onClick={openLogin} className="footer-link-btn">Iniciar sesión de cliente</button>
           </div>
 
           <div className="footer-col">
             <h4>Acerca de</h4>
             <p className="footer-text">{CONTACTO.nombre} es un sistema de gestión veterinaria diseñado para facilitar la administración de clínicas, estéticas y tiendas de mascotas.</p>
-            <button onClick={() => setModal('terminos')} className="footer-link-btn" style={{ fontSize: 12 }}>Terminos</button>
+            <button onClick={() => setModal('terminos')} className="footer-link-btn" style={{ fontSize: 12 }}>Términos</button>
             <button onClick={() => setModal('privacidad')} className="footer-link-btn" style={{ fontSize: 12 }}>Privacidad</button>
-            <button onClick={() => setModal('datos')} className="footer-link-btn" style={{ fontSize: 12 }}>Eliminacion de Datos</button>
+            <button onClick={() => setModal('datos')} className="footer-link-btn" style={{ fontSize: 12 }}>Eliminación de datos</button>
           </div>
         </div>
         <div className="footer-bottom">
