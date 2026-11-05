@@ -17,6 +17,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import io
+from pathlib import Path
 
 # ==================== IMPORTAR ROUTERS ====================
 from app.api.v1.clientes import router as clientes_router
@@ -370,7 +371,15 @@ def startup():
     migrate_medicamentos_asignados()
     migrate_veterinario_horarios()
     hash_existing_passwords()
+    run_alembic_migrations()
     print("Migraciones completadas")
+
+def run_alembic_migrations():
+    from alembic import command
+    from alembic.config import Config
+
+    config_path = Path(__file__).resolve().parent.parent / "alembic.ini"
+    command.upgrade(Config(str(config_path)), "head")
 
 # Configurar CORS
 app.add_middleware(
