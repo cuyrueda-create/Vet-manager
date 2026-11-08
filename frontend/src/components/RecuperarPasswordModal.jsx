@@ -33,8 +33,9 @@ const RecuperarPasswordModal = ({ onClose, onOpenLogin }) => {
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label>Correo electrónico</label>
+          <label htmlFor="recovery-email">Correo electrónico</label>
           <input
+            id="recovery-email"
             type="email"
             placeholder="ejemplo@correo.com"
             value={email}
