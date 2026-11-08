@@ -40,6 +40,10 @@ const LoginModal = ({ onClose, onOpenRegister, onOpenRecuperar, allowedRoles }) 
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
+<<<<<<< HEAD
+=======
+          {/* ARREGLO 1: Agregado htmlFor e id */}
+>>>>>>> main
           <label htmlFor="login-email">Correo electrónico</label>
           <input
             id="login-email"
@@ -52,6 +56,10 @@ const LoginModal = ({ onClose, onOpenRegister, onOpenRecuperar, allowedRoles }) 
         </div>
 
         <div className="form-group">
+<<<<<<< HEAD
+=======
+          {/* ARREGLO 2: Agregado htmlFor e id */}
+>>>>>>> main
           <label htmlFor="login-password">Contraseña</label>
           <div className="pwd-wrapper">
             <input
