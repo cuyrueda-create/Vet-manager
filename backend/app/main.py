@@ -1054,8 +1054,9 @@ async def register_user(user_data: UsuarioCreate):
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="El email ya está registrado")
 
-        if not user_data.contraseña or len(user_data.contraseña) < 8:
-            raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 8 caracteres")
+        if not user_data.contraseña:
+            raise HTTPException(status_code=400, detail="La contraseña es obligatoria")
+        validate_password_strength(user_data.contraseña)
 
         hashed_password = get_password_hash(user_data.contraseña)
 
@@ -1333,55 +1334,49 @@ async def request_password_reset(request: PasswordResetRequest):
     connection = get_db_connection()
     if not connection:
         raise HTTPException(status_code=500, detail="Error de conexión a base de datos")
-    
+
     cursor = connection.cursor(dictionary=True)
-    
+    generic_message = {"message": "Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña."}
+
     try:
-        cursor.execute("SELECT id_usuario, nombre, apellido, email FROM usuarios WHERE email = %s", (request.email,))
+        cursor.execute(
+            "SELECT id_usuario, nombre, apellido, email FROM usuarios WHERE email = %s",
+            (request.email,)
+        )
         user = cursor.fetchone()
-        
+
+        # Respuesta genérica siempre (no revelar si el usuario existe)
         if not user:
-            raise HTTPException(status_code=404, detail="No existe un usuario con ese email")
-        
+            return generic_message
+
         reset_token = secrets.token_urlsafe(32)
-        
-        # Agregar columna reset_token si no existe
+
+        # Asegurar columna reset_token si no existe
         try:
             cursor.execute("ALTER TABLE usuarios ADD COLUMN reset_token VARCHAR(255) NULL")
-        except:
+        except Exception:
             pass
-        
-        cursor.execute("UPDATE usuarios SET reset_token = %s WHERE id_usuario = %s", (reset_token, user["id_usuario"]))
-        connection.commit()
-        
-        # Verificar configuración de correo
-        if not EMAIL_CONFIG['user'] or not EMAIL_CONFIG['password']:
-            print("\n" + "="*60)
-            print("⚠️ CONFIGURACIÓN DE CORREO NO COMPLETA")
-            print("Agrega EMAIL_USER y EMAIL_PASSWORD en el archivo .env")
-            print(f"🔗 Enlace manual: http://localhost:5173/reset-password?token={reset_token}")
-            print("="*60 + "\n")
-            return {"message": "Correo no configurado. Revisa la consola para obtener el enlace."}
-        
-        # Enviar correo real
-        email_sent = send_reset_email(
-            to_email=user["email"],
-            nombre=user["nombre"],
-            apellido=user["apellido"],
-            reset_token=reset_token
-        )
-        
-        reset_url = f"http://localhost:5173/reset-password?token={reset_token}"
-        print("\n" + "="*60)
-        print("🔗 ENLACE DE RECUPERACIÓN:")
-        print(f"{reset_url}")
-        print("="*60 + "\n")
 
-        if email_sent:
-            return {"message": f"Correo enviado. Si no llega, usa este enlace: {reset_url}"}
-        else:
-            return {"message": f"Error al enviar correo. Usa este enlace manualmente: {reset_url}"}
-        
+        cursor.execute(
+            "UPDATE usuarios SET reset_token = %s WHERE id_usuario = %s",
+            (reset_token, user["id_usuario"])
+        )
+        connection.commit()
+
+        # Enviar correo si está configurado; nunca exponer el token en la respuesta
+        if EMAIL_CONFIG.get("user") and EMAIL_CONFIG.get("password"):
+            try:
+                send_reset_email(
+                    to_email=user["email"],
+                    nombre=user["nombre"],
+                    apellido=user["apellido"],
+                    reset_token=reset_token
+                )
+            except Exception:
+                pass  # No revelar fallos ni token
+
+        return generic_message
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1441,6 +1436,8 @@ async def reset_password(reset_data: PasswordReset):
         
         if not user:
             raise HTTPException(status_code=400, detail="Token inválido o expirado")
+        
+        validate_password_strength(reset_data.new_password)
         
         hashed_password = get_password_hash(reset_data.new_password)
         cursor.execute("UPDATE usuarios SET contrasea = %s, reset_token = NULL WHERE id_usuario = %s", 
