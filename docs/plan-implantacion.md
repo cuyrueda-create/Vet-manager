@@ -498,48 +498,187 @@ No subir llaves privadas, `.env`, dumps sin cifrar ni datos de clientes al repos
 
 ## 5. Plan de instalación y despliegue — Semanas 2 y 4 (CE-1, CE-5)
 
-Versión 0 basada en el repositorio: API FastAPI, web React/Vite, aplicación Expo/React Native y MySQL 8. La instalación de producción requiere configurar HTTPS/proxy, secretos y almacenamiento externo de respaldos; el Compose actual publica puertos de desarrollo y contiene valores predeterminados que no deben usarse en producción.
+| Campo | Valor |
+|---|---|
+| Proyecto | Vet Manager |
+| Equipo | cuyrueda-create |
+| Versión del plan | **v1** |
+| Versión del software cubierta | 1.0.0 → 1.1.0 |
+| Fecha | 2026-11-18 |
 
-| # | Sección | Contenido |
-|---:|---|---|
-| 1 | Alcance | Instalar API, web y MySQL; la app móvil se compila/publica por separado y consume la API. |
-| 2 | Ambientes | Desarrollo/prueba con Docker Compose; producción en Linux compatible con Docker Engine y Compose v2 después de definir proxy HTTPS y almacenamiento externo. |
-| 3 | Roles | Responsable técnico prepara servidor; administrador de base de datos respalda/restaura; responsable del negocio aprueba ventana, rechazos y aceptación. |
-| 4 | Prerrequisitos | Ubuntu Server 24.04 LTS recomendado, 2 vCPU/4 GiB RAM/40 GiB SSD como referencia de sección 1, Docker Engine y plugin Compose v2, acceso al repositorio, puertos libres 5000/5173/3307 en local y espacio para respaldos. |
-| 5 | Preparación | Confirmar recursos; revisar Compose/esquema; configurar secretos fuera del repositorio; disponer de dump restaurable y copia externa; acordar mantenimiento y punto de retorno. |
-| 6 | Procedimiento | Seguir pasos verificables de la tabla inferior y guardar salidas/horas sin secretos ni datos personales. |
-| 7 | Migración | Seguir sección 2; no migrar ni habilitar escrituras sin respaldo restaurable, conciliación y aprobación. |
-| 8 | Verificación | Healthcheck MySQL, logs API, `/docs`, frontend, autenticación de prueba, flujos de clientes/mascotas/citas y restauración aislada. |
-| 9 | Rollback | Detener escritores, preservar origen y destino fallido, reconectar al origen o restaurar respaldo en una base nueva; abrir solo después de verificar. |
-| 10 | Cronograma | Ventana inicial estimada de 2 horas, pendiente de ensayo medido; responsable técnico comunica inicio, decisión de corte y cierre. |
+Alcance: API FastAPI, web React/Vite y MySQL 8. La app móvil se compila/publica por separado y consume la API. Este documento permite instalar, actualizar y revertir el proyecto en un servidor Linux y en la nube sin compilar en el destino.
 
-### Procedimiento verificable
+### 5.1 Proceso de liberación
 
-| # | Acción | Comando / método | Resultado esperado |
+| Paso | Comando o acción | Resultado esperado |
+|---|---|---|
+| Pruebas en verde | `docker compose exec -T backend python -m pytest --cov=app` | 42 pruebas pasan, cobertura reportada (17 %); el CI ejecuta lo mismo antes del scan de SonarCloud |
+| Etiqueta | `git tag -a v1.0.0 -m "..."` (y `v1.1.0`); `git push origin v1.0.0` | Etiquetas visibles en GitHub (`v1.0.0`, `v1.1.0`) |
+| Imagen | `docker build --build-arg APP_VERSION=1.0.0 --build-arg UVICORN_OPTS= -t vet-manager-backend:1.0.0 ./backend` | Imagen listada con la etiqueta (`docker images`) |
+| Notas de versión | Actualizar `CHANGELOG.md` antes de etiquetar | Sección nueva con "Al actualizar" |
+| Transferencia | `docker save ... \| gzip > imagenes/vet-manager-1.0.0.tar.gz` en desarrollo → `docker load` en el servidor | El servidor ejecuta la imagen; **nunca compila** |
+
+**Esquema de versiones y criterio SemVer:** `MAJOR` rompe compatibilidad con datos o clientes; `MINOR` agrega funcionalidad compatible hacia atrás; `PATCH` corrige errores sin cambiar comportamiento observable. Ejemplo: `2.3.1` corrige un error de cálculo → la siguiente versión es `2.3.2` (solo parche). En este proyecto: `1.0.0` es la liberación base y `1.1.0` agrega campos al healthcheck (MINOR, sin romper nada). No se despliega `latest`: las etiquetas de versión son auditables y reversibles.
+
+**Enlace al `CHANGELOG.md`:** [`CHANGELOG.md`](../CHANGELOG.md) (incluye la sección "Al actualizar" de cada versión).
+
+### 5.2 Despliegue en servidor Linux
+
+#### Estructura
+
+```
+/opt/vet-manager/
+├── .env                          # secretos y configuración (chmod 600)
+├── imagenes/
+│   ├── vet-manager-1.0.0.tar.gz  # transferidas con docker save/load
+│   └── vet-manager-1.1.0.tar.gz
+├── releases/
+│   └── 1.0.0/
+│       ├── deploy/
+│       │   ├── compose.prod.yaml # orquestación de producción
+│       │   ├── Caddyfile         # reverse proxy (dominio real)
+│       │   ├── Caddyfile.local   # pruebas sin dominio (tls internal)
+│       │   └── env.prod.example  # plantilla de variables
+│       ├── database/schema.sql
+│       ├── smoke-test.sh         # prueba de humo
+│       └── CHANGELOG.md
+└── respaldos/
+    ├── pre-update-1.1.0-<fecha>.sql.gz   # respaldo previo a cada actualización
+    └── caddy-root.crt                    # CA local para verificar TLS
+```
+
+#### Variables de entorno
+
+| Variable | Propósito | Ejemplo (ficticio) |
+|---|---|---|
+| `APP_VERSION` | Versión desplegada; el Compose solo levanta esa imagen | `1.0.0` |
+| `APP_ENV` | Ambiente reportado por `/health` | `produccion` |
+| `HTTP_PORT` / `HTTPS_PORT` | Puertos publicados de Caddy | `80` / `443` |
+| `API_PORT` | Puerto loopback del backend (no expuesto públicamente) | `5000` |
+| `CADDYFILE` | Caddyfile a montar (`deploy/Caddyfile` o `deploy/Caddyfile.local`) | `deploy/Caddyfile` |
+| `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD` | Credenciales de MySQL (generadas, nunca las de ejemplo) | `<aleatoria>` |
+| `SECRET_KEY` | Firma de los JWT | `<aleatoria>` |
+| `ADMIN_CREATE_KEY` | Clave maestra para crear el primer administrador | `<aleatoria>` |
+| `CORS_ORIGINS` | Orígenes permitidos para el frontend (coma-separados) | `https://ejemplo.com` |
+| `EMAIL_USER` / `EMAIL_PASSWORD` | SMTP transaccional (app password) | `<ficticio>` |
+
+#### Instalación inicial
+
+| # | Acción | Comando | Resultado esperado |
 |---:|---|---|---|
-| 1 | Confirmar requisitos | `bash scripts/verificar-requisitos.sh` | Docker Compose operativo, recursos y puertos disponibles; resolver incumplimientos antes de continuar. |
-| 2 | Validar Compose y secretos | `docker compose config --quiet` | Configuración válida. Antes de producción, rotar y externalizar las claves/contraseñas predeterminadas de `docker-compose.yml`; no pegarlas en el entregable. |
-| 3 | Crear y verificar respaldo | `bash scripts/respaldar.sh` | Dump `.sql.gz` no vacío, `gzip -t` exitoso y SHA-256 informado; el script no cifra el archivo local. |
-| 4 | Construir e iniciar | `docker compose up -d --build` | Servicios `mysql`, `backend` y `frontend` iniciados; MySQL llega a estado healthy. |
-| 5 | Revisar migraciones de API | `docker compose logs --no-color backend` | Inicio sin errores de conexión/migración; revisar advertencias antes de seguir. |
-| 6 | Verificar API y web | `curl -fsS http://localhost:5000/docs` y `curl -fsS http://localhost:5173/` | Respuestas HTTP exitosas en local; producción usa URL HTTPS aprobadas. |
-| 7 | Probar flujos | Pruebas de login y operaciones con cuentas/datos de prueba | Login, clientes, mascotas, citas y datos por rol funcionan; sin datos reales en capturas. |
-| 8 | Ensayar restauración | Procedimiento de sección 3.4 en `vet_manager_restore` | Conteos exactos iguales y objetos/relaciones verificados; duración registrada. |
-| 9 | Aceptar o revertir | Acta de validación del responsable del negocio | Habilitar escrituras solo tras conciliación y aprobación; si falla, ejecutar sección 2.6. |
+| 1 | Verificar requisitos | `bash scripts/verificar-requisitos.sh` | Código de salida 0 (`CUMPLIMIENTO: confirmado`) |
+| 2 | Recibir imágenes | `docker load -i imagenes/vet-manager-1.0.0.tar.gz` | `Loaded image: vet-manager-backend:1.0.0` |
+| 3 | Preparar configuración | `cp deploy/env.prod.example .env` y editar; `chmod 600 .env` | Permisos `600`; ningún secreto en el repositorio |
+| 4 | Validar | `docker compose -f deploy/compose.prod.yaml config --quiet` | Código de salida 0 (falla si falta un secreto obligatorio) |
+| 5 | Levantar | `docker compose -f deploy/compose.prod.yaml up -d --wait` | `mysql`, `backend`, `frontend` y `caddy` en estado `healthy` |
+| 6 | Prueba de humo | `bash smoke-test.sh https://<dominio>` | 6/6 pruebas en verde, código de salida 0 |
 
-Los comandos HTTP son para el Compose local actual. No exponer públicamente 5000, 5173 ni 3307 como configuración final: limitar MySQL a red privada y publicar web/API detrás del proxy HTTPS.
+#### Actualización
 
-### Cronograma de la ventana
+| # | Acción | Comando | Resultado esperado |
+|---:|---|---|---|
+| 1 | Respaldo previo | `mysqldump ... \| gzip > respaldos/pre-update-<ver>-<fecha>.sql.gz` | `gzip -t` exitoso + SHA-256 informado |
+| 2 | Recibir imágenes nuevas | `docker load -i imagenes/vet-manager-1.1.0.tar.gz` | Imágenes `1.1.0` listadas |
+| 3 | Cambiar versión | `sed -i "s/^APP_VERSION=.*/APP_VERSION=1.1.0/" .env` | `.env` apunta a `1.1.0` |
+| 4 | Reemplazar | `docker compose -f deploy/compose.prod.yaml up -d --wait` | Contenedores recreados y `healthy`; **sin downtime de MySQL** (volumen persiste) |
+| 5 | Prueba de humo | `bash smoke-test.sh https://<dominio>` | `/health` reporta `"version":"1.1.0"` |
 
-| Fase | Duración inicial | Acumulado | Condición |
-|---|---:|---:|---|
-| Requisitos y respaldo final | 20 min | 20 min | No iniciar si falla el respaldo |
-| Detener escrituras y exportar origen | 20 min | 40 min | Mantenimiento comunicado |
-| Importación / despliegue | 40 min | 80 min | Medir en ensayo; detener si amenaza el límite aprobado |
-| Conteos y pruebas funcionales | 30 min | 110 min | Todos los controles deben aprobarse |
-| Decisión y reapertura | 10 min | 120 min | Punto de no retorno: autorización de escrituras en destino |
+#### Rollback
 
-Duraciones estimadas, no medidas. Si el ensayo excede la ventana acordada, recalcularla antes del corte real.
+| # | Acción | Comando | Resultado esperado |
+|---:|---|---|---|
+| 1 | Reapuntar versión anterior | `sed -i "s/^APP_VERSION=.*/APP_VERSION=1.0.0/" .env` | `.env` apunta a `1.0.0` |
+| 2 | Revertir | `docker compose -f deploy/compose.prod.yaml up -d --wait` | Versión anterior arriba y `healthy` |
+| 3 | Prueba de humo | `bash smoke-test.sh https://<dominio>` | `/health` reporta `"version":"1.0.0"` |
+| 4 | Solo si hubo migración incompatible | Restaurar `respaldos/pre-update-*.sql.gz` en base nueva y conciliar | Conteos idénticos antes de abrir escrituras |
+
+**Clasificación de migraciones (¿permiten rollback sin restaurar?):**
+
+| Migración | Cambio | ¿Compatible hacia atrás? |
+|---|---|---|
+| Agregar tabla o columna nueva | Aditivo | **Sí**: el código anterior no conoce lo nuevo y sigue funcionando |
+| Ampliar un `ENUM` (p. ej. nuevo estado) | Aditivo | **Sí** mientras el código anterior no escriba el valor nuevo |
+| Cambiar tipo de dato, nombre o eliminar columna usada | Restructurante | **No**: exige restaurar respaldo o estrategia expand/contract |
+| `hash_existing_passwords` (texto plano → hash) | Transforma datos | **No reversible** sin el texto plano; requiere respaldo |
+| 1.0.0 → 1.1.0 (solo `/health`) | Sin migración de esquema | **Sí**: rollback sin restaurar |
+
+**Por qué no hizo falta restaurar en el ciclo 1.0.0 → 1.1.0 → 1.0.0:** la única diferencia de código fue el healthcheck; no hubo migración de esquema ni de datos, y el volumen `mysql_data` persiste entre versiones. **Qué se haría si la migración fuera incompatible:** restaurar el respaldo previo en una base nueva, conciliar conteos y decidir con el responsable del negocio antes de reabrir (sección 3.4); o aplicar *expand/contract* para no romper la versión anterior.
+
+#### Evidencia (servidor Linux simulado en WSL, 2026-11-18)
+
+Instalación 1.0.0:
+
+```text
+1. GET /health    OK — {"status":"healthy","database":"healthy","version":"1.0.0"}
+2. Base de datos  OK — healthy
+3. Versión        OK — 1.0.0
+4. GET /docs      OK
+5. GET /          OK
+6. GET / (SPA)    OK
+RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos) — EXIT=0
+```
+
+Actualización a 1.1.0 (con respaldo previo `pre-update-1.1.0-*.sql.gz`, 8.0K, `gzip -t` OK):
+
+```text
+1. GET /health    OK — {"status":"healthy","database":"healthy","version":"1.1.0","ambiente":"produccion","uptime_s":5.9}
+...
+RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos) — EXIT=0
+```
+
+Rollback a 1.0.0:
+
+```text
+1. GET /health    OK — {"status":"healthy","database":"healthy","version":"1.0.0"}
+...
+RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos) — EXIT=0
+```
+
+Estado del servidor: `mysql` y `backend` `healthy` en red interna; MySQL **sin puerto publicado** en el host; backend solo en loopback; Caddy único punto de entrada.
+
+### 5.3 Despliegue en la nube
+
+| Componente | Proveedor y plan | Región | Configuración |
+|---|---|---|---|
+| API (web service) | **Render — Free** | Por defecto (EE. UU.) | Blueprint [`deploy/render.yaml`](../deploy/render.yaml), `healthCheckPath: /health` |
+| Web estática | **Render — Static Site (free)** | Por defecto | Build `npm ci && npm run build`, publica `frontend/dist` |
+| Base de datos | **Aiven for MySQL — Free** | No seleccionable en plan gratuito | MySQL 8 gestionado; connection string **solo en el panel de Render** |
+
+URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se define al crear el servicio).
+
+**Procedimiento:**
+
+1. Crear cuenta en Aiven y un servicio MySQL en plan Free; copiar host, puerto, usuario y contraseña desde el panel.
+2. Crear cuenta en Render → *New → Blueprint* → apuntar al repositorio; Render lee `deploy/render.yaml`.
+3. Definir los secretos **solo en el panel de Render** (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`, `ADMIN_CREATE_KEY`, `CORS_ORIGINS`); nunca en el repositorio.
+4. Deploy; esperar que `/health` responda `healthy`.
+5. Ejecutar `bash scripts/smoke-test.sh https://<url-publica>` y guardar la salida.
+6. Probar el arranque en frío: apagar el servicio, medir el tiempo hasta que `/health` responda de nuevo.
+
+**Método de rollback en el PaaS:** en Render → *Deploys → Rollback to previous deploy* (o redeploy de la etiqueta anterior); no requiere reconstruir. En Aiven (plan Free) el rollback de datos es por restauración del dump descargado, ya que el plan gratuito no incluye Point-in-Time Recovery.
+
+**Límites del plan gratuito que afectan al cliente (fuente: render.com/pricing y aiven.io/pricing, consultado el 2026-11-18):**
+
+- Render Free: $0/mes con 512 MB de RAM y menos de 1 CPU; los sitios estáticos son gratis de forma permanente; los servicios gratuitos se suspenden tras un periodo sin tráfico (**arranque en frío**: la primera petición tras la suspensión tarda varios segundos).
+- Aiven Free: $0/mes con 1 VM dedicada, 1 CPU, 1 GB de RAM y 1 GB de almacenamiento; no se puede elegir región ni usar connection pooling.
+- Costos que suelen sorprender: ancho de banda de salida, almacenamiento adicional, dominio (~US$10–15/año) y servicios de respaldo/cifrado que no están incluidos en los planes gratuitos.
+
+#### Evidencia (nube)
+
+**Pendiente:** requiere crear las cuentas en Render y Aiven (decisión del responsable del proyecto). Sin esta evidencia, la rúbrica limita Producto a 60/100. El procedimiento, el blueprint y la prueba de humo están preparados: `deploy/render.yaml` + `scripts/smoke-test.sh`.
+
+### 5.4 Estimación de costos
+
+| Concepto | Alternativa 1: Render + Aiven (gratuito) | Alternativa 2: VPS gestionado (Hetzner CX) | Alternativa 3: IaaS siempre gratis (Oracle Cloud) |
+|---|---|---|---|
+| Total mensual | **US$0** | desde €5,49/mes + IVA (≈ US$6) | **US$0** (con tarjeta registrada) |
+| Total anual | US$0 + dominio ≈ US$10–15 | ≈ US$72 + dominio ≈ US$82–87 | US$0 + dominio ≈ US$10–15 |
+| Horas de administración al mes | 2 h (deploy manual desde Git) | 4–6 h (SO, parches, Docker, respaldos) | 6–8 h (SO, firewall, Docker, respaldos, riesgo de reclamación de recursos) |
+| Fuente y fecha | render.com/pricing, aiven.io/pricing — 2026-11-18 | hetzner.com/cloud — 2026-11-18 | oracle.com/cloud/free — 2026-11-18 |
+
+**Costos ocultos a considerar:** dominio (~US$10–15/año), ancho de banda de salida si el plan paga excede el incluido, almacenamiento extra (Aiven cobra US$0.30/GB en planes de pago), respaldos externos cifrados y tiempo de administración.
+
+**Recomendación al cliente:** iniciar con **Alternativa 1 (Render + Aiven Free)**: costo mensual cero, sin tarjeta para Render y con la base MySQL gestionada; documenta además el arranque en frío como limitación. Cuando la clínica necesite disponibilidad 24/7 sin suspensión, migrar a Alternativa 2 (VPS) manteniendo el mismo `compose.prod.yaml`, o subir el plan de Render (US$7/mes) — la migración está probada con el ciclo de actualización/rollback de la §5.2.
 
 ## 6. Configuración y verificación — Semana 5 (CE-1)
 
