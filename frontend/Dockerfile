@@ -1,6 +1,10 @@
 # frontend/Dockerfile
 FROM node:20-alpine
 
+# Versión de la imagen (SemVer), se inyecta en tiempo de build.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
+
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate

@@ -5,3 +5,7 @@ frontend/dist/
 backend/.venv/
 .env
 backups/
+# Cobertura de pruebas
+.coverage
+coverage.xml
+htmlcov/

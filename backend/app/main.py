@@ -382,9 +382,16 @@ def run_alembic_migrations():
     command.upgrade(Config(str(config_path)), "head")
 
 # Configurar CORS
+# Orígenes permitidos en variables de entorno (separados por coma) para que el
+# frontend desplegado en la nube pueda consumir la API. Ver .env.example.
+CORS_ORIGINS = [
+    origen.strip()
+    for origen in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    if origen.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -914,11 +921,16 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    """Healthcheck para el reverse proxy, el orquestador y las pruebas de humo."""
     conn = get_db_connection()
     db_status = "healthy" if conn else "unhealthy"
     if conn:
         conn.close()
-    return {"status": "healthy", "database": "healthy"}
+    return {
+        "status": "healthy" if db_status == "healthy" else "unhealthy",
+        "database": db_status,
+        "version": os.getenv("APP_VERSION", "dev"),
+    }
 
 # ==================== AUTENTICACIÓN ====================
 

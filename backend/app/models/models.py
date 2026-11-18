@@ -1,6 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
-from backend.app.database import Base
+
+# Declarative base propio: la app no usa ORM en producción (usa mysql.connector),
+# estos modelos quedan como referencia del esquema y deben importarse sin errores.
+Base = declarative_base()
 
 class Usuario(Base):
     __tablename__ = "usuarios"

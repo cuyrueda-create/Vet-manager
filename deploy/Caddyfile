@@ -1,0 +1,18 @@
+# Caddyfile de PRODUCCIÓN — Semana 4
+# ------------------------------------------------------------------
+# Caddy obtiene y renueva el certificado TLS automáticamente (Let's Encrypt)
+# si el dominio apunta al servidor y los puertos 80/443 están libres.
+# En pruebas locales sin dominio se puede usar `tls internal`.
+#
+# {$DOMINIO} se define en el archivo .env del despliegue.
+
+{$DOMINIO} {
+	log
+
+	# API y documentación
+	@backend path /api/* /auth/* /data/* /users* /mascotas* /clientes* /health /docs* /redoc* /openapi.json
+	reverse_proxy @backend 127.0.0.1:5000
+
+	# SPA React
+	reverse_proxy frontend:5173
+}

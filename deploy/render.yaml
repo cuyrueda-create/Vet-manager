@@ -1,0 +1,60 @@
+# Render — Blueprint para desplegar Vet Manager (Semana 4)
+# ------------------------------------------------------------------
+# Este archivo define dos servicios en Render a partir del propio repo:
+#   1. vet-manager-api   → Web Service (Docker, backend FastAPI)
+#   2. vet-manager-web   → Static Site (build React)
+# La base de datos MySQL NO se crea aquí: se provisiona en Aiven Free MySQL
+# y su connection string se ingresa como secret en Render.
+#
+# Pasos: ver docs/plan-implantacion.md §5.4 (o README de la práctica 03).
+
+services:
+  # ---------- BACKEND (API FastAPI) ----------
+  - type: web
+    name: vet-manager-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      # Puerto lo define Render (PORT); el Dockerfile lo respeta.
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: APP_ENV
+        value: nube
+      # --- Secretos: crearlos en el dashboard de Render, no aquí ---
+      - key: DB_HOST        # host de Aiven (p. ej. aio-xxxx.aivencloud.com)
+        sync: false
+      - key: DB_PORT
+        value: "24033"      # puerto SSL de Aiven; verificar en el panel
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ADMIN_CREATE_KEY
+        sync: false
+      # Origen del frontend desplegado en Render (Static Site)
+      - key: CORS_ORIGINS
+        sync: false
+
+  # ---------- FRONTEND (SPA React) ----------
+  - type: static_site
+    name: vet-manager-web
+    runtime: static
+    buildCommand: cd frontend && npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: frontend/dist
+    plan: free
+    branch: main
+    envVars:
+      # La API queda detrás del mismo dominio de Render; el build usa
+      # VITE_API_URL=/ para que las llamadas pasen por el proxy del sitio.
+      - key: VITE_API_URL
+        value: /
+      - key: VITE_APP_NAME
+        value: Vet Manager
