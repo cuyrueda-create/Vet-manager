@@ -87,33 +87,87 @@ Para una instalación en cliente, se recomienda una máquina de torre o rack con
 
 ### 1.7 Verificación de requisitos
 
-Script: `scripts/verificar-requisitos.sh` del repositorio del proyecto.
+Script: `scripts/verificar-requisitos.sh` del repositorio del proyecto. El script salta con
+código `0` cuando los requisitos están confirmados y con `1` cuando no; incluye un chequeo
+propio del proyecto (archivos requeridos y validación de `docker compose config`).
 
-Servidor donde se ejecutó:
-
-`Docker Desktop` WSL2 (`docker-desktop`), con Linux 6.18.33.2-microsoft-standard-WSL2, x86_64.
+**Ejecución exitosa — 2026-11-18, WSL2 Ubuntu 26.04 (x86_64), Docker activo:**
 
 ```text
 === Verificación de requisitos de Vet Manager ===
-Fecha: 2026-10-06T21:10:38Z
-Servidor: Linux BOGDFPCGMP1140 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 Linux
-Sistema operativo: Docker Desktop no disponible
+Fecha: 2026-11-18T19:03:29Z
+Servidor: Linux DESKTOP-70FUBQ7 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+Sistema operativo: ubuntu 26.04
+
 [CPU]
-vCPU: 28
-Architecture: x86_64
-CPU(s): 28
+vCPU: 16
+Architecture:                            x86_64
+CPU(s):                                  16
+Model name:                              AMD Ryzen 7 7735HS with Radeon Graphics
+
 [RAM]
-total 14.5G, available 13.9G
+               total        used        free      shared  buff/cache   available
+Mem:           6.6Gi       1.6Gi       3.3Gi       5.3Mi       1.9Gi       5.0Gi
+Swap:          2.0Gi          0B       2.0Gi
+
 [Disco]
-/dev/sdd ext4 136.0M, 53.8M available
-Docker no disponible o daemon detenido
-node: no instalado
-python3: no instalado
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/sdf       ext4 1007G  1.3G  955G   1% /
+Espacio disponible para docker-compose:
+SIZE TYPE
+5.483GB Images
+770kB Containers
+333.3MB Local Volumes
+4.244GB Build Cache
+
+[Software]
+Docker version 29.5.3, build d1c06ef
+Docker Compose version v5.1.4
+node: no instalado (el proyecto los ejecuta dentro de Docker)
+11.16.0
+Python 3.14.4
+
+[Puertos esperados]
+Frontend: 5173/tcp
+API: 5000/tcp
+MySQL: 3307/tcp (host) / 3306/tcp (contenedor)
+LISTEN 0      4096                *:5173            *:*
+LISTEN 0      4096                *:5000            *:*
+LISTEN 0      4096                *:3307            *:*
+
+[Chequeo propio del proyecto: archivos requeridos]
+OK   docker-compose.yml
+OK   Caddyfile
+OK   backend/app/main.py
+OK   backend/requirements.txt
+OK   frontend/package.json
+OK   database/schema.sql
+OK   scripts/respaldar.sh
+
+[Chequeo propio del proyecto: configuración de Compose]
+docker compose config: válida
+Servicios: mysql backend frontend caddy
+
 [Resultado]
-CUMPLIMIENTO: no confirmado; recursos o Docker no están disponibles en el servidor ejecutado.
+CUMPLIMIENTO: confirmado (CPU>=2 vCPU, RAM>=4 GiB, Docker operativo, archivos y Compose válidos).
 ```
 
-Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de RAM, pero no dispone de Docker operativo ni los runtimes de Node.js y Python en el distro WSL. La verificación debe ejecutarse de nuevo en Ubuntu Server 24.04 LTS con Docker activo antes de aceptar el entorno de producción.
+Código de salida: **0**.
+
+**Pruebas de fallo provocadas (2026-11-18):** cuatro fallos distintos provocados y detectados,
+cada uno con código de salida `1`:
+
+| # | Fallo provocado | Cómo se provocó | Detección del script |
+|---|---|---|---|
+| 1 | Docker no disponible | Ejecución con `PATH` restringido (`/usr/bin:/bin`, sin cliente de Docker) | `Docker: daemon no disponible o cliente sin configurar` → `Docker sin operar; Compose inválido` |
+| 2 | Archivo requerido faltante | `mv Caddyfile Caddyfile.bak` (restaurado después) | `FALTA Caddyfile` → `archivos del proyecto faltantes` |
+| 3 | RAM por debajo del umbral | `MIN_MEM_GB=9999` (umbral por encima de la RAM real) | `RAM<9999GiB` |
+| 4 | Compose inválido | `mv .env .env.bak` (restaurado después) | `docker compose config: INVÁLIDA` → `Compose inválido` |
+
+**Historial:** la ejecución del 2026-10-06 reportó `CUMPLIMIENTO: no confirmado` porque el
+daemon de Docker no estaba operativo en ese momento; queda superada por la ejecución del
+2026-11-18. El entorno de producción definitivo (Ubuntu Server 24.04 LTS) debe repetir esta
+verificación antes de aceptarse, tal como indica el plan.
 
 ---
 
