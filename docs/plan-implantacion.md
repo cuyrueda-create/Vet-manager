@@ -416,7 +416,7 @@ curl --resolve vet-manager.test:8443:127.0.0.1 -k -i https://vet-manager.test:84
 curl --resolve vet-manager.test:8443:127.0.0.1 -k -i https://vet-manager.test:8443/health
 ```
 
-**Evidencia local (2026-11-04):** Caddy validó el Caddyfile, emitió certificados internos para `vet-manager.test` y `localhost`, y los probes con `curl --resolve` devolvieron `HTTP 200` para `/` y `/health`, con verificación TLS `0` usando la CA local de Caddy. La ruta `/` sirvió el build React. Para `/health` se usó temporalmente un upstream HTTP de prueba porque MySQL no terminó de descargarse y FastAPI no pudo completar su arranque; por tanto, el enrutamiento HTTPS de Caddy está comprobado, pero la integración completa Caddy → FastAPI → MySQL queda pendiente de repetir con el stack completo.
+**Evidencia local (2026-11-04):** Caddy validó el Caddyfile, emitió certificados internos para `vet-manager.test` y `localhost`, y los probes con `curl --resolve` devolvieron `HTTP 200` para `/` y `/health`, con verificación TLS `0` usando la CA local de Caddy. La ruta `/` sirvió el build React. Para `/health` se usó temporalmente un upstream de prueba porque MySQL no terminó de descargarse y FastAPI no pudo completar su arranque; por tanto, en esa fecha el enrutamiento HTTPS de Caddy quedó comprobado y la integración completa Caddy → FastAPI → MySQL quedó pendiente. **Quedó cerrada el 2026-11-18** (ver evidencia de cierre más abajo).
 
 Comandos Windows usados para confiar la CA local y probar los hosts reservados:
 
@@ -426,7 +426,59 @@ curl.exe --noproxy "*" --ssl-no-revoke --cacert "$env:TEMP\vet-manager-caddy-roo
 curl.exe --noproxy "*" --ssl-no-revoke --cacert "$env:TEMP\vet-manager-caddy-root.crt" --resolve vet-manager.test:8443:127.0.0.1 -i https://vet-manager.test:8443/health
 ```
 
-La comprobación negativa de que MySQL no es accesible desde una interfaz pública queda pendiente de ejecutar cuando se levante el stack completo.
+#### Evidencia de cierre — 2026-11-18 (stack completo)
+
+Se recrearon los contenedores con la configuración actual: los puertos pasaron de publicarse
+en todas las interfaces (`0.0.0.0`) a **solo loopback** (`127.0.0.1`), que es lo que exige la
+sección 4.4. Se reconstruyó la imagen del backend (faltaba el paquete `alembic` en la imagen
+anterior) y se habilitó el log de accesos de Caddy con la directiva `log`.
+
+Estado de los servicios:
+
+```text
+SERVICE    STATUS                    PORTS
+caddy      Up                        127.0.0.1:8443->443/tcp
+backend    Up                        127.0.0.1:5000->5000/tcp
+mysql      Up (healthy)              127.0.0.1:3307->3306/tcp
+frontend   Up                        5173/tcp   (solo red Docker, sin publicar)
+```
+
+**Pruebas HTTPS con verificación TLS real** (CA local de Caddy copiada del contenedor,
+`curl --cacert` sin `-k`; en Windows/Schannel se usa `--ssl-no-revoke` porque la CA local no
+publica lista de revocación):
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `GET /` (build React) | `HTTP 200`, `ssl_verify_result: 0`, 474 bytes |
+| 2 | `GET /health` (backend real) | `HTTP 200` → `{"status":"healthy","database":"healthy"}` |
+| 3 | `GET /docs` (FastAPI) | `HTTP 200` |
+| 4 | Segundo nombre del certificado (`localhost:8443`) | `HTTP 200` |
+| 5 | Encabezados del camino | `Via: 1.1 Caddy` (respuesta) |
+
+**Encabezados que Caddy inyecta hacia el backend** (verificados con un servicio efímero que
+imprime los encabezados recibidos, detrás del mismo reverse proxy):
+
+```text
+Host: vet-manager.test:8443
+Via: 1.1 Caddy
+X-Forwarded-For: 172.18.0.1
+X-Forwarded-Host: vet-manager.test:8443
+X-Forwarded-Proto: https
+```
+
+**Prueba negativa (2026-11-18): los servicios NO son accesibles desde la red.**
+`Test-NetConnection` contra la IP de la red del equipo (`10.90.40.59`):
+
+| Puerto | Desde la red (10.90.40.59) | Desde loopback (127.0.0.1) |
+|---:|---|---|
+| 3307 (MySQL) | **False — bloqueado** | True |
+| 5000 (API) | **False — bloqueado** | True |
+| 5173 (frontend) | **False — sin publicar** | no publicado |
+| 8443 (Caddy HTTPS) | **False — bloqueado** | True |
+
+Esto cierra los dos pendientes declarados el 2026-11-04: la integración completa
+Caddy → FastAPI → MySQL quedó comprobada (prueba 2) y la comprobación negativa de MySQL
+accesible desde una interfaz pública quedó ejecutada.
 
 ### 4.6 Transferencia de archivos
 
