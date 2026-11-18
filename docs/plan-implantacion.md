@@ -680,24 +680,447 @@ URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se
 
 **Recomendación al cliente:** iniciar con **Alternativa 1 (Render + Aiven Free)**: costo mensual cero, sin tarjeta para Render y con la base MySQL gestionada; documenta además el arranque en frío como limitación. Cuando la clínica necesite disponibilidad 24/7 sin suspensión, migrar a Alternativa 2 (VPS) manteniendo el mismo `compose.prod.yaml`, o subir el plan de Render (US$7/mes) — la migración está probada con el ciclo de actualización/rollback de la §5.2.
 
-## 6. Configuración y verificación — Semana 5 (CE-1)
+## 6. Configuración y verificación — Semana 5 (CE-1, CE-3)
 
--Los valores de entorno se aplicarán desde un archivo de configuración seguro; se verificará la conexión a la base de datos, autenticación, sesiones, notificaciones y la carga de la interfaz.
+**Versión del software cubierta:** 1.1.0 · **Fecha:** 2026-11-18 · **Estado:** base aplicada; migración a base gestionada pendiente de las cuentas de nube.
 
-## 7. Seguridad, usuarios y permisos — Semana 6 (CE-1)
+### 6.1 Inventario de configuración
 
--Cada rol tendrá permisos de acceso diferenciados, secretos almacenados en variables de entorno, conexiones cifradas,actualizaciones de dependencias y revisiones de permisos de la base de datos.
+| Variable | ¿Secreto? | Desarrollo | Servidor | Nube | Si falta… |
+|---|:---:|---|---|---|---|
+| `SECRET_KEY` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Render | No arranca: `RuntimeError` con mensaje claro (`config.py`) |
+| `ADMIN_CREATE_KEY` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Render | Creación de administradores denegada (fail-closed) |
+| `MYSQL_ROOT_PASSWORD` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Aiven | `docker compose config` falla a propósito (`:?`) |
+| `MYSQL_PASSWORD` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Aiven | `docker compose config` falla a propósito (`:?`) |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` | No | `docker-compose.yml` | `compose.prod.yaml` | Panel de Render | Conexión a BD falla; `/health` reporta `unhealthy` |
+| `CORS_ORIGINS` | No | `http://localhost:5173` | `.env` del servidor | Panel de Render | Default local: el frontend de la nube no podría llamar a la API |
+| `APP_VERSION` | No | imagen en build | `.env` del servidor | `render.yaml` | `/health` reporta `dev`; el Compose de producción **falla** (`:?`) |
+| `APP_ENV` | No | `desarrollo` (default) | `produccion` | `nube` | Default `desarrollo` en `/health` |
+| `EMAIL_USER` / `EMAIL_PASSWORD` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Render | Correo transaccional no enviado (no bloquea el arranque) |
+
+Plantillas sin secretos: `.env.example`, `backend/.env.example`, `frontend/.env.example`, `deploy/env.prod.example`. **Ningún `.env` está rastreado** (verificado con `git ls-files | grep env`).
+
+### 6.2 Servicios
+
+| Servicio | Imagen / versión | Depende de | Política de reinicio | Healthcheck | Rotación de logs |
+|---|---|---|---|---|---|
+| `mysql` | `mysql:8.0` | — | `always` | `mysqladmin ping` (10 s) | `json-file` con límites por defecto de Docker; definir `max-size`/`max-file` en producción |
+| `backend` | `vet-manager-backend:1.1.0` | `mysql` (`service_healthy`) | `always` | `GET /health` en el contenedor (15 s) | ídem |
+| `frontend` | `vet-manager-frontend:1.1.0` | `backend` (`service_healthy` en prod) | `always` | — (estático) | ídem |
+| `caddy` | `caddy:2.10.2-alpine` | `backend`, `frontend` | `unless-stopped` | — | log de accesos con `log` en el Caddyfile |
+
+Orden de arranque: `mysql → backend (espera healthy) → frontend → caddy`. **Docker no reinicia un contenedor `unhealthy` por sí solo**: lo marca y detiene el `--wait`; la política `restart: always` cubre caídas, no salud. Pendiente de configurar: `logging: options: max-size/max-file` en `compose.prod.yaml` (rotación de logs).
+
+### 6.3 Endpoint de salud
+
+| Campo | Valor |
+|---|---|
+| Ruta | `GET /health` |
+| Dependencias que verifica | Conexión real a MySQL (`get_db_connection`) |
+| Respuesta si está sano | `200` → `{"status":"healthy","database":"healthy","version":"1.1.0","ambiente":"produccion","uptime_s":…}` |
+| Respuesta si falla una dependencia | `200` → `{"status":"unhealthy","database":"unhealthy",…}` (el orquestador/alertas deciden; el código no miente) |
+
+### 6.4 Pruebas
+
+#### Prueba de humo
+
+Verificaciones incluidas (`scripts/smoke-test.sh`):
+
+| # | Verificación | Resultado esperado |
+|---:|---|---|
+| 1 | `GET /health` | JSON con `"status":"healthy"` |
+| 2 | Estado de la base de datos | `"database":"healthy"` |
+| 3 | Versión desplegada | Coincide con `ESPERADA` si se define |
+| 4 | `GET /docs` (Swagger) | HTTP 200 |
+| 5 | `GET /` (frontend) | HTTP 200 |
+| 6 | HTML de la SPA | Contiene `Vet Manager` |
+
+Salida contra el servidor (2026-11-18, instalación → actualización → rollback, 6/6 en cada paso): ver **§5.2 Evidencia**. Salida contra la nube: **pendiente de crear las cuentas Render/Aiven**.
+
+#### Casos funcionales
+
+| ID | Caso | Pasos | Resultado esperado | Resultado obtenido |
+|---|---|---|---|---|
+| F-01 | Login con credenciales válidas | POST `/auth/login` con usuario de prueba | Token JWT + datos de usuario | Pendiente de automatizar (cubiertos por unitarias de `security.py`/`auth.py`) |
+| F-02 | Login con contraseña incorrecta | POST `/auth/login` con clave errónea | 401 | Pendiente de automatizar |
+| F-03 | Health sin base de datos | Detener `mysql`, GET `/health` | `unhealthy` | ✅ automático: `test_health_sin_base_de_datos` |
+| F-04 | CORS: origen desconocido rechazado | GET `/health` con `Origin` malicioso | Sin `access-control-allow-origin` | ✅ automático: `test_cors_denegado_para_origen_desconocido` |
+| F-05 | Política de contraseñas | Crear admin con clave débil | Rechazo con mensaje | ✅ automático: `test_admin.py` (6 casos) |
+
+### 6.5 Lista de verificación posterior al despliegue
+
+- [x] Toda la configuración obligatoria está en variables de entorno, con `.env.example` completo
+- [x] El proyecto no arranca si falta configuración obligatoria y lo dice claramente (`:?` en Compose, `RuntimeError` en `config.py`)
+- [x] Prueba de humo automática posterior a cada cambio (despliegue, actualización, rollback)
+- [ ] Logs con rotación configurada en producción (`max-size`/`max-file`)
+- [ ] Migración de datos a la base gestionada con huellas idénticas y humo después del corte (§2.8)
+
+### 2.8 Evidencia de migración ejecutada (se agrega a la sección 2)
+
+| Campo | Valor |
+|---|---|
+| Origen (tipo y versión) | MySQL 8.0 en Docker (`vet_manager`, 20 tablas, 110 filas) |
+| Destino (proveedor, versión, región) | **Aiven for MySQL Free** — pendiente de crear la instancia |
+| Diferencias resueltas (dueño, versión, SSL…) | Pendiente: Puerto SSL, `utf8mb4`, usuario no-root (`vet_user`) |
+
+**Estado: pendiente.** Procedimiento previsto (mismo patrón que la §5.2, congelar escrituras → volcar → importar → huellas → humo → decidir). Huellas: `SELECT COUNT(*)` por tabla + `CHECKSUM TABLE` en origen y destino; la comparación de conteos ya está probada localmente en §3.5 (20/20 tablas idénticas). Rollback: no hizo falta en el ensayo local; si el destino falla, se reabre el origen sin tocar el respaldo.
+
+## 7. Seguridad, usuarios y permisos — Semana 6 (CE-1, CE-4)
+
+**Fecha:** 2026-11-18 · **Estado:** aplicación endurecida + evidencia local; endurecimiento del servidor Linux pendiente de existir el servidor.
+
+### 7.1 Usuarios del sistema operativo
+
+| Cuenta | Tipo | Persona o servicio | Grupos | Inicia sesión | `sudo` permitido |
+|---|---|---|---|:---:|---|
+| `<admin>` | Persona | Administrador del servidor | `sudo` | Llave SSH | Todo, con contraseña |
+| `<despliegue>` | Persona | Responsable técnico | `despliegue` | Llave SSH | Solo reiniciar el stack (script dedicado) |
+| `respaldo` | Servicio | `cron` | — | No (`nologin`) | Nada |
+
+Archivos y carpetas sensibles:
+
+| Ruta | Dueño:grupo | Permisos | Por qué |
+|---|---|:---:|---|
+| `/opt/vet-manager` | `root:despliegue` | `2770` | Solo el equipo de despliegue entra |
+| `/opt/vet-manager/.env` | `root:despliegue` | `600` (verificado en el simulacro) | Secretos de la app |
+| `backups/mysql/*.sql.gz` | `root:root` | `700` (directorio, `umask 077` en el script) | Respaldos con datos personales |
+
+### 7.2 Acceso remoto y firewall
+
+**Estado: pendiente de servidor real.** Configuración prevista: SSH solo con llave (`PasswordAuthentication no`), UFW con política por defecto `deny incoming` y solo puertos 22/80/443.
+
+| Puerto | Abierto | Justificación |
+|---|:---:|---|
+| 22 | Sí (futuro) | Administración, solo con llave |
+| 80/443 | Sí | Caddy (HTTP→HTTPS y HTTPS) |
+| 3306/3307, 5000, 5173 | **No** | MySQL y API solo en red interna/loopback |
+
+Evidencia de que la base de datos no está expuesta (ya ejecutada, §4.5):
+
+```text
+Desde la red (10.90.40.59): 3307 False · 5000 False · 5173 False · 8443 False
+Desde loopback (127.0.0.1): 3307 True  · 5000 True  · 8443 True
+compose.prod.yaml: mysql sin publicación de puertos; backend solo 127.0.0.1
+```
+
+### 7.3 Roles de la base de datos
+
+| Rol | Privilegios | No puede | Lo usa | Dónde vive su contraseña |
+|---|---|---|---|---|
+| `vet_user` (actual) | CRUD sobre `vet_manager` | Crear bases/roles, `PROCESS` | La app (backend) | `.env` del servidor (600) |
+| `root` (solo en el contenedor) | Total | — | `mysqldump` del respaldo (`scripts/respaldar.sh`) | `.env` del servidor (600) |
+
+**Estado:** con un solo usuario la separación de privilegios es parcial (el script de respaldo necesita `root` porque `vet_user` carece de `PROCESS`/`SHOW CREATE PROCEDURE` — evidencia en §3.5). Planificado para el servidor real: crear `<proyecto>_owner` (DDL/migraciones) y `<proyecto>_app` (solo CRUD) y que la app use el segundo.
+
+Pruebas de privilegios:
+
+| Rol | Operación | Esperado | Obtenido |
+|---|---|:---:|---|
+| `vet_user` | `DROP TABLE` ajena | ❌ | ✅ Rechazado (evidencia §3.5: MySQL bloqueó el `DROP` por FK `citas_ibfk_2`) |
+| `vet_user` | `SHOW CREATE PROCEDURE` | ❌ | ✅ Rechazado: `vet_user has insufficient privileges` (detectado y registrado en §3.5) |
+
+### 7.4 Inventario de secretos
+
+| Secreto | Da acceso a | Dónde vive (cada ambiente) | Permisos | Quién lo lee | Cómo se rota |
+|---|---|---|:---:|---|---|
+| `SECRET_KEY` | Firma de JWT (todas las sesiones) | `.env` local / servidor / panel Render | 600 | Solo backend | Nuevo valor + reinicio del servicio |
+| `ADMIN_CREATE_KEY` | Creación de administradores | ídem | 600 | Solo backend | Ídem |
+| `MYSQL_PASSWORD` / `MYSQL_ROOT_PASSWORD` | Datos de la clínica | ídem / panel Aiven | 600 | backend, respaldo | Cambio en MySQL + `.env` + reinicio |
+| App password de Gmail | Envío de correos | `.env` | 600 | backend | Regenerar en `myaccount.google.com/apppasswords` |
+| `SONAR_TOKEN` | Escaneo del repo | GitHub Secrets | — | CI | Regenerar en SonarCloud |
+
+**Rotación pendiente del usuario:** la app password de Gmail (`zwonlbxjjomngdcp`), `SECRET_KEY` y las contraseñas de MySQL quedaron expuestas en el historial de Git público; se sacaron del árbol actual (commit `50fa133`) pero **deben rotarse**. Revisión del historial:
+
+```text
+$ git grep -l -E "zwonlbxjjomngdcp|root123|vet_pass|mi_secreto_super_seguro_2024|VET-ADMIN-2026" -- .
+(sin resultados — ningun secreto en archivos rastreados)
+```
+
+---
+
+## 3. Plan de respaldo final (semana 6; reemplaza la versión de la semana 2)
+
+| Campo | Valor |
+|---|---|
+| Qué se respalda | Base completa `vet_manager` (20 tablas, 110 filas): datos + rutinas + triggers + eventos |
+| RPO / RTO acordados | RPO 24 h / RTO 4 h (propuesta, pendiente de aprobación del responsable del negocio) |
+| Herramienta | `mysqldump --single-transaction --routines --triggers --events` + `gzip` (script `scripts/respaldar.sh`) |
+| Usuario que lo ejecuta | `root` dentro del contenedor MySQL (necesita `PROCESS`/`SHOW CREATE PROCEDURE`) |
+| Cifrado | **No cifra** (advertencia en el script): cifrar antes de copiar fuera del host (`age`/`gpg`) |
+| Horario (línea de cron) | `0 3 * * * bash /opt/vet-manager/scripts/respaldar.sh >> /var/log/vet-manager-respaldos.log 2>&1` (propuesta) |
+| Retención | 7 días (`RETENTION_DAYS=7`, aplicada por el script) |
+| Verificación automática | `gzip -t` + SHA-256 informado en cada ejecución |
+| Responsable | Administrador de base de datos |
+
+### 3.1 Regla 3-2-1
+
+| Copia | Medio | Ubicación | ¿Inmutable? |
+|---|---|---|:---:|
+| Producción | Volumen Docker `vet-manager-prod_mysql_data` | Servidor | — |
+| Repositorio local | Disco del servidor | `backups/mysql/` (permisos 700) | No |
+| Repositorio externo | Copia fuera del host (pendiente de configurar) | Servidor/almacenamiento aparte | No |
+
+### 3.2 Script y programación
+
+Enlace: [`scripts/respaldar.sh`](../scripts/respaldar.sh). Log de ejecución real (2026-11-18):
+
+```text
+Respaldo creado: backups/mysql/vet_manager-20261118T185238Z.sql.gz
+SHA-256: 0ce11a55cd27ce053a883cca3126ca16399b1c4c552ab963ff6d845e1fef9494
+Retención aplicada: 7 días
+```
+
+### 3.3 Procedimiento de restauración de desastre
+
+1. Detener escritores: `docker compose -f deploy/compose.prod.yaml stop backend`.
+2. Verificar el dump: `gzip -t respaldos/<archivo>.sql.gz` y comparar el SHA-256 con el registrado.
+3. Crear base destino: `CREATE DATABASE vet_manager_nueva CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+4. Importar: `gzip -dc <archivo> | docker compose exec -T mysql sh -c 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -u root vet_manager_nueva'`.
+5. Conciliar: `SELECT COUNT(*)` por tabla en origen y destino (§3.5 muestra el método UNION ALL) — deben ser idénticos.
+6. Verificar restricciones: PK, UNIQUE y FK presentes (`information_schema.table_constraints`).
+7. Ejecutar `scripts/smoke-test.sh` contra el servicio apuntando a la base restaurada.
+8. Solo tras conciliación y aprobación del responsable del negocio: reabrir escrituras.
+
+### 3.4 Restauración probada
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-11-18 |
+| Quién restauró (rol en el equipo) | Responsable técnico |
+| Instantánea usada | `vet_manager-20261118T185238Z.sql.gz` |
+| Inicio / fin | Restauración en 2 s |
+| Tiempo total vs RTO | 2 s ≪ RTO 4 h ✅ |
+
+Huellas antes y después: 20/20 tablas con `COUNT(*)` idéntico (110 filas), `diff` sin diferencias — tabla completa en **§3.5**. Simulacro de desastre: `DROP TABLE usuarios` → recuperación desde el dump con PK, UNIQUE y 4 FK intactas.
+
+Problemas encontrados y cambios aplicados: `vet_user` no puede volcar (`PROCESS`/`SHOW CREATE PROCEDURE`) → el script ahora usa `root` dentro del contenedor.
 
 ## 8. Pipeline de despliegue y monitoreo — Semana 7 (CE-1, CE-5)
 
--Se ejecutará una compilación de frontend, pruebas, validación de Docker Compose, healthchecks, métricas de CPU/RAM, logs y rollback por versión.
+**Fecha:** 2026-11-18 · **Estado:** CI de pruebas + SonarCloud configurado; entrega continua (GHCR/Render) y monitoreo pendientes.
+
+### 8.1 Pipeline
+
+| Workflow | Evento | Etapas | Resultado |
+|---|---|---|---|
+| `sonarcloud.yml` (job `tests`) | push a `main`/`develop`, pull request | instalar dependencias → `pytest --cov` | check **Pruebas del backend** en verde (42 pruebas) |
+| `sonarcloud.yml` (job `sonarcloud`) | ídem (`needs: tests`) | generar cobertura → scan SonarCloud | check **SonarCloud Scan** solo corre si las pruebas pasan |
+
+Enlace: [`.github/workflows/sonarcloud.yml`](../.github/workflows/sonarcloud.yml).
+
+**Corrección aplicada (2026-11-18):** el scan se ejecutaba sin pruebas → cobertura 0 % y Quality Gate en ERROR (`new_coverage 0.0% < 80%`). Ahora los tests corren antes y `sonar-project.properties` apunta a `backend/coverage.xml` (marcadores de conflicto resueltos).
+
+Reglas de protección (propuestas, configurables en GitHub):
+
+| Regla | Configuración |
+|---|---|
+| Rama `main` | Pull request obligatorio; checks `Pruebas del backend` y `SonarCloud Scan` obligatorios |
+| Etiquetas `vX.Y.Z` | Solo desde `main` tras verde |
+
+### 8.2 Secretos y variables del pipeline
+
+| Nombre | Tipo | Ámbito | Para qué | Quién lo rota |
+|---|---|---|---|---|
+| `SONAR_TOKEN` | Secreto | Repositorio | Scan de SonarCloud | Administrador del repositorio |
+
+Pendiente cuando exista la nube: `RENDER_DEPLOY_HOOK_URL` (ambiente `produccion`) para despliegue automático en Render.
+
+### 8.3 Evidencia de ejecución
+
+| Evento | Enlace | Duración | Resultado |
+|---|---|---|---|
+| Push con pruebas nuevas (42 en verde) | commit `2cd4cf2` (local; se verá tras el push) | — | Pendiente de push para ver el check en GitHub |
+| Liberación `v1.0.0` / `v1.1.0` | Etiquetas locales creadas | — | Pendiente de push (`git push origin --tags`) |
+| Rollback `1.1.0 → 1.0.0` | §5.2 Evidencia | < 1 min | ✅ Smoke test 6/6 tras el rollback |
+
+### 8.4 Procedimiento de despliegue y rollback
+
+#### En la nube (pendiente de cuentas)
+
+1. Push a `main` → Render detecta el cambio (o *Manual Deploy* desde el blueprint `deploy/render.yaml`).
+2. Rollback: Render → *Deploys → Rollback to previous deploy* (sin reconstruir).
+
+#### En el servidor (probado en el simulacro, §5.2)
+
+```text
+1. respaldo:  mysqldump | gzip > respaldos/pre-update-<ver>-<fecha>.sql.gz   (gzip -t + SHA-256)
+2. imágenes:  docker load -i imagenes/vet-manager-<ver>.tar.gz
+3. versión:   sed -i "s/^APP_VERSION=.*/APP_VERSION=<ver>/" .env
+4. aplicar:   docker compose -f deploy/compose.prod.yaml up -d --wait
+5. verificar: bash smoke-test.sh https://<dominio>        (6/6 en verde)
+Rollback:    repetir 3-5 con la versión anterior
+```
+
+#### Migraciones compatibles hacia atrás
+
+**Regla del equipo:** solo se publican migraciones aditivas (tablas/columnas nuevas, `ENUM` ampliado); los cambios destructivos usan *expand/contract* en dos versiones. La clasificación completa está en la **§5.2**. Ninguna migración existente impide el rollback actual (1.1.0 no migró esquema).
+
+### 8.5 Monitoreo
+
+| Monitor | Tipo | Objetivo | Intervalo | Reintentos | Qué hace quien recibe la alerta |
+|---|---|---|---|---|---|
+| Salud de la API | HTTP | `GET /health` (reporta `status`, `database`, `version`, `uptime_s`) | 60 s | 2 | Revisar logs del backend; si el último cambio lo provocó, rollback a la versión anterior (§8.4) |
+| Salud de la BD | incluida | `"database":"healthy"` en `/health` | 60 s | 2 | Verificar MySQL; si falla, restaurar según §3.3 |
+| Respaldo diario | Push (latido) | Log de `respaldar.sh` | 25 h | 0 | Investigar el job; verificar el archivo y el SHA-256 |
+
+| Campo | Valor |
+|---|---|
+| Dónde corre Uptime Kuma | **Pendiente:** contenedor propio en el servidor (`uptime-kuma` en el compose de operación) |
+| Canal de alertas y quién lo lee | Pendiente: canal de mensajería del equipo, atención del responsable técnico |
+| Horario de atención de alertas | Propuesta: horas hábiles; P1 las 24 h |
 
 ## 9. Mantenimiento, soporte y capacitación — Semana 8 (CE-5)
 
--La operación incluirá actualizaciones de imágenes, copias de seguridad, diagnóstico de errores, capacitación de usuarios y procedimiento de soporte por rol.
+**Fecha:** 2026-11-18 · **Estado:** plan propuesto; ejecución calendárica a partir de la puesta en producción.
+
+### 9.1 Plan de mantenimiento
+
+#### Calendario
+
+| Tarea | Tipo | Frecuencia | Automática / manual | Responsable (rol) | ¿Requiere ventana? |
+|---|---|---|---|---|:---:|
+| Parches de seguridad del SO | Preventivo | Diaria | Automática (`unattended-upgrades`) | Administrador del servidor | No |
+| Reinicio por parches de kernel | Preventivo | Mensual | Manual | Administrador del servidor | Sí |
+| Actualización de imágenes base (`mysql`, `caddy`, `python`) | Preventivo | Mensual | Manual (build + humo) | Responsable técnico | No (humo tras cada cambio) |
+| Restauración de prueba del respaldo | Preventivo | Mensual | Manual | Administrador de BD | No |
+| Rotación de secretos | Preventivo | Trimestral | Manual | Responsable técnico | No |
+
+Ventana de mantenimiento propuesta: **domingos 02:00–04:00 (hora local), aviso a los usuarios 48 h antes**; máximo 2 h (coincide con la ventana de la §5).
+
+#### Fin de soporte
+
+| Componente | Versión | Fin de soporte | Fuente y fecha de consulta | Acción planeada |
+|---|---|---|---|---|
+| Ubuntu Server LTS | 24.04 | Abril 2029 (ESM hasta 2036) | ubuntu.com/about/release-lifecycle — 2026-11-18 | Migrar antes de esa fecha (§1) |
+| MySQL | 8.0 | Abril 2026 (soporte extendido) | oracle.com/mysql — 2026-11-18 | Evaluar salto a 8.4 LTS en la ventana mensual |
+| Python | 3.11 | Octubre 2027 | python.org — 2026-11-18 | Actualizar imagen backend antes de esa fecha |
+| Node.js | 20 (LTS) | Abril 2026 | nodejs.org — 2026-11-18 | Actualizar a 22 LTS en el build del frontend |
+
+#### Política de actualizaciones
+
+| Tipo | Plazo | Cómo se decide |
+|---|---|---|
+| Parche de seguridad (SO) | 7 días | Automático en el servidor |
+| Parche de dependencias (Python/npm) | 14 días | PR de Dependabot → CI en verde → fusionar → versión de parche |
+| Actualización de imágenes base | Ventana mensual | Humo en verde antes y después |
+
+**Pendiente:** crear `.github/dependabot.yml` (pip + npm + docker) y ejecutar la primera auditoría (`pip-audit`/`npm audit`/`trivy`).
+
+#### Auditoría (resultado de la primera ejecución)
+
+| Herramienta | Hallazgo | Severidad | ¿En la imagen desplegada? | Decisión |
+|---|---|---|:---:|---|
+| — | Pendiente de ejecutar (`pip-audit`, `npm audit`, `trivy`) | — | — | Abrir PR con Dependabot y decidir por hallazgo |
+
+### 9.2 Soporte
+
+| Nivel | Quién (rol) | Resuelve | Horario |
+|---|---|---|---|
+| N0 | Ayudas en línea (guía rápida y FAQ) | Dudas de uso | Siempre |
+| N1 | Recepción / soporte de primer nivel | Bloqueos de uso, reportes repetidos | Horas hábiles |
+| N2 | Responsable técnico | Incidentes de servidor, despliegues, respaldos | Horas hábiles + guardia P1 |
+| N3 | Desarrollo (externo/interno) | Defectos de código | Según acuerdo |
+
+Canal único de reporte: formulario/ dirección de soporte **(pendiente: crear el canal y enlazarlo en la app)**.
+
+| Prioridad | Primera respuesta | Solución o alternativa |
+|---|---|---|
+| P1 (app caída) | 1 h | Rollback o restauración según §8.4 / §3.3 |
+| P2 (función rota) | 24 h | Parche en la siguiente ventana |
+| P3 (mejora menor) | 5 días hábiles | Backlog |
+| P4 (cosmético) | Próxima versión | Backlog |
+
+*Estos tiempos son una propuesta: se acuerdan con el cliente en el acta de la semana 9.*
+
+### Runbooks
+
+| Runbook | Alerta o síntoma | Probado por (rol, otro equipo) | Correcciones tras la prueba |
+|---|---|---|---|
+| `docs/runbooks/salud-en-rojo.md` (pendiente de crear) | "Salud" en rojo en el monitor | Pendiente (gate semana 9) | — |
+| `docs/runbooks/respaldo-fallido.md` (pendiente) | Latido de respaldo ausente | Pendiente | — |
+
+### 9.3 Capacitación
+
+| Público | Objetivos observables | Sesión (duración, modalidad) | Materiales | Cómo se evalúa |
+|---|---|---|---|---|
+| Usuarios finales (clínica) | Registrar cliente + mascota + cita sin ayuda en < 5 min | 60 min, presencial | Guía rápida, datos de prueba | Tarea de verificación + encuesta |
+| Soporte N1 | Resolver 3 casos de la FAQ sin escalar | 30 min, videollamada | FAQ, runbook N1 | Casos simulados |
+| Operación N2 | Ejecutar instalación → actualización → rollback siguiendo solo la §5 | 90 min, taller | §5 del plan, smoke test | Ejecución sin errores en el simulacro |
+
+Cronograma: **a definir con el cliente** (semana 9, junto con el acta).
+
+### 9.4 Ayudas en línea
+
+| Ayuda | Enlace | Versión del software | Probada por (rol) |
+|---|---|---|---|
+| Guía rápida | `docs/guia-rapida.md` (pendiente de crear) | 1.1.0 | Pendiente |
+| Preguntas frecuentes | `docs/faq.md` (pendiente de crear) | 1.1.0 | Pendiente |
+
+Dónde se enlazan: README del repositorio y, en la app, el pie de página/panel de administración (pendiente).
 
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
--La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restauración de copias de seguridad y pruebas de uso de todos los roles.
+**Fecha:** 2026-11-18 (borrador) · **Estado:** preparado para el gate; pruebas de aceptación y simulacro cruzado pendientes de ejecutar con el cliente y otro equipo.
+
+### 10.1 Consolidación
+
+| Sección | Completa según la lista | Observaciones |
+|---|:---:|---|
+| 1. Ficha técnica | ✅ | Incluye salida del script con `CUMPLIMIENTO: confirmado` (§1.7) |
+| 2. Migración | 🟡 | Plan completo; evidencia de migración a nube pendiente (§2.8) |
+| 3. Respaldo | ✅ | Respaldo + restauración + simulacro de desastre reales (§3.5) |
+| 4. Hosting y dominio | ✅ | Reverse proxy probado con evidencia (§4.5) |
+| 5. Instalación | ✅ (local) / 🟡 (nube) | Instalación→actualización→rollback probados; nube pendiente de cuentas |
+| 6. Configuración | 🟡 | Inventario y health completos; migración y rotación de logs pendientes |
+| 7. Seguridad | 🟡 | Secretos fuera del repo + permisos 600; SSH/UFW/roles BD pendientes de servidor real |
+| 8. Pipeline y monitoreo | 🟡 | CI de pruebas + SonarCloud; entrega continua y Uptime Kuma pendientes |
+| 9. Mantenimiento, soporte y capacitación | 🟡 | Plan completo; runbooks, FAQ y cronograma pendientes |
+
+Registro de cambios del plan:
+
+| Versión | Fecha | Cambios |
+|---|---|---|
+| 1.0 | 2026-11-04 | Secciones 1–4 y v0 de la 5 |
+| **1.1** | **2026-11-18** | **Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10** |
+
+### 10.2 Pruebas de aceptación
+
+| Campo | Valor |
+|---|---|
+| Casos ejecutados / total | 5 automatizados (F-03…F-05 + seguridad) / 5 manuales pendientes (F-01, F-02 y flujos de negocio) |
+| Criterios de salida acordados | Smoke test 6/6, restauración conciliada, sin secretos en el repo, CI en verde |
+| Defectos (bloqueantes / mayores / menores / cosméticos) | 0 / 0 / 0 / 0 — pendiente de ejecutar la UAT con el cliente |
+| Decisión | **Pendiente** del cliente |
+
+Detalle de casos: `backend/tests/` (automatizados) + guía de UAT pendiente.
+
+### 10.3 Simulacro cruzado
+
+| Campo | Valor |
+|---|---|
+| Equipo que instaló | Pendiente (otro equipo, gate de la semana 9) |
+| Duración / tiempo máximo | Propuesta: ≤ 2 h (ventana de la §5) |
+| Huellas | 20/20 tablas con `COUNT(*)` idéntico (método §3.5) |
+| Prueba de humo | `scripts/smoke-test.sh` → 6/6 |
+| Resultado | **Pendiente** |
+| Desviaciones y corrección aplicada | — |
+
+Registro firmado por el observador: pendiente (`docs/registro-simulacro.md`).
+
+### 10.4 Acta de entrega
+
+Enlace: pendiente (`docs/acta-entrega.md`) — sin firmas reales ni secretos; incluye niveles de servicio de la §9.2 y transferencia de accesos (panel Render/Aiven, GitHub, servidor).
+
+### 10.5 Socialización y lecciones aprendidas
+
+| Qué funcionó | Qué no funcionó | Qué haríamos distinto |
+|---|---|---|
+| Evidencia real respaldo/restauración (§3.5) y prueba negativa de puertos (§4.5) | Los `.env` con secretos estaban en el repo público hasta el 2026-11-18 | Reglas de `.gitignore` + secret scanning desde el día 1 |
+| Ciclo instalar→actualizar→rollback probado antes de tocar producción | CI corriendo sin pruebas (cobertura 0 % y Quality Gate rojo) | El job de pruebas debe preceder al scan desde el inicio |
+| Pruebas de humo reutilizables en cada paso | — | — |
+
+Retroalimentación de la socialización: pendiente de la sesión.
+
+---
 
 *Este plan garantiza una transición segura y escalable para Vet Manager.*
