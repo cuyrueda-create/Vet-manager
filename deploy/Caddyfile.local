@@ -1,0 +1,15 @@
+# Caddyfile para PRUEBAS en servidor sin dominio (certificado local)
+# ------------------------------------------------------------------
+# Usar con CADDYFILE=deploy/Caddyfile.local en el .env del despliegue.
+# Emite certificados autofirmados (tls internal) para `localhost`.
+# En producción con dominio se usa deploy/Caddyfile (Let's Encrypt).
+
+localhost {
+	log
+	tls internal
+
+	@backend path /api/* /auth/* /data/* /users* /mascotas* /clientes* /health /docs* /redoc* /openapi.json
+	reverse_proxy @backend backend:5000
+
+	reverse_proxy frontend:5173
+}

@@ -38,8 +38,10 @@ TEMP_SQL="$BACKUP_DIR/.${DATABASE_NAME}-${TIMESTAMP}.sql.tmp"
 TEMP_GZIP="$BACKUP_DIR/.${DATABASE_NAME}-${TIMESTAMP}.sql.gz.tmp"
 trap 'rm -f "$TEMP_SQL" "$TEMP_GZIP"' EXIT
 
+# El volcado se ejecuta como root dentro del contenedor: vet_user no tiene
+# los privilegios PROCESS / SHOW CREATE PROCEDURE que exigen --routines y --events.
 docker compose exec -T "$MYSQL_SERVICE" sh -ec \
-  'MYSQL_PWD="$MYSQL_PASSWORD" exec mysqldump --single-transaction --routines --triggers --events --hex-blob --default-character-set=utf8mb4 -u "$MYSQL_USER" "$MYSQL_DATABASE"' \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump --single-transaction --routines --triggers --events --hex-blob --default-character-set=utf8mb4 -u root "$MYSQL_DATABASE"' \
   > "$TEMP_SQL"
 if [[ ! -s "$TEMP_SQL" ]]; then
   printf 'mysqldump no produjo datos; no se guardó un respaldo.\n' >&2

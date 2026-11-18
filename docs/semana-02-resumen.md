@@ -13,14 +13,15 @@ Fecha de preparación: 2026-11-04
 
 ## Verificación y pendiente
 
-- La configuración de Docker Compose está instalada, pero el daemon de Docker Desktop no estaba activo al preparar este entregable. Por eso no ejecuté el respaldo ni la restauración y no inventé conteos o tiempos.
-- Tras iniciar Docker Desktop, ejecutar `docker compose up -d mysql` y luego `bash scripts/respaldar.sh`. Restaurar el dump en una base separada según la sección 3.4 del plan y completar allí los conteos exactos y el tiempo medido.
+- **Pendiente cerrado el 2026-11-18:** con Docker Desktop activo se ejecutó `bash scripts/respaldar.sh` (dump `.sql.gz` con `gzip -t` y SHA-256 verificados), se restauró en la base aparte `vet_manager_restore` en 2 segundos y se compararon los `COUNT(*)` exactos de las 20 tablas (110 filas): **coincidencia total**. Se completó también el simulacro de desastre: se borró la tabla `usuarios` y se recuperó desde el dump con PK, UNIQUE y las 4 FK de `citas` intactas. La evidencia completa está en `plan-implantacion.md` §3.5.
+- Corrección aplicada: `respaldar.sh` ahora volca como `root` dentro del contenedor, porque `vet_user` no tiene los privilegios `PROCESS` / `SHOW CREATE PROCEDURE` que exigen `--routines` y `--events`.
 - El script comprime, pero no cifra. Cifrar la copia externa antes de transferirla o almacenarla fuera del host. Inventariar además archivos subidos/generados, si existen.
-- Antes de producción, rotar y externalizar los valores secretos predeterminados que actualmente aparecen en `docker-compose.yml`; no incluirlos en el plan ni en evidencias.
+- Antes de producción, rotar y externalizar los valores secretos predeterminados que aparecían en `docker-compose.yml`; **hecho el 2026-11-18**: los secretos salieron del repositorio y pasaron a variables de entorno (ver `.env.example`).
 - La ventana de 2 horas y los objetivos RPO 24 h / RTO 4 h son valores iniciales, pendientes de ensayo y aprobación del responsable del negocio.
 
 ## Evidencia local disponible
 
-- Docker Compose reportó que no podía conectarse a `dockerDesktopLinuxEngine` porque el daemon no estaba disponible.
+- Respaldo real: `backups/mysql/vet_manager-20261118T185238Z.sql.gz` — SHA-256 `0ce11a55cd27ce053a883cca3126ca16399b1c4c552ab963ff6d845e1fef9494`.
+- Restauración en `vet_manager_restore`: 2 s, 20/20 tablas con conteos idénticos (§3.5).
+- Simulacro de desastre: recuperación de `usuarios` con restricciones intactas (§3.5).
 - `docs/plan-implantacion.md` pasó el diagnóstico del editor sin errores.
-- Falta ejecutar el respaldo, la restauración en base aparte y la comparación de conteos para completar la evidencia exigida por CE-4.

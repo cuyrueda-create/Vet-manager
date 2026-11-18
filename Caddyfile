@@ -1,4 +1,5 @@
 vet-manager.test, localhost {
+	log
 	tls internal
 
 	@backend path /api/* /auth/* /data/* /users* /mascotas* /clientes* /health /docs* /redoc* /openapi.json

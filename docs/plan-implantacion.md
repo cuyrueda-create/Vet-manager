@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.0 |
-| Fecha | 2026-10-06 |
+| Versión del plan | 1.1 |
+| Fecha | 2026-11-18 |
 
 ---
 
@@ -34,17 +34,18 @@ Vet Manager es una plataforma full-stack para clientes, administradores, veterin
 
 > La licencia de MySQL depende del modelo de uso y puede incluir soporte comercial; el repositorio usa la imagen Open Source. No se ha identificado un componente de licencias copyleft que imponga un costo obligatorio al proyecto.
 
-### 1.3 Sistema operativo del servidor
+### 1.3 Sistema operativo del entorno
 
-| Campo | Valor |
-|---|---|
-| Distribución y versión | Ubuntu Server LTS 24.04 |
-| Arquitectura | x86_64 o ARM64, según el proveedor del servidor |
-| Fin de soporte estándar | 2028-04, para Ubuntu 24.04 LTS |
-| Licencia | Ubuntu Pro / GPLv2 salvo las piezas de soporte comercial opcionales |
-| Requisitos mínimos oficiales | [Ubuntu 24.04 LTS](https://ubuntu.com/about/release-cycle) |
+| Campo | Entorno actual (este equipo) | Entorno de producción (objetivo) |
+|---|---|---|
+| Distribución y versión | **Ubuntu 26.04** bajo WSL2 (Windows) | Ubuntu Server LTS 24.04 |
+| Arquitectura | x86_64 | x86_64 o ARM64, según el proveedor |
+| Núcleo | 6.18.58.1-microsoft-standard-WSL2 | Núcleo del proveedor del servidor |
+| Fin de soporte estándar | 2027-04 (Ubuntu 26.04 LTS) | 2028-04 (Ubuntu 24.04 LTS) |
+| Licencia | GPLv2 / Ubuntu (uso académico) | Ubuntu Pro / GPLv2 salvo piezas comerciales opcionales |
+| Referencia oficial | [ubuntu.com/about/release-cycle](https://ubuntu.com/about/release-cycle) | ídem |
 
-El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; el servidor host debe proporcionar el soporte de esos runtimes y una distribución Linux compatible.
+**Rol de cada entorno:** el desarrollo, las pruebas y la **simulación de despliegue** (semana 4) corren en este equipo (WSL2 Ubuntu 26.04); el servidor Linux real repetirá la misma instalación con los mismos comandos cuando exista. El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; el host debe proporcionar Docker Engine y Compose sobre una distribución Linux compatible.
 
 ### 1.4 Medición de consumo
 
@@ -57,63 +58,119 @@ El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; 
 
 Los valores de reposo son una referencia de despliegue local y no representan mediciones ejecutadas en el servidor final. La carga simulada recomendada es 20 usuarios concurrentes realizando operaciones de lectura, autenticación y consultas a la API. El margen de 50% se aplica a la medición pico para cubrir transitorios y el consumo de la base de datos.
 
+**Medición en este equipo (2026-11-18, WSL2 Ubuntu 26.04):** con el stack completo (`mysql`, `backend`, `frontend`, `caddy`) el consumo total se mantiene muy por debajo del pico de referencia (1,35 GiB); el sistema reporta 4.4 GiB de RAM disponibles de 6.6 GiB totales incluso con el despliegue simulado en marcha. El disco usado por Docker (imágenes + caché de build) es de ~5.5 GB, marginal frente a los 955 GB libres.
+
 > **Nota:** Los valores de RAM pueden variar según el sistema operativo base.
 
 ### 1.5 Matriz de requisitos
 
-| Requisito | Mínimo | Recomendado | Justificación |
-|---|---:|---:|---|
-| CPU | 1 vCPU | 2 vCPU | Pico de referencia 1,1 vCPU; 50% de margen |
-| RAM | 2 GiB | 4 GiB | 1,35 GiB de pico observado en referencia; 2 GiB de margen |
-| Disco | 20 GiB | 40 GiB SSD | Almacenamiento de base de datos, logs y resultados; 20 GiB de margen |
-| Tipo de disco / IOPS | SSD, 500 IOPS | SSD, 1.000 IOPS | Necesita rendimiento para consultas y escritura; carga simulada |
-| Red | 100 Mbps | 1 Gbps | API y frontend; tráfico de datos y notificaciones |
-| Arquitectura | x86_64 o ARM64 | x86_64 | Compatibilidad con MySQL 8.0, Python 3.11 y Node 20 |
-| Sistema operativo | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS con actualizaciones seguras | Soporte estándar hasta 2028-04 |
-| Docker / runtime | Docker Engine + Compose 2 | Docker Engine + Compose 2 con healthchecks | Orquestación declarativa de los tres servicios |
-| Puertos | 5000, 5173, 3307 | 5000, 5173, 3307, con firewall | Acceso a API, web y base de datos desde los límites previstos |
+| Requisito | Mínimo | Recomendado | **Este portátil (2026-11-18)** | ¿Cumple? | Justificación |
+|---|---:|---:|---:|:---:|---|
+| CPU | 1 vCPU | 2 vCPU | **16 vCPU** (AMD Ryzen 7 7735HS, 8 núcleos / 16 hilos) | ✅ | Pico de referencia 1,1 vCPU; 50% de margen |
+| RAM | 2 GiB | 4 GiB | **6.6 GiB** (4.4 GiB disponibles) | ✅ | 1,35 GiB de pico observado en referencia; 2 GiB de margen |
+| Disco | 20 GiB | 40 GiB SSD | **1007 GiB SSD** (955 GiB libres) | ✅ | Almacenamiento de base de datos, logs y resultados; 20 GiB de margen |
+| Tipo de disco / IOPS | SSD, 500 IOPS | SSD, 1.000 IOPS | SSD (NVMe del portátil) | ✅ | Necesita rendimiento para consultas y escritura; carga simulada |
+| Red | 100 Mbps | 1 Gbps | Wi-Fi/Ethernet del portátil | ✅ | API y frontend; tráfico de datos y notificaciones |
+| Arquitectura | x86_64 o ARM64 | x86_64 | x86_64 | ✅ | Compatibilidad con MySQL 8.0, Python 3.11 y Node 20 |
+| Sistema operativo | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS con actualizaciones seguras | Ubuntu 26.04 (WSL2) en desarrollo; Ubuntu Server 24.04 en producción | ✅ | Soporte estándar hasta 2028-04 en producción |
+| Docker / runtime | Docker Engine + Compose 2 | Docker Engine + Compose 2 con healthchecks | Docker 29.5.3 + Compose v5.1.4 | ✅ | Orquestación declarativa de los tres servicios |
+| Puertos | 5000, 5173, 3307 | 5000, 5173, 3307, con firewall | 5000, 5173, 3307 (dev) / 8080, 9443, 5001 (simulación prod) | ✅ | Acceso a API, web y base de datos desde los límites previstos |
 
-**Cálculo de requisitos recomendados:** CPU $1{,}1 \times 1{,}5 = 1{,}65$ vCPU; se redondea a 2 vCPU. RAM $1{,}35 \times 1{,}5 = 2{,}025$ GiB; se redondea a 4 GiB. El disco se cifra con 40 GiB para recibir un margen de almacenamiento y copias de seguridad.
+**Cálculo de requisitos recomendados:** CPU $1{,}1 \times 1{,}5 = 1{,}65$ vCPU; se redondea a 2 vCPU. RAM $1{,}35 \times 1{,}5 = 2{,}025$ GiB; se redondea a 4 GiB. El disco se cifra con 40 GiB para recibir un margen de almacenamiento y copias de seguridad. **Este portátil supera con creces todos los mínimos y recomendados** (16 vCPU vs 2, 6.6 GiB vs 4, 955 GiB libres vs 40), por lo que es apto para desarrollo, pruebas y la simulación de despliegue; para producción se mantienen los valores mínimo/recomendados de esta tabla.
 
 ### 1.6 Plataforma física recomendada
 
 | Decisión | Elección | Justificación |
 |---|---|---|
-| Formato | Torre o rack de 1U/2U | Funciona en servidor físico o VM con recursos aislados |
+| Formato | **Portátil (este equipo)** para desarrollo/pruebas/simulación; torre o rack 1U/2U para producción | El proyecto no depende de un hipervisor específico; Docker simplifica el despliegue en ambos |
 | Nivel RAID del servidor de base de datos | RAID 1 para discos de datos; RAID 10 si hay disponibilidad de discos suficientes | RAID 1 protege contra fallo de disco, mientras que RAID 10 ofrece mayor rendimiento y tolerancia |
 | Plataforma de ejecución | Bare metal o VM Linux con Docker | El proyecto no depende de un hipervisor específica; Docker simplifica el despliegue |
 
-Para una instalación en cliente, se recomienda una máquina de torre o rack con 2 vCPU, 4 GiB RAM y un SSD de 40 GiB. En el servidor de base de datos, se recomienda dos discos SSD de igual capacidad y un RAID 1; si el ingreso de datos es alto, RAID 10 con cuatro discos. El rango RAID 1 evita pérdida de datos por un único disco, pero no recupera una corrupción silenciosa; las copias de seguridad siguen siendo obligatorias.
+**Plataforma real en uso (2026-11-18):** portátil con AMD Ryzen 7 7735HS (8 núcleos / 16 hilos), 6.6 GiB RAM, SSD de 1007 GiB y Ubuntu 26.04 bajo WSL2. Es la plataforma de desarrollo, pruebas y **simulación de despliegue** (semana 4): no tiene RAID (un solo disco) ni redundancia de fuente, por lo que **los respaldos externos son obligatorios** (§3). El despliegue en producción real usará una máquina de torre o rack con al menos 2 vCPU, 4 GiB RAM y SSD de 40 GiB; en el servidor de base de datos se recomienda dos discos SSD de igual capacidad y un RAID 1 (RAID 10 con cuatro discos si el ingreso de datos es alto). El rango RAID 1 evita pérdida de datos por un único disco, pero no recupera una corrupción silenciosa; las copias de seguridad siguen siendo obligatorias.
 
 ### 1.7 Verificación de requisitos
 
-Script: `scripts/verificar-requisitos.sh` del repositorio del proyecto.
+Script: `scripts/verificar-requisitos.sh` del repositorio del proyecto. El script salta con
+código `0` cuando los requisitos están confirmados y con `1` cuando no; incluye un chequeo
+propio del proyecto (archivos requeridos y validación de `docker compose config`).
 
-Servidor donde se ejecutó:
-
-`Docker Desktop` WSL2 (`docker-desktop`), con Linux 6.18.33.2-microsoft-standard-WSL2, x86_64.
+**Ejecución exitosa — 2026-11-18, WSL2 Ubuntu 26.04 (x86_64), Docker activo:**
 
 ```text
 === Verificación de requisitos de Vet Manager ===
-Fecha: 2026-10-06T21:10:38Z
-Servidor: Linux BOGDFPCGMP1140 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 Linux
-Sistema operativo: Docker Desktop no disponible
+Fecha: 2026-11-18T19:03:29Z
+Servidor: Linux DESKTOP-70FUBQ7 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+Sistema operativo: ubuntu 26.04
+
 [CPU]
-vCPU: 28
-Architecture: x86_64
-CPU(s): 28
+vCPU: 16
+Architecture:                            x86_64
+CPU(s):                                  16
+Model name:                              AMD Ryzen 7 7735HS with Radeon Graphics
+
 [RAM]
-total 14.5G, available 13.9G
+               total        used        free      shared  buff/cache   available
+Mem:           6.6Gi       1.6Gi       3.3Gi       5.3Mi       1.9Gi       5.0Gi
+Swap:          2.0Gi          0B       2.0Gi
+
 [Disco]
-/dev/sdd ext4 136.0M, 53.8M available
-Docker no disponible o daemon detenido
-node: no instalado
-python3: no instalado
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/sdf       ext4 1007G  1.3G  955G   1% /
+Espacio disponible para docker-compose:
+SIZE TYPE
+5.483GB Images
+770kB Containers
+333.3MB Local Volumes
+4.244GB Build Cache
+
+[Software]
+Docker version 29.5.3, build d1c06ef
+Docker Compose version v5.1.4
+node: no instalado (el proyecto los ejecuta dentro de Docker)
+11.16.0
+Python 3.14.4
+
+[Puertos esperados]
+Frontend: 5173/tcp
+API: 5000/tcp
+MySQL: 3307/tcp (host) / 3306/tcp (contenedor)
+LISTEN 0      4096                *:5173            *:*
+LISTEN 0      4096                *:5000            *:*
+LISTEN 0      4096                *:3307            *:*
+
+[Chequeo propio del proyecto: archivos requeridos]
+OK   docker-compose.yml
+OK   Caddyfile
+OK   backend/app/main.py
+OK   backend/requirements.txt
+OK   frontend/package.json
+OK   database/schema.sql
+OK   scripts/respaldar.sh
+
+[Chequeo propio del proyecto: configuración de Compose]
+docker compose config: válida
+Servicios: mysql backend frontend caddy
+
 [Resultado]
-CUMPLIMIENTO: no confirmado; recursos o Docker no están disponibles en el servidor ejecutado.
+CUMPLIMIENTO: confirmado (CPU>=2 vCPU, RAM>=4 GiB, Docker operativo, archivos y Compose válidos).
 ```
 
-Resultado: **No confirmado**. El servidor disponible tiene 28 vCPU y 14,5 GiB de RAM, pero no dispone de Docker operativo ni los runtimes de Node.js y Python en el distro WSL. La verificación debe ejecutarse de nuevo en Ubuntu Server 24.04 LTS con Docker activo antes de aceptar el entorno de producción.
+Código de salida: **0**.
+
+**Pruebas de fallo provocadas (2026-11-18):** cuatro fallos distintos provocados y detectados,
+cada uno con código de salida `1`:
+
+| # | Fallo provocado | Cómo se provocó | Detección del script |
+|---|---|---|---|
+| 1 | Docker no disponible | Ejecución con `PATH` restringido (`/usr/bin:/bin`, sin cliente de Docker) | `Docker: daemon no disponible o cliente sin configurar` → `Docker sin operar; Compose inválido` |
+| 2 | Archivo requerido faltante | `mv Caddyfile Caddyfile.bak` (restaurado después) | `FALTA Caddyfile` → `archivos del proyecto faltantes` |
+| 3 | RAM por debajo del umbral | `MIN_MEM_GB=9999` (umbral por encima de la RAM real) | `RAM<9999GiB` |
+| 4 | Compose inválido | `mv .env .env.bak` (restaurado después) | `docker compose config: INVÁLIDA` → `Compose inválido` |
+
+**Historial:** la ejecución del 2026-10-06 reportó `CUMPLIMIENTO: no confirmado` porque el
+daemon de Docker no estaba operativo en ese momento; queda superada por la ejecución del
+2026-11-18. El entorno de producción definitivo (Ubuntu Server 24.04 LTS) debe repetir esta
+verificación antes de aceptarse, tal como indica el plan.
 
 ---
 
@@ -241,11 +298,54 @@ Comparar `SELECT COUNT(*)` exactos en origen y restauración para cada tabla. No
 
 ### 3.5 Evidencia de restauración
 
+**Ejecución real: 2026-11-18** (Docker Desktop activo, MySQL 8.0 en Compose). Antes el intento del 2026-11-04 quedó pendiente porque el daemon de Docker no estaba disponible.
+
+**Paso 1 — Respaldo con `scripts/respaldar.sh`:**
+
+```text
+Respaldo creado: backups/mysql/vet_manager-20261118T185238Z.sql.gz
+SHA-256: 0ce11a55cd27ce053a883cca3126ca16399b1c4c552ab963ff6d845e1fef9494
+Retención aplicada: 7 días
+gzip -t: exitoso (verificado por el script)
+```
+
+**Paso 2 — Restauración en base aparte (`vet_manager_restore`):** el dump se importó con
+`mysql -u root vet_manager_restore` y tardó **2 segundos**.
+
+**Paso 3 — Conciliación con `SELECT COUNT(*)` exactos (20 tablas, 110 filas):**
+
 | Tabla | Filas en producción | Filas restauradas | Resultado |
 |---|---:|---:|---|
-| Todas las tablas | Pendiente de medir | Pendiente de medir | No ejecutado: daemon Docker Desktop no disponible el 2026-11-04 |
+| agenda | 0 | 0 | ✅ |
+| citas | 3 | 3 | ✅ |
+| clientes | 4 | 4 | ✅ |
+| consultorio | 10 | 10 | ✅ |
+| factura_detalle | 2 | 2 | ✅ |
+| facturas | 2 | 2 | ✅ |
+| historial_clinico | 3 | 3 | ✅ |
+| insumos | 0 | 0 | ✅ |
+| inventario | 0 | 0 | ✅ |
+| mascotas | 3 | 3 | ✅ |
+| medicamentos | 15 | 15 | ✅ |
+| medicamentos_asignados | 2 | 2 | ✅ |
+| medicamentos_uso_interno | 0 | 0 | ✅ |
+| notificaciones | 17 | 17 | ✅ |
+| productos | 0 | 0 | ✅ |
+| proveedores | 0 | 0 | ✅ |
+| reportes | 0 | 0 | ✅ |
+| servicios | 10 | 10 | ✅ |
+| usuarios | 14 | 14 | ✅ |
+| veterinario_horarios | 25 | 25 | ✅ |
 
-Tiempo de restauración: pendiente. No se declara éxito hasta adjuntar conteos exactos antes/después y duración medida.
+`diff` entre ambos conteos: **sin diferencias**. Tiempo total: respaldo < 5 s, restauración 2 s.
+
+**Paso 4 — Simulacro de desastre (pérdida de una tabla):**
+
+1. `DROP TABLE usuarios` sobre `vet_manager_restore` con `FOREIGN_KEY_CHECKS=0` → quedaron 19 tablas. Antes, el borrado directo fue **rechazado por MySQL** por la FK `citas_ibfk_2`, lo que confirma que las restricciones están activas.
+2. Se extrajo la sección de `usuarios` del dump y se volvió a importar.
+3. Verificación: `usuarios` = 14 filas, 20 tablas, 4 FK en `citas`, PK y UNIQUE en `usuarios` → **todas intactas**.
+
+**Corrección aplicada al script:** el volcado se ejecuta como `root` dentro del contenedor porque `vet_user` no tiene los privilegios `PROCESS` / `SHOW CREATE PROCEDURE` que exigen `--routines` y `--events` (error detectado y corregido el 2026-11-18).
 
 ### 3.6 Calendario de pruebas
 
@@ -319,7 +419,7 @@ curl --resolve vet-manager.test:8443:127.0.0.1 -k -i https://vet-manager.test:84
 curl --resolve vet-manager.test:8443:127.0.0.1 -k -i https://vet-manager.test:8443/health
 ```
 
-**Evidencia local (2026-11-04):** Caddy validó el Caddyfile, emitió certificados internos para `vet-manager.test` y `localhost`, y los probes con `curl --resolve` devolvieron `HTTP 200` para `/` y `/health`, con verificación TLS `0` usando la CA local de Caddy. La ruta `/` sirvió el build React. Para `/health` se usó temporalmente un upstream HTTP de prueba porque MySQL no terminó de descargarse y FastAPI no pudo completar su arranque; por tanto, el enrutamiento HTTPS de Caddy está comprobado, pero la integración completa Caddy → FastAPI → MySQL queda pendiente de repetir con el stack completo.
+**Evidencia local (2026-11-04):** Caddy validó el Caddyfile, emitió certificados internos para `vet-manager.test` y `localhost`, y los probes con `curl --resolve` devolvieron `HTTP 200` para `/` y `/health`, con verificación TLS `0` usando la CA local de Caddy. La ruta `/` sirvió el build React. Para `/health` se usó temporalmente un upstream de prueba porque MySQL no terminó de descargarse y FastAPI no pudo completar su arranque; por tanto, en esa fecha el enrutamiento HTTPS de Caddy quedó comprobado y la integración completa Caddy → FastAPI → MySQL quedó pendiente. **Quedó cerrada el 2026-11-18** (ver evidencia de cierre más abajo).
 
 Comandos Windows usados para confiar la CA local y probar los hosts reservados:
 
@@ -329,7 +429,59 @@ curl.exe --noproxy "*" --ssl-no-revoke --cacert "$env:TEMP\vet-manager-caddy-roo
 curl.exe --noproxy "*" --ssl-no-revoke --cacert "$env:TEMP\vet-manager-caddy-root.crt" --resolve vet-manager.test:8443:127.0.0.1 -i https://vet-manager.test:8443/health
 ```
 
-La comprobación negativa de que MySQL no es accesible desde una interfaz pública queda pendiente de ejecutar cuando se levante el stack completo.
+#### Evidencia de cierre — 2026-11-18 (stack completo)
+
+Se recrearon los contenedores con la configuración actual: los puertos pasaron de publicarse
+en todas las interfaces (`0.0.0.0`) a **solo loopback** (`127.0.0.1`), que es lo que exige la
+sección 4.4. Se reconstruyó la imagen del backend (faltaba el paquete `alembic` en la imagen
+anterior) y se habilitó el log de accesos de Caddy con la directiva `log`.
+
+Estado de los servicios:
+
+```text
+SERVICE    STATUS                    PORTS
+caddy      Up                        127.0.0.1:8443->443/tcp
+backend    Up                        127.0.0.1:5000->5000/tcp
+mysql      Up (healthy)              127.0.0.1:3307->3306/tcp
+frontend   Up                        5173/tcp   (solo red Docker, sin publicar)
+```
+
+**Pruebas HTTPS con verificación TLS real** (CA local de Caddy copiada del contenedor,
+`curl --cacert` sin `-k`; en Windows/Schannel se usa `--ssl-no-revoke` porque la CA local no
+publica lista de revocación):
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `GET /` (build React) | `HTTP 200`, `ssl_verify_result: 0`, 474 bytes |
+| 2 | `GET /health` (backend real) | `HTTP 200` → `{"status":"healthy","database":"healthy"}` |
+| 3 | `GET /docs` (FastAPI) | `HTTP 200` |
+| 4 | Segundo nombre del certificado (`localhost:8443`) | `HTTP 200` |
+| 5 | Encabezados del camino | `Via: 1.1 Caddy` (respuesta) |
+
+**Encabezados que Caddy inyecta hacia el backend** (verificados con un servicio efímero que
+imprime los encabezados recibidos, detrás del mismo reverse proxy):
+
+```text
+Host: vet-manager.test:8443
+Via: 1.1 Caddy
+X-Forwarded-For: 172.18.0.1
+X-Forwarded-Host: vet-manager.test:8443
+X-Forwarded-Proto: https
+```
+
+**Prueba negativa (2026-11-18): los servicios NO son accesibles desde la red.**
+`Test-NetConnection` contra la IP de la red del equipo (`10.90.40.59`):
+
+| Puerto | Desde la red (10.90.40.59) | Desde loopback (127.0.0.1) |
+|---:|---|---|
+| 3307 (MySQL) | **False — bloqueado** | True |
+| 5000 (API) | **False — bloqueado** | True |
+| 5173 (frontend) | **False — sin publicar** | no publicado |
+| 8443 (Caddy HTTPS) | **False — bloqueado** | True |
+
+Esto cierra los dos pendientes declarados el 2026-11-04: la integración completa
+Caddy → FastAPI → MySQL quedó comprobada (prueba 2) y la comprobación negativa de MySQL
+accesible desde una interfaz pública quedó ejecutada.
 
 ### 4.6 Transferencia de archivos
 
@@ -349,67 +501,629 @@ No subir llaves privadas, `.env`, dumps sin cifrar ni datos de clientes al repos
 
 ## 5. Plan de instalación y despliegue — Semanas 2 y 4 (CE-1, CE-5)
 
-Versión 0 basada en el repositorio: API FastAPI, web React/Vite, aplicación Expo/React Native y MySQL 8. La instalación de producción requiere configurar HTTPS/proxy, secretos y almacenamiento externo de respaldos; el Compose actual publica puertos de desarrollo y contiene valores predeterminados que no deben usarse en producción.
+| Campo | Valor |
+|---|---|
+| Proyecto | Vet Manager |
+| Equipo | cuyrueda-create |
+| Versión del plan | **v1** |
+| Versión del software cubierta | 1.0.0 → 1.1.0 |
+| Fecha | 2026-11-18 |
 
-| # | Sección | Contenido |
-|---:|---|---|
-| 1 | Alcance | Instalar API, web y MySQL; la app móvil se compila/publica por separado y consume la API. |
-| 2 | Ambientes | Desarrollo/prueba con Docker Compose; producción en Linux compatible con Docker Engine y Compose v2 después de definir proxy HTTPS y almacenamiento externo. |
-| 3 | Roles | Responsable técnico prepara servidor; administrador de base de datos respalda/restaura; responsable del negocio aprueba ventana, rechazos y aceptación. |
-| 4 | Prerrequisitos | Ubuntu Server 24.04 LTS recomendado, 2 vCPU/4 GiB RAM/40 GiB SSD como referencia de sección 1, Docker Engine y plugin Compose v2, acceso al repositorio, puertos libres 5000/5173/3307 en local y espacio para respaldos. |
-| 5 | Preparación | Confirmar recursos; revisar Compose/esquema; configurar secretos fuera del repositorio; disponer de dump restaurable y copia externa; acordar mantenimiento y punto de retorno. |
-| 6 | Procedimiento | Seguir pasos verificables de la tabla inferior y guardar salidas/horas sin secretos ni datos personales. |
-| 7 | Migración | Seguir sección 2; no migrar ni habilitar escrituras sin respaldo restaurable, conciliación y aprobación. |
-| 8 | Verificación | Healthcheck MySQL, logs API, `/docs`, frontend, autenticación de prueba, flujos de clientes/mascotas/citas y restauración aislada. |
-| 9 | Rollback | Detener escritores, preservar origen y destino fallido, reconectar al origen o restaurar respaldo en una base nueva; abrir solo después de verificar. |
-| 10 | Cronograma | Ventana inicial estimada de 2 horas, pendiente de ensayo medido; responsable técnico comunica inicio, decisión de corte y cierre. |
+Alcance: API FastAPI, web React/Vite y MySQL 8. La app móvil se compila/publica por separado y consume la API. Este documento permite instalar, actualizar y revertir el proyecto en un servidor Linux y en la nube sin compilar en el destino.
 
-### Procedimiento verificable
+### 5.1 Proceso de liberación
 
-| # | Acción | Comando / método | Resultado esperado |
+| Paso | Comando o acción | Resultado esperado |
+|---|---|---|
+| Pruebas en verde | `docker compose exec -T backend python -m pytest --cov=app` | 42 pruebas pasan, cobertura reportada (17 %); el CI ejecuta lo mismo antes del scan de SonarCloud |
+| Etiqueta | `git tag -a v1.0.0 -m "..."` (y `v1.1.0`); `git push origin v1.0.0` | Etiquetas visibles en GitHub (`v1.0.0`, `v1.1.0`) |
+| Imagen | `docker build --build-arg APP_VERSION=1.0.0 --build-arg UVICORN_OPTS= -t vet-manager-backend:1.0.0 ./backend` | Imagen listada con la etiqueta (`docker images`) |
+| Notas de versión | Actualizar `CHANGELOG.md` antes de etiquetar | Sección nueva con "Al actualizar" |
+| Transferencia | `docker save ... \| gzip > imagenes/vet-manager-1.0.0.tar.gz` en desarrollo → `docker load` en el servidor | El servidor ejecuta la imagen; **nunca compila** |
+
+**Esquema de versiones y criterio SemVer:** `MAJOR` rompe compatibilidad con datos o clientes; `MINOR` agrega funcionalidad compatible hacia atrás; `PATCH` corrige errores sin cambiar comportamiento observable. Ejemplo: `2.3.1` corrige un error de cálculo → la siguiente versión es `2.3.2` (solo parche). En este proyecto: `1.0.0` es la liberación base y `1.1.0` agrega campos al healthcheck (MINOR, sin romper nada). No se despliega `latest`: las etiquetas de versión son auditables y reversibles.
+
+**Enlace al `CHANGELOG.md`:** [`CHANGELOG.md`](../CHANGELOG.md) (incluye la sección "Al actualizar" de cada versión).
+
+### 5.2 Despliegue en servidor Linux
+
+#### Estructura
+
+```
+/opt/vet-manager/
+├── .env                          # secretos y configuración (chmod 600)
+├── imagenes/
+│   ├── vet-manager-1.0.0.tar.gz  # transferidas con docker save/load
+│   └── vet-manager-1.1.0.tar.gz
+├── releases/
+│   └── 1.0.0/
+│       ├── deploy/
+│       │   ├── compose.prod.yaml # orquestación de producción
+│       │   ├── Caddyfile         # reverse proxy (dominio real)
+│       │   ├── Caddyfile.local   # pruebas sin dominio (tls internal)
+│       │   └── env.prod.example  # plantilla de variables
+│       ├── database/schema.sql
+│       ├── smoke-test.sh         # prueba de humo
+│       └── CHANGELOG.md
+└── respaldos/
+    ├── pre-update-1.1.0-<fecha>.sql.gz   # respaldo previo a cada actualización
+    └── caddy-root.crt                    # CA local para verificar TLS
+```
+
+#### Variables de entorno
+
+| Variable | Propósito | Ejemplo (ficticio) |
+|---|---|---|
+| `APP_VERSION` | Versión desplegada; el Compose solo levanta esa imagen | `1.0.0` |
+| `APP_ENV` | Ambiente reportado por `/health` | `produccion` |
+| `HTTP_PORT` / `HTTPS_PORT` | Puertos publicados de Caddy | `80` / `443` |
+| `API_PORT` | Puerto loopback del backend (no expuesto públicamente) | `5000` |
+| `CADDYFILE` | Caddyfile a montar (`deploy/Caddyfile` o `deploy/Caddyfile.local`) | `deploy/Caddyfile` |
+| `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD` | Credenciales de MySQL (generadas, nunca las de ejemplo) | `<aleatoria>` |
+| `SECRET_KEY` | Firma de los JWT | `<aleatoria>` |
+| `ADMIN_CREATE_KEY` | Clave maestra para crear el primer administrador | `<aleatoria>` |
+| `CORS_ORIGINS` | Orígenes permitidos para el frontend (coma-separados) | `https://ejemplo.com` |
+| `EMAIL_USER` / `EMAIL_PASSWORD` | SMTP transaccional (app password) | `<ficticio>` |
+
+#### Instalación inicial
+
+| # | Acción | Comando | Resultado esperado |
 |---:|---|---|---|
-| 1 | Confirmar requisitos | `bash scripts/verificar-requisitos.sh` | Docker Compose operativo, recursos y puertos disponibles; resolver incumplimientos antes de continuar. |
-| 2 | Validar Compose y secretos | `docker compose config --quiet` | Configuración válida. Antes de producción, rotar y externalizar las claves/contraseñas predeterminadas de `docker-compose.yml`; no pegarlas en el entregable. |
-| 3 | Crear y verificar respaldo | `bash scripts/respaldar.sh` | Dump `.sql.gz` no vacío, `gzip -t` exitoso y SHA-256 informado; el script no cifra el archivo local. |
-| 4 | Construir e iniciar | `docker compose up -d --build` | Servicios `mysql`, `backend` y `frontend` iniciados; MySQL llega a estado healthy. |
-| 5 | Revisar migraciones de API | `docker compose logs --no-color backend` | Inicio sin errores de conexión/migración; revisar advertencias antes de seguir. |
-| 6 | Verificar API y web | `curl -fsS http://localhost:5000/docs` y `curl -fsS http://localhost:5173/` | Respuestas HTTP exitosas en local; producción usa URL HTTPS aprobadas. |
-| 7 | Probar flujos | Pruebas de login y operaciones con cuentas/datos de prueba | Login, clientes, mascotas, citas y datos por rol funcionan; sin datos reales en capturas. |
-| 8 | Ensayar restauración | Procedimiento de sección 3.4 en `vet_manager_restore` | Conteos exactos iguales y objetos/relaciones verificados; duración registrada. |
-| 9 | Aceptar o revertir | Acta de validación del responsable del negocio | Habilitar escrituras solo tras conciliación y aprobación; si falla, ejecutar sección 2.6. |
+| 1 | Verificar requisitos | `bash scripts/verificar-requisitos.sh` | Código de salida 0 (`CUMPLIMIENTO: confirmado`) |
+| 2 | Recibir imágenes | `docker load -i imagenes/vet-manager-1.0.0.tar.gz` | `Loaded image: vet-manager-backend:1.0.0` |
+| 3 | Preparar configuración | `cp deploy/env.prod.example .env` y editar; `chmod 600 .env` | Permisos `600`; ningún secreto en el repositorio |
+| 4 | Validar | `docker compose -f deploy/compose.prod.yaml config --quiet` | Código de salida 0 (falla si falta un secreto obligatorio) |
+| 5 | Levantar | `docker compose -f deploy/compose.prod.yaml up -d --wait` | `mysql`, `backend`, `frontend` y `caddy` en estado `healthy` |
+| 6 | Prueba de humo | `bash smoke-test.sh https://<dominio>` | 6/6 pruebas en verde, código de salida 0 |
 
-Los comandos HTTP son para el Compose local actual. No exponer públicamente 5000, 5173 ni 3307 como configuración final: limitar MySQL a red privada y publicar web/API detrás del proxy HTTPS.
+#### Actualización
 
-### Cronograma de la ventana
+| # | Acción | Comando | Resultado esperado |
+|---:|---|---|---|
+| 1 | Respaldo previo | `mysqldump ... \| gzip > respaldos/pre-update-<ver>-<fecha>.sql.gz` | `gzip -t` exitoso + SHA-256 informado |
+| 2 | Recibir imágenes nuevas | `docker load -i imagenes/vet-manager-1.1.0.tar.gz` | Imágenes `1.1.0` listadas |
+| 3 | Cambiar versión | `sed -i "s/^APP_VERSION=.*/APP_VERSION=1.1.0/" .env` | `.env` apunta a `1.1.0` |
+| 4 | Reemplazar | `docker compose -f deploy/compose.prod.yaml up -d --wait` | Contenedores recreados y `healthy`; **sin downtime de MySQL** (volumen persiste) |
+| 5 | Prueba de humo | `bash smoke-test.sh https://<dominio>` | `/health` reporta `"version":"1.1.0"` |
 
-| Fase | Duración inicial | Acumulado | Condición |
-|---|---:|---:|---|
-| Requisitos y respaldo final | 20 min | 20 min | No iniciar si falla el respaldo |
-| Detener escrituras y exportar origen | 20 min | 40 min | Mantenimiento comunicado |
-| Importación / despliegue | 40 min | 80 min | Medir en ensayo; detener si amenaza el límite aprobado |
-| Conteos y pruebas funcionales | 30 min | 110 min | Todos los controles deben aprobarse |
-| Decisión y reapertura | 10 min | 120 min | Punto de no retorno: autorización de escrituras en destino |
+#### Rollback
 
-Duraciones estimadas, no medidas. Si el ensayo excede la ventana acordada, recalcularla antes del corte real.
+| # | Acción | Comando | Resultado esperado |
+|---:|---|---|---|
+| 1 | Reapuntar versión anterior | `sed -i "s/^APP_VERSION=.*/APP_VERSION=1.0.0/" .env` | `.env` apunta a `1.0.0` |
+| 2 | Revertir | `docker compose -f deploy/compose.prod.yaml up -d --wait` | Versión anterior arriba y `healthy` |
+| 3 | Prueba de humo | `bash smoke-test.sh https://<dominio>` | `/health` reporta `"version":"1.0.0"` |
+| 4 | Solo si hubo migración incompatible | Restaurar `respaldos/pre-update-*.sql.gz` en base nueva y conciliar | Conteos idénticos antes de abrir escrituras |
 
-## 6. Configuración y verificación — Semana 5 (CE-1)
+**Clasificación de migraciones (¿permiten rollback sin restaurar?):**
 
--Los valores de entorno se aplicarán desde un archivo de configuración seguro; se verificará la conexión a la base de datos, autenticación, sesiones, notificaciones y la carga de la interfaz.
+| Migración | Cambio | ¿Compatible hacia atrás? |
+|---|---|---|
+| Agregar tabla o columna nueva | Aditivo | **Sí**: el código anterior no conoce lo nuevo y sigue funcionando |
+| Ampliar un `ENUM` (p. ej. nuevo estado) | Aditivo | **Sí** mientras el código anterior no escriba el valor nuevo |
+| Cambiar tipo de dato, nombre o eliminar columna usada | Restructurante | **No**: exige restaurar respaldo o estrategia expand/contract |
+| `hash_existing_passwords` (texto plano → hash) | Transforma datos | **No reversible** sin el texto plano; requiere respaldo |
+| 1.0.0 → 1.1.0 (solo `/health`) | Sin migración de esquema | **Sí**: rollback sin restaurar |
 
-## 7. Seguridad, usuarios y permisos — Semana 6 (CE-1)
+**Por qué no hizo falta restaurar en el ciclo 1.0.0 → 1.1.0 → 1.0.0:** la única diferencia de código fue el healthcheck; no hubo migración de esquema ni de datos, y el volumen `mysql_data` persiste entre versiones. **Qué se haría si la migración fuera incompatible:** restaurar el respaldo previo en una base nueva, conciliar conteos y decidir con el responsable del negocio antes de reabrir (sección 3.4); o aplicar *expand/contract* para no romper la versión anterior.
 
--Cada rol tendrá permisos de acceso diferenciados, secretos almacenados en variables de entorno, conexiones cifradas,actualizaciones de dependencias y revisiones de permisos de la base de datos.
+#### Evidencia (servidor Linux simulado en WSL, 2026-11-18)
+
+Instalación 1.0.0:
+
+```text
+1. GET /health    OK — {"status":"healthy","database":"healthy","version":"1.0.0"}
+2. Base de datos  OK — healthy
+3. Versión        OK — 1.0.0
+4. GET /docs      OK
+5. GET /          OK
+6. GET / (SPA)    OK
+RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos) — EXIT=0
+```
+
+Actualización a 1.1.0 (con respaldo previo `pre-update-1.1.0-*.sql.gz`, 8.0K, `gzip -t` OK):
+
+```text
+1. GET /health    OK — {"status":"healthy","database":"healthy","version":"1.1.0","ambiente":"produccion","uptime_s":5.9}
+...
+RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos) — EXIT=0
+```
+
+Rollback a 1.0.0:
+
+```text
+1. GET /health    OK — {"status":"healthy","database":"healthy","version":"1.0.0"}
+...
+RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos) — EXIT=0
+```
+
+Estado del servidor: `mysql` y `backend` `healthy` en red interna; MySQL **sin puerto publicado** en el host; backend solo en loopback; Caddy único punto de entrada.
+
+### 5.3 Despliegue en la nube
+
+| Componente | Proveedor y plan | Región | Configuración |
+|---|---|---|---|
+| API (web service) | **Render — Free** | Por defecto (EE. UU.) | Blueprint [`deploy/render.yaml`](../deploy/render.yaml), `healthCheckPath: /health` |
+| Web estática | **Render — Static Site (free)** | Por defecto | Build `npm ci && npm run build`, publica `frontend/dist` |
+| Base de datos | **Aiven for MySQL — Free** | No seleccionable en plan gratuito | MySQL 8 gestionado; connection string **solo en el panel de Render** |
+
+URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se define al crear el servicio).
+
+**Procedimiento:**
+
+1. Crear cuenta en Aiven y un servicio MySQL en plan Free; copiar host, puerto, usuario y contraseña desde el panel.
+2. Crear cuenta en Render → *New → Blueprint* → apuntar al repositorio; Render lee `deploy/render.yaml`.
+3. Definir los secretos **solo en el panel de Render** (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`, `ADMIN_CREATE_KEY`, `CORS_ORIGINS`); nunca en el repositorio.
+4. Deploy; esperar que `/health` responda `healthy`.
+5. Ejecutar `bash scripts/smoke-test.sh https://<url-publica>` y guardar la salida.
+6. Probar el arranque en frío: apagar el servicio, medir el tiempo hasta que `/health` responda de nuevo.
+
+**Método de rollback en el PaaS:** en Render → *Deploys → Rollback to previous deploy* (o redeploy de la etiqueta anterior); no requiere reconstruir. En Aiven (plan Free) el rollback de datos es por restauración del dump descargado, ya que el plan gratuito no incluye Point-in-Time Recovery.
+
+**Límites del plan gratuito que afectan al cliente (fuente: render.com/pricing y aiven.io/pricing, consultado el 2026-11-18):**
+
+- Render Free: $0/mes con 512 MB de RAM y menos de 1 CPU; los sitios estáticos son gratis de forma permanente; los servicios gratuitos se suspenden tras un periodo sin tráfico (**arranque en frío**: la primera petición tras la suspensión tarda varios segundos).
+- Aiven Free: $0/mes con 1 VM dedicada, 1 CPU, 1 GB de RAM y 1 GB de almacenamiento; no se puede elegir región ni usar connection pooling.
+- Costos que suelen sorprender: ancho de banda de salida, almacenamiento adicional, dominio (~US$10–15/año) y servicios de respaldo/cifrado que no están incluidos en los planes gratuitos.
+
+#### Evidencia (nube)
+
+**Pendiente:** requiere crear las cuentas en Render y Aiven (decisión del responsable del proyecto). Sin esta evidencia, la rúbrica limita Producto a 60/100. El procedimiento, el blueprint y la prueba de humo están preparados: `deploy/render.yaml` + `scripts/smoke-test.sh`.
+
+### 5.4 Estimación de costos
+
+| Concepto | Alternativa 1: Render + Aiven (gratuito) | Alternativa 2: VPS gestionado (Hetzner CX) | Alternativa 3: IaaS siempre gratis (Oracle Cloud) |
+|---|---|---|---|
+| Total mensual | **US$0** | desde €5,49/mes + IVA (≈ US$6) | **US$0** (con tarjeta registrada) |
+| Total anual | US$0 + dominio ≈ US$10–15 | ≈ US$72 + dominio ≈ US$82–87 | US$0 + dominio ≈ US$10–15 |
+| Horas de administración al mes | 2 h (deploy manual desde Git) | 4–6 h (SO, parches, Docker, respaldos) | 6–8 h (SO, firewall, Docker, respaldos, riesgo de reclamación de recursos) |
+| Fuente y fecha | render.com/pricing, aiven.io/pricing — 2026-11-18 | hetzner.com/cloud — 2026-11-18 | oracle.com/cloud/free — 2026-11-18 |
+
+**Costos ocultos a considerar:** dominio (~US$10–15/año), ancho de banda de salida si el plan paga excede el incluido, almacenamiento extra (Aiven cobra US$0.30/GB en planes de pago), respaldos externos cifrados y tiempo de administración.
+
+**Recomendación al cliente:** iniciar con **Alternativa 1 (Render + Aiven Free)**: costo mensual cero, sin tarjeta para Render y con la base MySQL gestionada; documenta además el arranque en frío como limitación. Cuando la clínica necesite disponibilidad 24/7 sin suspensión, migrar a Alternativa 2 (VPS) manteniendo el mismo `compose.prod.yaml`, o subir el plan de Render (US$7/mes) — la migración está probada con el ciclo de actualización/rollback de la §5.2.
+
+## 6. Configuración y verificación — Semana 5 (CE-1, CE-3)
+
+**Versión del software cubierta:** 1.1.0 · **Fecha:** 2026-11-18 · **Estado:** base aplicada; migración a base gestionada pendiente de las cuentas de nube.
+
+### 6.1 Inventario de configuración
+
+| Variable | ¿Secreto? | Desarrollo | Servidor | Nube | Si falta… |
+|---|:---:|---|---|---|---|
+| `SECRET_KEY` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Render | No arranca: `RuntimeError` con mensaje claro (`config.py`) |
+| `ADMIN_CREATE_KEY` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Render | Creación de administradores denegada (fail-closed) |
+| `MYSQL_ROOT_PASSWORD` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Aiven | `docker compose config` falla a propósito (`:?`) |
+| `MYSQL_PASSWORD` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Aiven | `docker compose config` falla a propósito (`:?`) |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` | No | `docker-compose.yml` | `compose.prod.yaml` | Panel de Render | Conexión a BD falla; `/health` reporta `unhealthy` |
+| `CORS_ORIGINS` | No | `http://localhost:5173` | `.env` del servidor | Panel de Render | Default local: el frontend de la nube no podría llamar a la API |
+| `APP_VERSION` | No | imagen en build | `.env` del servidor | `render.yaml` | `/health` reporta `dev`; el Compose de producción **falla** (`:?`) |
+| `APP_ENV` | No | `desarrollo` (default) | `produccion` | `nube` | Default `desarrollo` en `/health` |
+| `EMAIL_USER` / `EMAIL_PASSWORD` | Sí | `.env` local | `/opt/vet-manager/.env` (600) | Panel de Render | Correo transaccional no enviado (no bloquea el arranque) |
+
+Plantillas sin secretos: `.env.example`, `backend/.env.example`, `frontend/.env.example`, `deploy/env.prod.example`. **Ningún `.env` está rastreado** (verificado con `git ls-files | grep env`).
+
+### 6.2 Servicios
+
+| Servicio | Imagen / versión | Depende de | Política de reinicio | Healthcheck | Rotación de logs |
+|---|---|---|---|---|---|
+| `mysql` | `mysql:8.0` | — | `always` | `mysqladmin ping` (10 s) | `json-file` con límites por defecto de Docker; definir `max-size`/`max-file` en producción |
+| `backend` | `vet-manager-backend:1.1.0` | `mysql` (`service_healthy`) | `always` | `GET /health` en el contenedor (15 s) | ídem |
+| `frontend` | `vet-manager-frontend:1.1.0` | `backend` (`service_healthy` en prod) | `always` | — (estático) | ídem |
+| `caddy` | `caddy:2.10.2-alpine` | `backend`, `frontend` | `unless-stopped` | — | log de accesos con `log` en el Caddyfile |
+
+Orden de arranque: `mysql → backend (espera healthy) → frontend → caddy`. **Docker no reinicia un contenedor `unhealthy` por sí solo**: lo marca y detiene el `--wait`; la política `restart: always` cubre caídas, no salud. Pendiente de configurar: `logging: options: max-size/max-file` en `compose.prod.yaml` (rotación de logs).
+
+### 6.3 Endpoint de salud
+
+| Campo | Valor |
+|---|---|
+| Ruta | `GET /health` |
+| Dependencias que verifica | Conexión real a MySQL (`get_db_connection`) |
+| Respuesta si está sano | `200` → `{"status":"healthy","database":"healthy","version":"1.1.0","ambiente":"produccion","uptime_s":…}` |
+| Respuesta si falla una dependencia | `200` → `{"status":"unhealthy","database":"unhealthy",…}` (el orquestador/alertas deciden; el código no miente) |
+
+### 6.4 Pruebas
+
+#### Prueba de humo
+
+Verificaciones incluidas (`scripts/smoke-test.sh`):
+
+| # | Verificación | Resultado esperado |
+|---:|---|---|
+| 1 | `GET /health` | JSON con `"status":"healthy"` |
+| 2 | Estado de la base de datos | `"database":"healthy"` |
+| 3 | Versión desplegada | Coincide con `ESPERADA` si se define |
+| 4 | `GET /docs` (Swagger) | HTTP 200 |
+| 5 | `GET /` (frontend) | HTTP 200 |
+| 6 | HTML de la SPA | Contiene `Vet Manager` |
+
+Salida contra el servidor (2026-11-18, instalación → actualización → rollback, 6/6 en cada paso): ver **§5.2 Evidencia**. Salida contra la nube: **pendiente de crear las cuentas Render/Aiven**.
+
+#### Casos funcionales
+
+| ID | Caso | Pasos | Resultado esperado | Resultado obtenido |
+|---|---|---|---|---|
+| F-01 | Login con credenciales válidas | POST `/auth/login` con usuario de prueba | Token JWT + datos de usuario | Pendiente de automatizar (cubiertos por unitarias de `security.py`/`auth.py`) |
+| F-02 | Login con contraseña incorrecta | POST `/auth/login` con clave errónea | 401 | Pendiente de automatizar |
+| F-03 | Health sin base de datos | Detener `mysql`, GET `/health` | `unhealthy` | ✅ automático: `test_health_sin_base_de_datos` |
+| F-04 | CORS: origen desconocido rechazado | GET `/health` con `Origin` malicioso | Sin `access-control-allow-origin` | ✅ automático: `test_cors_denegado_para_origen_desconocido` |
+| F-05 | Política de contraseñas | Crear admin con clave débil | Rechazo con mensaje | ✅ automático: `test_admin.py` (6 casos) |
+
+### 6.5 Lista de verificación posterior al despliegue
+
+- [x] Toda la configuración obligatoria está en variables de entorno, con `.env.example` completo
+- [x] El proyecto no arranca si falta configuración obligatoria y lo dice claramente (`:?` en Compose, `RuntimeError` en `config.py`)
+- [x] Prueba de humo automática posterior a cada cambio (despliegue, actualización, rollback)
+- [ ] Logs con rotación configurada en producción (`max-size`/`max-file`)
+- [ ] Migración de datos a la base gestionada con huellas idénticas y humo después del corte (§2.8)
+
+### 2.8 Evidencia de migración ejecutada (se agrega a la sección 2)
+
+| Campo | Valor |
+|---|---|
+| Origen (tipo y versión) | MySQL 8.0 en Docker (`vet_manager`, 20 tablas, 110 filas) |
+| Destino (proveedor, versión, región) | **Aiven for MySQL Free** — pendiente de crear la instancia |
+| Diferencias resueltas (dueño, versión, SSL…) | Pendiente: Puerto SSL, `utf8mb4`, usuario no-root (`vet_user`) |
+
+**Estado: pendiente.** Procedimiento previsto (mismo patrón que la §5.2, congelar escrituras → volcar → importar → huellas → humo → decidir). Huellas: `SELECT COUNT(*)` por tabla + `CHECKSUM TABLE` en origen y destino; la comparación de conteos ya está probada localmente en §3.5 (20/20 tablas idénticas). Rollback: no hizo falta en el ensayo local; si el destino falla, se reabre el origen sin tocar el respaldo.
+
+## 7. Seguridad, usuarios y permisos — Semana 6 (CE-1, CE-4)
+
+**Fecha:** 2026-11-18 · **Estado:** aplicación endurecida + evidencia local; endurecimiento del servidor Linux pendiente de existir el servidor.
+
+### 7.1 Usuarios del sistema operativo
+
+| Cuenta | Tipo | Persona o servicio | Grupos | Inicia sesión | `sudo` permitido |
+|---|---|---|---|:---:|---|
+| `<admin>` | Persona | Administrador del servidor | `sudo` | Llave SSH | Todo, con contraseña |
+| `<despliegue>` | Persona | Responsable técnico | `despliegue` | Llave SSH | Solo reiniciar el stack (script dedicado) |
+| `respaldo` | Servicio | `cron` | — | No (`nologin`) | Nada |
+
+Archivos y carpetas sensibles:
+
+| Ruta | Dueño:grupo | Permisos | Por qué |
+|---|---|:---:|---|
+| `/opt/vet-manager` | `root:despliegue` | `2770` | Solo el equipo de despliegue entra |
+| `/opt/vet-manager/.env` | `root:despliegue` | `600` (verificado en el simulacro) | Secretos de la app |
+| `backups/mysql/*.sql.gz` | `root:root` | `700` (directorio, `umask 077` en el script) | Respaldos con datos personales |
+
+### 7.2 Acceso remoto y firewall
+
+**Estado: pendiente de servidor real.** Configuración prevista: SSH solo con llave (`PasswordAuthentication no`), UFW con política por defecto `deny incoming` y solo puertos 22/80/443.
+
+| Puerto | Abierto | Justificación |
+|---|:---:|---|
+| 22 | Sí (futuro) | Administración, solo con llave |
+| 80/443 | Sí | Caddy (HTTP→HTTPS y HTTPS) |
+| 3306/3307, 5000, 5173 | **No** | MySQL y API solo en red interna/loopback |
+
+Evidencia de que la base de datos no está expuesta (ya ejecutada, §4.5):
+
+```text
+Desde la red (10.90.40.59): 3307 False · 5000 False · 5173 False · 8443 False
+Desde loopback (127.0.0.1): 3307 True  · 5000 True  · 8443 True
+compose.prod.yaml: mysql sin publicación de puertos; backend solo 127.0.0.1
+```
+
+### 7.3 Roles de la base de datos
+
+| Rol | Privilegios | No puede | Lo usa | Dónde vive su contraseña |
+|---|---|---|---|---|
+| `vet_user` (actual) | CRUD sobre `vet_manager` | Crear bases/roles, `PROCESS` | La app (backend) | `.env` del servidor (600) |
+| `root` (solo en el contenedor) | Total | — | `mysqldump` del respaldo (`scripts/respaldar.sh`) | `.env` del servidor (600) |
+
+**Estado:** con un solo usuario la separación de privilegios es parcial (el script de respaldo necesita `root` porque `vet_user` carece de `PROCESS`/`SHOW CREATE PROCEDURE` — evidencia en §3.5). Planificado para el servidor real: crear `<proyecto>_owner` (DDL/migraciones) y `<proyecto>_app` (solo CRUD) y que la app use el segundo.
+
+Pruebas de privilegios:
+
+| Rol | Operación | Esperado | Obtenido |
+|---|---|:---:|---|
+| `vet_user` | `DROP TABLE` ajena | ❌ | ✅ Rechazado (evidencia §3.5: MySQL bloqueó el `DROP` por FK `citas_ibfk_2`) |
+| `vet_user` | `SHOW CREATE PROCEDURE` | ❌ | ✅ Rechazado: `vet_user has insufficient privileges` (detectado y registrado en §3.5) |
+
+### 7.4 Inventario de secretos
+
+| Secreto | Da acceso a | Dónde vive (cada ambiente) | Permisos | Quién lo lee | Cómo se rota |
+|---|---|---|:---:|---|---|
+| `SECRET_KEY` | Firma de JWT (todas las sesiones) | `.env` local / servidor / panel Render | 600 | Solo backend | Nuevo valor + reinicio del servicio |
+| `ADMIN_CREATE_KEY` | Creación de administradores | ídem | 600 | Solo backend | Ídem |
+| `MYSQL_PASSWORD` / `MYSQL_ROOT_PASSWORD` | Datos de la clínica | ídem / panel Aiven | 600 | backend, respaldo | Cambio en MySQL + `.env` + reinicio |
+| App password de Gmail | Envío de correos | `.env` | 600 | backend | Regenerar en `myaccount.google.com/apppasswords` |
+| `SONAR_TOKEN` | Escaneo del repo | GitHub Secrets | — | CI | Regenerar en SonarCloud |
+
+**Rotación pendiente del usuario:** la app password de Gmail (`zwonlbxjjomngdcp`), `SECRET_KEY` y las contraseñas de MySQL quedaron expuestas en el historial de Git público; se sacaron del árbol actual (commit `50fa133`) pero **deben rotarse**. Revisión del historial:
+
+```text
+$ git grep -l -E "zwonlbxjjomngdcp|root123|vet_pass|mi_secreto_super_seguro_2024|VET-ADMIN-2026" -- .
+(sin resultados — ningun secreto en archivos rastreados)
+```
+
+---
+
+## 3. Plan de respaldo final (semana 6; reemplaza la versión de la semana 2)
+
+| Campo | Valor |
+|---|---|
+| Qué se respalda | Base completa `vet_manager` (20 tablas, 110 filas): datos + rutinas + triggers + eventos |
+| RPO / RTO acordados | RPO 24 h / RTO 4 h (propuesta, pendiente de aprobación del responsable del negocio) |
+| Herramienta | `mysqldump --single-transaction --routines --triggers --events` + `gzip` (script `scripts/respaldar.sh`) |
+| Usuario que lo ejecuta | `root` dentro del contenedor MySQL (necesita `PROCESS`/`SHOW CREATE PROCEDURE`) |
+| Cifrado | **No cifra** (advertencia en el script): cifrar antes de copiar fuera del host (`age`/`gpg`) |
+| Horario (línea de cron) | `0 3 * * * bash /opt/vet-manager/scripts/respaldar.sh >> /var/log/vet-manager-respaldos.log 2>&1` (propuesta) |
+| Retención | 7 días (`RETENTION_DAYS=7`, aplicada por el script) |
+| Verificación automática | `gzip -t` + SHA-256 informado en cada ejecución |
+| Responsable | Administrador de base de datos |
+
+### 3.1 Regla 3-2-1
+
+| Copia | Medio | Ubicación | ¿Inmutable? |
+|---|---|---|:---:|
+| Producción | Volumen Docker `vet-manager-prod_mysql_data` | Servidor | — |
+| Repositorio local | Disco del servidor | `backups/mysql/` (permisos 700) | No |
+| Repositorio externo | Copia fuera del host (pendiente de configurar) | Servidor/almacenamiento aparte | No |
+
+### 3.2 Script y programación
+
+Enlace: [`scripts/respaldar.sh`](../scripts/respaldar.sh). Log de ejecución real (2026-11-18):
+
+```text
+Respaldo creado: backups/mysql/vet_manager-20261118T185238Z.sql.gz
+SHA-256: 0ce11a55cd27ce053a883cca3126ca16399b1c4c552ab963ff6d845e1fef9494
+Retención aplicada: 7 días
+```
+
+### 3.3 Procedimiento de restauración de desastre
+
+1. Detener escritores: `docker compose -f deploy/compose.prod.yaml stop backend`.
+2. Verificar el dump: `gzip -t respaldos/<archivo>.sql.gz` y comparar el SHA-256 con el registrado.
+3. Crear base destino: `CREATE DATABASE vet_manager_nueva CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+4. Importar: `gzip -dc <archivo> | docker compose exec -T mysql sh -c 'MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql -u root vet_manager_nueva'`.
+5. Conciliar: `SELECT COUNT(*)` por tabla en origen y destino (§3.5 muestra el método UNION ALL) — deben ser idénticos.
+6. Verificar restricciones: PK, UNIQUE y FK presentes (`information_schema.table_constraints`).
+7. Ejecutar `scripts/smoke-test.sh` contra el servicio apuntando a la base restaurada.
+8. Solo tras conciliación y aprobación del responsable del negocio: reabrir escrituras.
+
+### 3.4 Restauración probada
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-11-18 |
+| Quién restauró (rol en el equipo) | Responsable técnico |
+| Instantánea usada | `vet_manager-20261118T185238Z.sql.gz` |
+| Inicio / fin | Restauración en 2 s |
+| Tiempo total vs RTO | 2 s ≪ RTO 4 h ✅ |
+
+Huellas antes y después: 20/20 tablas con `COUNT(*)` idéntico (110 filas), `diff` sin diferencias — tabla completa en **§3.5**. Simulacro de desastre: `DROP TABLE usuarios` → recuperación desde el dump con PK, UNIQUE y 4 FK intactas.
+
+Problemas encontrados y cambios aplicados: `vet_user` no puede volcar (`PROCESS`/`SHOW CREATE PROCEDURE`) → el script ahora usa `root` dentro del contenedor.
 
 ## 8. Pipeline de despliegue y monitoreo — Semana 7 (CE-1, CE-5)
 
--Se ejecutará una compilación de frontend, pruebas, validación de Docker Compose, healthchecks, métricas de CPU/RAM, logs y rollback por versión.
+**Fecha:** 2026-11-18 · **Estado:** CI de pruebas + SonarCloud configurado; entrega continua (GHCR/Render) y monitoreo pendientes.
+
+### 8.1 Pipeline
+
+| Workflow | Evento | Etapas | Resultado |
+|---|---|---|---|
+| `sonarcloud.yml` (job `tests`) | push a `main`/`develop`, pull request | instalar dependencias → `pytest --cov` | check **Pruebas del backend** en verde (42 pruebas) |
+| `sonarcloud.yml` (job `sonarcloud`) | ídem (`needs: tests`) | generar cobertura → scan SonarCloud | check **SonarCloud Scan** solo corre si las pruebas pasan |
+
+Enlace: [`.github/workflows/sonarcloud.yml`](../.github/workflows/sonarcloud.yml).
+
+**Corrección aplicada (2026-11-18):** el scan se ejecutaba sin pruebas → cobertura 0 % y Quality Gate en ERROR (`new_coverage 0.0% < 80%`). Ahora los tests corren antes y `sonar-project.properties` apunta a `backend/coverage.xml` (marcadores de conflicto resueltos).
+
+Reglas de protección (propuestas, configurables en GitHub):
+
+| Regla | Configuración |
+|---|---|
+| Rama `main` | Pull request obligatorio; checks `Pruebas del backend` y `SonarCloud Scan` obligatorios |
+| Etiquetas `vX.Y.Z` | Solo desde `main` tras verde |
+
+### 8.2 Secretos y variables del pipeline
+
+| Nombre | Tipo | Ámbito | Para qué | Quién lo rota |
+|---|---|---|---|---|
+| `SONAR_TOKEN` | Secreto | Repositorio | Scan de SonarCloud | Administrador del repositorio |
+
+Pendiente cuando exista la nube: `RENDER_DEPLOY_HOOK_URL` (ambiente `produccion`) para despliegue automático en Render.
+
+### 8.3 Evidencia de ejecución
+
+| Evento | Enlace | Duración | Resultado |
+|---|---|---|---|
+| Push con pruebas nuevas (42 en verde) | commit `2cd4cf2` (local; se verá tras el push) | — | Pendiente de push para ver el check en GitHub |
+| Liberación `v1.0.0` / `v1.1.0` | Etiquetas locales creadas | — | Pendiente de push (`git push origin --tags`) |
+| Rollback `1.1.0 → 1.0.0` | §5.2 Evidencia | < 1 min | ✅ Smoke test 6/6 tras el rollback |
+
+### 8.4 Procedimiento de despliegue y rollback
+
+#### En la nube (pendiente de cuentas)
+
+1. Push a `main` → Render detecta el cambio (o *Manual Deploy* desde el blueprint `deploy/render.yaml`).
+2. Rollback: Render → *Deploys → Rollback to previous deploy* (sin reconstruir).
+
+#### En el servidor (probado en el simulacro, §5.2)
+
+```text
+1. respaldo:  mysqldump | gzip > respaldos/pre-update-<ver>-<fecha>.sql.gz   (gzip -t + SHA-256)
+2. imágenes:  docker load -i imagenes/vet-manager-<ver>.tar.gz
+3. versión:   sed -i "s/^APP_VERSION=.*/APP_VERSION=<ver>/" .env
+4. aplicar:   docker compose -f deploy/compose.prod.yaml up -d --wait
+5. verificar: bash smoke-test.sh https://<dominio>        (6/6 en verde)
+Rollback:    repetir 3-5 con la versión anterior
+```
+
+#### Migraciones compatibles hacia atrás
+
+**Regla del equipo:** solo se publican migraciones aditivas (tablas/columnas nuevas, `ENUM` ampliado); los cambios destructivos usan *expand/contract* en dos versiones. La clasificación completa está en la **§5.2**. Ninguna migración existente impide el rollback actual (1.1.0 no migró esquema).
+
+### 8.5 Monitoreo
+
+| Monitor | Tipo | Objetivo | Intervalo | Reintentos | Qué hace quien recibe la alerta |
+|---|---|---|---|---|---|
+| Salud de la API | HTTP | `GET /health` (reporta `status`, `database`, `version`, `uptime_s`) | 60 s | 2 | Revisar logs del backend; si el último cambio lo provocó, rollback a la versión anterior (§8.4) |
+| Salud de la BD | incluida | `"database":"healthy"` en `/health` | 60 s | 2 | Verificar MySQL; si falla, restaurar según §3.3 |
+| Respaldo diario | Push (latido) | Log de `respaldar.sh` | 25 h | 0 | Investigar el job; verificar el archivo y el SHA-256 |
+
+| Campo | Valor |
+|---|---|
+| Dónde corre Uptime Kuma | **Pendiente:** contenedor propio en el servidor (`uptime-kuma` en el compose de operación) |
+| Canal de alertas y quién lo lee | Pendiente: canal de mensajería del equipo, atención del responsable técnico |
+| Horario de atención de alertas | Propuesta: horas hábiles; P1 las 24 h |
 
 ## 9. Mantenimiento, soporte y capacitación — Semana 8 (CE-5)
 
--La operación incluirá actualizaciones de imágenes, copias de seguridad, diagnóstico de errores, capacitación de usuarios y procedimiento de soporte por rol.
+**Fecha:** 2026-11-18 · **Estado:** plan propuesto; ejecución calendárica a partir de la puesta en producción.
+
+### 9.1 Plan de mantenimiento
+
+#### Calendario
+
+| Tarea | Tipo | Frecuencia | Automática / manual | Responsable (rol) | ¿Requiere ventana? |
+|---|---|---|---|---|:---:|
+| Parches de seguridad del SO | Preventivo | Diaria | Automática (`unattended-upgrades`) | Administrador del servidor | No |
+| Reinicio por parches de kernel | Preventivo | Mensual | Manual | Administrador del servidor | Sí |
+| Actualización de imágenes base (`mysql`, `caddy`, `python`) | Preventivo | Mensual | Manual (build + humo) | Responsable técnico | No (humo tras cada cambio) |
+| Restauración de prueba del respaldo | Preventivo | Mensual | Manual | Administrador de BD | No |
+| Rotación de secretos | Preventivo | Trimestral | Manual | Responsable técnico | No |
+
+Ventana de mantenimiento propuesta: **domingos 02:00–04:00 (hora local), aviso a los usuarios 48 h antes**; máximo 2 h (coincide con la ventana de la §5).
+
+#### Fin de soporte
+
+| Componente | Versión | Fin de soporte | Fuente y fecha de consulta | Acción planeada |
+|---|---|---|---|---|
+| Ubuntu Server LTS | 24.04 | Abril 2029 (ESM hasta 2036) | ubuntu.com/about/release-lifecycle — 2026-11-18 | Migrar antes de esa fecha (§1) |
+| MySQL | 8.0 | Abril 2026 (soporte extendido) | oracle.com/mysql — 2026-11-18 | Evaluar salto a 8.4 LTS en la ventana mensual |
+| Python | 3.11 | Octubre 2027 | python.org — 2026-11-18 | Actualizar imagen backend antes de esa fecha |
+| Node.js | 20 (LTS) | Abril 2026 | nodejs.org — 2026-11-18 | Actualizar a 22 LTS en el build del frontend |
+
+#### Política de actualizaciones
+
+| Tipo | Plazo | Cómo se decide |
+|---|---|---|
+| Parche de seguridad (SO) | 7 días | Automático en el servidor |
+| Parche de dependencias (Python/npm) | 14 días | PR de Dependabot → CI en verde → fusionar → versión de parche |
+| Actualización de imágenes base | Ventana mensual | Humo en verde antes y después |
+
+**Pendiente:** crear `.github/dependabot.yml` (pip + npm + docker) y ejecutar la primera auditoría (`pip-audit`/`npm audit`/`trivy`).
+
+#### Auditoría (resultado de la primera ejecución)
+
+| Herramienta | Hallazgo | Severidad | ¿En la imagen desplegada? | Decisión |
+|---|---|---|:---:|---|
+| — | Pendiente de ejecutar (`pip-audit`, `npm audit`, `trivy`) | — | — | Abrir PR con Dependabot y decidir por hallazgo |
+
+### 9.2 Soporte
+
+| Nivel | Quién (rol) | Resuelve | Horario |
+|---|---|---|---|
+| N0 | Ayudas en línea (guía rápida y FAQ) | Dudas de uso | Siempre |
+| N1 | Recepción / soporte de primer nivel | Bloqueos de uso, reportes repetidos | Horas hábiles |
+| N2 | Responsable técnico | Incidentes de servidor, despliegues, respaldos | Horas hábiles + guardia P1 |
+| N3 | Desarrollo (externo/interno) | Defectos de código | Según acuerdo |
+
+Canal único de reporte: formulario/ dirección de soporte **(pendiente: crear el canal y enlazarlo en la app)**.
+
+| Prioridad | Primera respuesta | Solución o alternativa |
+|---|---|---|
+| P1 (app caída) | 1 h | Rollback o restauración según §8.4 / §3.3 |
+| P2 (función rota) | 24 h | Parche en la siguiente ventana |
+| P3 (mejora menor) | 5 días hábiles | Backlog |
+| P4 (cosmético) | Próxima versión | Backlog |
+
+*Estos tiempos son una propuesta: se acuerdan con el cliente en el acta de la semana 9.*
+
+### Runbooks
+
+| Runbook | Alerta o síntoma | Probado por (rol, otro equipo) | Correcciones tras la prueba |
+|---|---|---|---|
+| `docs/runbooks/salud-en-rojo.md` (pendiente de crear) | "Salud" en rojo en el monitor | Pendiente (gate semana 9) | — |
+| `docs/runbooks/respaldo-fallido.md` (pendiente) | Latido de respaldo ausente | Pendiente | — |
+
+### 9.3 Capacitación
+
+| Público | Objetivos observables | Sesión (duración, modalidad) | Materiales | Cómo se evalúa |
+|---|---|---|---|---|
+| Usuarios finales (clínica) | Registrar cliente + mascota + cita sin ayuda en < 5 min | 60 min, presencial | Guía rápida, datos de prueba | Tarea de verificación + encuesta |
+| Soporte N1 | Resolver 3 casos de la FAQ sin escalar | 30 min, videollamada | FAQ, runbook N1 | Casos simulados |
+| Operación N2 | Ejecutar instalación → actualización → rollback siguiendo solo la §5 | 90 min, taller | §5 del plan, smoke test | Ejecución sin errores en el simulacro |
+
+Cronograma: **a definir con el cliente** (semana 9, junto con el acta).
+
+### 9.4 Ayudas en línea
+
+| Ayuda | Enlace | Versión del software | Probada por (rol) |
+|---|---|---|---|
+| Guía rápida | `docs/guia-rapida.md` (pendiente de crear) | 1.1.0 | Pendiente |
+| Preguntas frecuentes | `docs/faq.md` (pendiente de crear) | 1.1.0 | Pendiente |
+
+Dónde se enlazan: README del repositorio y, en la app, el pie de página/panel de administración (pendiente).
 
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
--La entrega se considerará aceptada tras validar requisitos, seguridad, permisos, disponibilidad, restauración de copias de seguridad y pruebas de uso de todos los roles.
+**Fecha:** 2026-11-18 (borrador) · **Estado:** preparado para el gate; pruebas de aceptación y simulacro cruzado pendientes de ejecutar con el cliente y otro equipo.
+
+### 10.1 Consolidación
+
+| Sección | Completa según la lista | Observaciones |
+|---|:---:|---|
+| 1. Ficha técnica | ✅ | Incluye salida del script con `CUMPLIMIENTO: confirmado` (§1.7) |
+| 2. Migración | 🟡 | Plan completo; evidencia de migración a nube pendiente (§2.8) |
+| 3. Respaldo | ✅ | Respaldo + restauración + simulacro de desastre reales (§3.5) |
+| 4. Hosting y dominio | ✅ | Reverse proxy probado con evidencia (§4.5) |
+| 5. Instalación | ✅ (local) / 🟡 (nube) | Instalación→actualización→rollback probados; nube pendiente de cuentas |
+| 6. Configuración | 🟡 | Inventario y health completos; migración y rotación de logs pendientes |
+| 7. Seguridad | 🟡 | Secretos fuera del repo + permisos 600; SSH/UFW/roles BD pendientes de servidor real |
+| 8. Pipeline y monitoreo | 🟡 | CI de pruebas + SonarCloud; entrega continua y Uptime Kuma pendientes |
+| 9. Mantenimiento, soporte y capacitación | 🟡 | Plan completo; runbooks, FAQ y cronograma pendientes |
+
+Registro de cambios del plan:
+
+| Versión | Fecha | Cambios |
+|---|---|---|
+| 1.0 | 2026-11-04 | Secciones 1–4 y v0 de la 5 |
+| **1.1** | **2026-11-18** | **Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma)** |
+
+### 10.2 Pruebas de aceptación
+
+| Campo | Valor |
+|---|---|
+| Casos ejecutados / total | 5 automatizados (F-03…F-05 + seguridad) / 5 manuales pendientes (F-01, F-02 y flujos de negocio) |
+| Criterios de salida acordados | Smoke test 6/6, restauración conciliada, sin secretos en el repo, CI en verde |
+| Defectos (bloqueantes / mayores / menores / cosméticos) | 0 / 0 / 0 / 0 — pendiente de ejecutar la UAT con el cliente |
+| Decisión | **Pendiente** del cliente |
+
+Detalle de casos: `backend/tests/` (automatizados) + guía de UAT pendiente.
+
+### 10.3 Simulacro cruzado
+
+| Campo | Valor |
+|---|---|
+| Equipo que instaló | Pendiente (otro equipo, gate de la semana 9) |
+| Duración / tiempo máximo | Propuesta: ≤ 2 h (ventana de la §5) |
+| Huellas | 20/20 tablas con `COUNT(*)` idéntico (método §3.5) |
+| Prueba de humo | `scripts/smoke-test.sh` → 6/6 |
+| Resultado | **Pendiente** |
+| Desviaciones y corrección aplicada | — |
+
+Registro firmado por el observador: pendiente (`docs/registro-simulacro.md`).
+
+### 10.4 Acta de entrega
+
+Enlace: pendiente (`docs/acta-entrega.md`) — sin firmas reales ni secretos; incluye niveles de servicio de la §9.2 y transferencia de accesos (panel Render/Aiven, GitHub, servidor).
+
+### 10.5 Socialización y lecciones aprendidas
+
+| Qué funcionó | Qué no funcionó | Qué haríamos distinto |
+|---|---|---|
+| Evidencia real respaldo/restauración (§3.5) y prueba negativa de puertos (§4.5) | Los `.env` con secretos estaban en el repo público hasta el 2026-11-18 | Reglas de `.gitignore` + secret scanning desde el día 1 |
+| Ciclo instalar→actualizar→rollback probado antes de tocar producción | CI corriendo sin pruebas (cobertura 0 % y Quality Gate rojo) | El job de pruebas debe preceder al scan desde el inicio |
+| Pruebas de humo reutilizables en cada paso | — | — |
+
+Retroalimentación de la socialización: pendiente de la sesión.
+
+---
 
 *Este plan garantiza una transición segura y escalable para Vet Manager.*

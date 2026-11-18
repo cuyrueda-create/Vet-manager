@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ==================== BASE DE DATOS ====================
   mysql:
@@ -7,10 +5,10 @@ services:
     container_name: vet_manager_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: vet_manager
-      MYSQL_USER: vet_user
-      MYSQL_PASSWORD: vet_pass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Definida en .env (ver .env.example)}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vet_manager}
+      MYSQL_USER: ${MYSQL_USER:-vet_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Definida en .env (ver .env.example)}
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     ports:
       - "127.0.0.1:3307:3306"
@@ -20,7 +18,7 @@ services:
     networks:
       - vet_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       timeout: 20s
       retries: 10
       interval: 10s
@@ -34,12 +32,12 @@ services:
     restart: always
     environment:
       DB_HOST: mysql
-      DB_USER: vet_user
-      DB_PASSWORD: vet_pass
-      DB_NAME: vet_manager
+      DB_USER: ${MYSQL_USER:-vet_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Definida en .env (ver .env.example)}
+      DB_NAME: ${MYSQL_DATABASE:-vet_manager}
       DB_PORT: 3306
-      SECRET_KEY: mi_secreto_super_seguro_2024
-      ADMIN_CREATE_KEY: VET-ADMIN-2026
+      SECRET_KEY: ${SECRET_KEY:?Definida en .env (ver .env.example)}
+      ADMIN_CREATE_KEY: ${ADMIN_CREATE_KEY:?Definida en .env (ver .env.example)}
       EMAIL_HOST: smtp.gmail.com
       EMAIL_PORT: 587
       EMAIL_USER: ${EMAIL_USER}
