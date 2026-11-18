@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.0 |
-| Fecha | 2026-10-06 |
+| Versión del plan | 1.1 |
+| Fecha | 2026-11-18 |
 
 ---
 
@@ -34,17 +34,18 @@ Vet Manager es una plataforma full-stack para clientes, administradores, veterin
 
 > La licencia de MySQL depende del modelo de uso y puede incluir soporte comercial; el repositorio usa la imagen Open Source. No se ha identificado un componente de licencias copyleft que imponga un costo obligatorio al proyecto.
 
-### 1.3 Sistema operativo del servidor
+### 1.3 Sistema operativo del entorno
 
-| Campo | Valor |
-|---|---|
-| Distribución y versión | Ubuntu Server LTS 24.04 |
-| Arquitectura | x86_64 o ARM64, según el proveedor del servidor |
-| Fin de soporte estándar | 2028-04, para Ubuntu 24.04 LTS |
-| Licencia | Ubuntu Pro / GPLv2 salvo las piezas de soporte comercial opcionales |
-| Requisitos mínimos oficiales | [Ubuntu 24.04 LTS](https://ubuntu.com/about/release-cycle) |
+| Campo | Entorno actual (este equipo) | Entorno de producción (objetivo) |
+|---|---|---|
+| Distribución y versión | **Ubuntu 26.04** bajo WSL2 (Windows) | Ubuntu Server LTS 24.04 |
+| Arquitectura | x86_64 | x86_64 o ARM64, según el proveedor |
+| Núcleo | 6.18.58.1-microsoft-standard-WSL2 | Núcleo del proveedor del servidor |
+| Fin de soporte estándar | 2027-04 (Ubuntu 26.04 LTS) | 2028-04 (Ubuntu 24.04 LTS) |
+| Licencia | GPLv2 / Ubuntu (uso académico) | Ubuntu Pro / GPLv2 salvo piezas comerciales opcionales |
+| Referencia oficial | [ubuntu.com/about/release-cycle](https://ubuntu.com/about/release-cycle) | ídem |
 
-El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; el servidor host debe proporcionar el soporte de esos runtimes y una distribución Linux compatible.
+**Rol de cada entorno:** el desarrollo, las pruebas y la **simulación de despliegue** (semana 4) corren en este equipo (WSL2 Ubuntu 26.04); el servidor Linux real repetirá la misma instalación con los mismos comandos cuando exista. El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; el host debe proporcionar Docker Engine y Compose sobre una distribución Linux compatible.
 
 ### 1.4 Medición de consumo
 
@@ -57,33 +58,35 @@ El despliegue de Docker usa `python:3.11-slim`, `node:20-alpine` y `mysql:8.0`; 
 
 Los valores de reposo son una referencia de despliegue local y no representan mediciones ejecutadas en el servidor final. La carga simulada recomendada es 20 usuarios concurrentes realizando operaciones de lectura, autenticación y consultas a la API. El margen de 50% se aplica a la medición pico para cubrir transitorios y el consumo de la base de datos.
 
+**Medición en este equipo (2026-11-18, WSL2 Ubuntu 26.04):** con el stack completo (`mysql`, `backend`, `frontend`, `caddy`) el consumo total se mantiene muy por debajo del pico de referencia (1,35 GiB); el sistema reporta 4.4 GiB de RAM disponibles de 6.6 GiB totales incluso con el despliegue simulado en marcha. El disco usado por Docker (imágenes + caché de build) es de ~5.5 GB, marginal frente a los 955 GB libres.
+
 > **Nota:** Los valores de RAM pueden variar según el sistema operativo base.
 
 ### 1.5 Matriz de requisitos
 
-| Requisito | Mínimo | Recomendado | Justificación |
-|---|---:|---:|---|
-| CPU | 1 vCPU | 2 vCPU | Pico de referencia 1,1 vCPU; 50% de margen |
-| RAM | 2 GiB | 4 GiB | 1,35 GiB de pico observado en referencia; 2 GiB de margen |
-| Disco | 20 GiB | 40 GiB SSD | Almacenamiento de base de datos, logs y resultados; 20 GiB de margen |
-| Tipo de disco / IOPS | SSD, 500 IOPS | SSD, 1.000 IOPS | Necesita rendimiento para consultas y escritura; carga simulada |
-| Red | 100 Mbps | 1 Gbps | API y frontend; tráfico de datos y notificaciones |
-| Arquitectura | x86_64 o ARM64 | x86_64 | Compatibilidad con MySQL 8.0, Python 3.11 y Node 20 |
-| Sistema operativo | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS con actualizaciones seguras | Soporte estándar hasta 2028-04 |
-| Docker / runtime | Docker Engine + Compose 2 | Docker Engine + Compose 2 con healthchecks | Orquestación declarativa de los tres servicios |
-| Puertos | 5000, 5173, 3307 | 5000, 5173, 3307, con firewall | Acceso a API, web y base de datos desde los límites previstos |
+| Requisito | Mínimo | Recomendado | **Este portátil (2026-11-18)** | ¿Cumple? | Justificación |
+|---|---:|---:|---:|:---:|---|
+| CPU | 1 vCPU | 2 vCPU | **16 vCPU** (AMD Ryzen 7 7735HS, 8 núcleos / 16 hilos) | ✅ | Pico de referencia 1,1 vCPU; 50% de margen |
+| RAM | 2 GiB | 4 GiB | **6.6 GiB** (4.4 GiB disponibles) | ✅ | 1,35 GiB de pico observado en referencia; 2 GiB de margen |
+| Disco | 20 GiB | 40 GiB SSD | **1007 GiB SSD** (955 GiB libres) | ✅ | Almacenamiento de base de datos, logs y resultados; 20 GiB de margen |
+| Tipo de disco / IOPS | SSD, 500 IOPS | SSD, 1.000 IOPS | SSD (NVMe del portátil) | ✅ | Necesita rendimiento para consultas y escritura; carga simulada |
+| Red | 100 Mbps | 1 Gbps | Wi-Fi/Ethernet del portátil | ✅ | API y frontend; tráfico de datos y notificaciones |
+| Arquitectura | x86_64 o ARM64 | x86_64 | x86_64 | ✅ | Compatibilidad con MySQL 8.0, Python 3.11 y Node 20 |
+| Sistema operativo | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS con actualizaciones seguras | Ubuntu 26.04 (WSL2) en desarrollo; Ubuntu Server 24.04 en producción | ✅ | Soporte estándar hasta 2028-04 en producción |
+| Docker / runtime | Docker Engine + Compose 2 | Docker Engine + Compose 2 con healthchecks | Docker 29.5.3 + Compose v5.1.4 | ✅ | Orquestación declarativa de los tres servicios |
+| Puertos | 5000, 5173, 3307 | 5000, 5173, 3307, con firewall | 5000, 5173, 3307 (dev) / 8080, 9443, 5001 (simulación prod) | ✅ | Acceso a API, web y base de datos desde los límites previstos |
 
-**Cálculo de requisitos recomendados:** CPU $1{,}1 \times 1{,}5 = 1{,}65$ vCPU; se redondea a 2 vCPU. RAM $1{,}35 \times 1{,}5 = 2{,}025$ GiB; se redondea a 4 GiB. El disco se cifra con 40 GiB para recibir un margen de almacenamiento y copias de seguridad.
+**Cálculo de requisitos recomendados:** CPU $1{,}1 \times 1{,}5 = 1{,}65$ vCPU; se redondea a 2 vCPU. RAM $1{,}35 \times 1{,}5 = 2{,}025$ GiB; se redondea a 4 GiB. El disco se cifra con 40 GiB para recibir un margen de almacenamiento y copias de seguridad. **Este portátil supera con creces todos los mínimos y recomendados** (16 vCPU vs 2, 6.6 GiB vs 4, 955 GiB libres vs 40), por lo que es apto para desarrollo, pruebas y la simulación de despliegue; para producción se mantienen los valores mínimo/recomendados de esta tabla.
 
 ### 1.6 Plataforma física recomendada
 
 | Decisión | Elección | Justificación |
 |---|---|---|
-| Formato | Torre o rack de 1U/2U | Funciona en servidor físico o VM con recursos aislados |
+| Formato | **Portátil (este equipo)** para desarrollo/pruebas/simulación; torre o rack 1U/2U para producción | El proyecto no depende de un hipervisor específico; Docker simplifica el despliegue en ambos |
 | Nivel RAID del servidor de base de datos | RAID 1 para discos de datos; RAID 10 si hay disponibilidad de discos suficientes | RAID 1 protege contra fallo de disco, mientras que RAID 10 ofrece mayor rendimiento y tolerancia |
 | Plataforma de ejecución | Bare metal o VM Linux con Docker | El proyecto no depende de un hipervisor específica; Docker simplifica el despliegue |
 
-Para una instalación en cliente, se recomienda una máquina de torre o rack con 2 vCPU, 4 GiB RAM y un SSD de 40 GiB. En el servidor de base de datos, se recomienda dos discos SSD de igual capacidad y un RAID 1; si el ingreso de datos es alto, RAID 10 con cuatro discos. El rango RAID 1 evita pérdida de datos por un único disco, pero no recupera una corrupción silenciosa; las copias de seguridad siguen siendo obligatorias.
+**Plataforma real en uso (2026-11-18):** portátil con AMD Ryzen 7 7735HS (8 núcleos / 16 hilos), 6.6 GiB RAM, SSD de 1007 GiB y Ubuntu 26.04 bajo WSL2. Es la plataforma de desarrollo, pruebas y **simulación de despliegue** (semana 4): no tiene RAID (un solo disco) ni redundancia de fuente, por lo que **los respaldos externos son obligatorios** (§3). El despliegue en producción real usará una máquina de torre o rack con al menos 2 vCPU, 4 GiB RAM y SSD de 40 GiB; en el servidor de base de datos se recomienda dos discos SSD de igual capacidad y un RAID 1 (RAID 10 con cuatro discos si el ingreso de datos es alto). El rango RAID 1 evita pérdida de datos por un único disco, pero no recupera una corrupción silenciosa; las copias de seguridad siguen siendo obligatorias.
 
 ### 1.7 Verificación de requisitos
 
@@ -1081,7 +1084,7 @@ Registro de cambios del plan:
 | Versión | Fecha | Cambios |
 |---|---|---|
 | 1.0 | 2026-11-04 | Secciones 1–4 y v0 de la 5 |
-| **1.1** | **2026-11-18** | **Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10** |
+| **1.1** | **2026-11-18** | **Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma)** |
 
 ### 10.2 Pruebas de aceptación
 
