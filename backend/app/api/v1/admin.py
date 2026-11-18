@@ -11,7 +11,10 @@ router = APIRouter(dependencies=[Depends(require_admin)])
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-ADMIN_CREATE_KEY = os.getenv("ADMIN_CREATE_KEY", "VET-ADMIN-2026")
+# Clave maestra para crear la primera cuenta de administrador.
+# Debe definirse en las variables de entorno (ver .env.example en la raíz).
+# Si no está definida, la creación de administradores queda denegada (fail-closed).
+ADMIN_CREATE_KEY = os.getenv("ADMIN_CREATE_KEY")
 
 def get_password_hash(password):
     return pwd_context.hash(password)

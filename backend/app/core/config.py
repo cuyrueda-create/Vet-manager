@@ -20,6 +20,13 @@ EMAIL_CONFIG = {
     'password': os.getenv("EMAIL_PASSWORD", "")
 }
 
-SECRET_KEY = os.getenv("SECRET_KEY", "mi_secreto_super_seguro_2024")
+# Clave para firmar los JWT. Debe definirse en las variables de entorno
+# (docker-compose.yml la inyecta desde .env; ver .env.example).
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "Falta la variable de entorno SECRET_KEY. Copia .env.example a .env "
+        "y define una clave (python -c \"import secrets; print(secrets.token_urlsafe(48))\")."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 43200
