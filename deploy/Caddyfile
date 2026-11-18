@@ -9,9 +9,10 @@
 {$DOMINIO} {
 	log
 
-	# API y documentación
+	# API y documentación (nombre del servicio en la red interna de Compose,
+	# siempre en el puerto 5000 del contenedor; API_PORT es solo el mapeo externo)
 	@backend path /api/* /auth/* /data/* /users* /mascotas* /clientes* /health /docs* /redoc* /openapi.json
-	reverse_proxy @backend 127.0.0.1:5000
+	reverse_proxy @backend backend:5000
 
 	# SPA React
 	reverse_proxy frontend:5173

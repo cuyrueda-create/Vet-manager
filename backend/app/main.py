@@ -12,6 +12,10 @@ from datetime import datetime, timedelta
 import secrets
 import re
 import os
+import time
+
+# Momento de arranque del proceso: lo reporta GET /health (uptime_s).
+_ARRANQUE_SEGUNDOS = time.time()
 from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
@@ -930,6 +934,8 @@ async def health_check():
         "status": "healthy" if db_status == "healthy" else "unhealthy",
         "database": db_status,
         "version": os.getenv("APP_VERSION", "dev"),
+        "ambiente": os.getenv("APP_ENV", "desarrollo"),
+        "uptime_s": round(time.time() - _ARRANQUE_SEGUNDOS, 1),
     }
 
 # ==================== AUTENTICACIÓN ====================

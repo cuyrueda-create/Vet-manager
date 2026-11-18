@@ -1,10 +1,6 @@
 # frontend/Dockerfile
 FROM node:20-alpine
 
-# Versión de la imagen (SemVer), se inyecta en tiempo de build.
-ARG APP_VERSION=dev
-ENV APP_VERSION=$APP_VERSION
-
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
@@ -17,6 +13,11 @@ COPY . .
 ARG VITE_API_URL=/
 ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm run build
+
+# Versión de la imagen (SemVer), se inyecta en tiempo de build.
+# Declarada al FINAL para no invalidar la caché de capas anteriores.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 
 EXPOSE 5173
 
