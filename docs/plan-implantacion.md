@@ -241,11 +241,54 @@ Comparar `SELECT COUNT(*)` exactos en origen y restauración para cada tabla. No
 
 ### 3.5 Evidencia de restauración
 
+**Ejecución real: 2026-11-18** (Docker Desktop activo, MySQL 8.0 en Compose). Antes el intento del 2026-11-04 quedó pendiente porque el daemon de Docker no estaba disponible.
+
+**Paso 1 — Respaldo con `scripts/respaldar.sh`:**
+
+```text
+Respaldo creado: backups/mysql/vet_manager-20261118T185238Z.sql.gz
+SHA-256: 0ce11a55cd27ce053a883cca3126ca16399b1c4c552ab963ff6d845e1fef9494
+Retención aplicada: 7 días
+gzip -t: exitoso (verificado por el script)
+```
+
+**Paso 2 — Restauración en base aparte (`vet_manager_restore`):** el dump se importó con
+`mysql -u root vet_manager_restore` y tardó **2 segundos**.
+
+**Paso 3 — Conciliación con `SELECT COUNT(*)` exactos (20 tablas, 110 filas):**
+
 | Tabla | Filas en producción | Filas restauradas | Resultado |
 |---|---:|---:|---|
-| Todas las tablas | Pendiente de medir | Pendiente de medir | No ejecutado: daemon Docker Desktop no disponible el 2026-11-04 |
+| agenda | 0 | 0 | ✅ |
+| citas | 3 | 3 | ✅ |
+| clientes | 4 | 4 | ✅ |
+| consultorio | 10 | 10 | ✅ |
+| factura_detalle | 2 | 2 | ✅ |
+| facturas | 2 | 2 | ✅ |
+| historial_clinico | 3 | 3 | ✅ |
+| insumos | 0 | 0 | ✅ |
+| inventario | 0 | 0 | ✅ |
+| mascotas | 3 | 3 | ✅ |
+| medicamentos | 15 | 15 | ✅ |
+| medicamentos_asignados | 2 | 2 | ✅ |
+| medicamentos_uso_interno | 0 | 0 | ✅ |
+| notificaciones | 17 | 17 | ✅ |
+| productos | 0 | 0 | ✅ |
+| proveedores | 0 | 0 | ✅ |
+| reportes | 0 | 0 | ✅ |
+| servicios | 10 | 10 | ✅ |
+| usuarios | 14 | 14 | ✅ |
+| veterinario_horarios | 25 | 25 | ✅ |
 
-Tiempo de restauración: pendiente. No se declara éxito hasta adjuntar conteos exactos antes/después y duración medida.
+`diff` entre ambos conteos: **sin diferencias**. Tiempo total: respaldo < 5 s, restauración 2 s.
+
+**Paso 4 — Simulacro de desastre (pérdida de una tabla):**
+
+1. `DROP TABLE usuarios` sobre `vet_manager_restore` con `FOREIGN_KEY_CHECKS=0` → quedaron 19 tablas. Antes, el borrado directo fue **rechazado por MySQL** por la FK `citas_ibfk_2`, lo que confirma que las restricciones están activas.
+2. Se extrajo la sección de `usuarios` del dump y se volvió a importar.
+3. Verificación: `usuarios` = 14 filas, 20 tablas, 4 FK en `citas`, PK y UNIQUE en `usuarios` → **todas intactas**.
+
+**Corrección aplicada al script:** el volcado se ejecuta como `root` dentro del contenedor porque `vet_user` no tiene los privilegios `PROCESS` / `SHOW CREATE PROCEDURE` que exigen `--routines` y `--events` (error detectado y corregido el 2026-11-18).
 
 ### 3.6 Calendario de pruebas
 
