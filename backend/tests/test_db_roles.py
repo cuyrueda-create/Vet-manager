@@ -67,3 +67,27 @@ def test_migrate_stored_procedures_con_error_cierra_la_conexion():
         main_module.migrate_stored_procedures()
 
     conexion.close.assert_called_once()
+
+
+def test_todas_las_migraciones_del_arranque_usan_el_rol_owner():
+    """Las líneas `get_db_connection(owner=True)` son código nuevo (§7.3)."""
+    import app.main as main_module
+
+    migraciones = [
+        main_module.migrate_usuarios_table,
+        main_module.migrate_clientes_table,
+        main_module.migrate_citas_table,
+        main_module.migrate_facturas_tables,
+        main_module.migrate_facturas_pago,
+        main_module.migrate_medicamentos_asignados,
+        main_module.migrate_veterinario_horarios,
+        main_module.migrate_roles,
+        main_module.migrate_admin_columns,
+        main_module.hash_existing_passwords,
+    ]
+
+    for migracion in migraciones:
+        conexion = MagicMock()
+        with patch.object(main_module, "get_db_connection", return_value=conexion) as get_conn:
+            migracion()
+        get_conn.assert_called_with(owner=True)
