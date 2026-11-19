@@ -22,9 +22,16 @@ jobs:
         with:
           python-version: "3.11"
       - name: Instalar dependencias
-        # --only-binary :all: impide ejecutar scripts de instalación (S8541)
-        # y las versiones vienen fijadas en requirements-dev.txt (S8544).
-        run: "pip install --only-binary :all: -r backend/requirements-dev.txt"
+        # S8544 ("dependencies locked to verified versions") exige ver las
+        # versiones == en el propio comando; -r no la satisface. Mantener
+        # sincronizado con backend/requirements-dev.txt / requirements.txt.
+        run: |
+          pip install --only-binary :all: \
+            fastapi==0.164.0 'uvicorn[standard]==0.54.0' mysql-connector-python==26.10.0 \
+            SQLAlchemy==2.0.57 alembic==1.20.1 'passlib[bcrypt]==1.7.4' \
+            'python-jose[cryptography]==3.5.0' python-dotenv==1.2.4 email-validator==2.4.0 \
+            pydantic==2.14.3 bcrypt==5.0.0 pyjwt==2.15.1 fpdf2==2.9.0 \
+            pytest==9.2.0 pytest-cov==7.1.0 httpx2==2.16.2
       - name: Ejecutar pruebas con cobertura
         # Se corre desde la RAÍZ del repo (no desde backend/) para que
         # coverage.xml use rutas relativas al repo (backend/app/...), que es
@@ -49,7 +56,14 @@ jobs:
         with:
           python-version: "3.11"
       - name: Instalar dependencias
-        run: "pip install --only-binary :all: -r backend/requirements-dev.txt"
+        # S8544: versiones == visibles en el comando (ver comentario del job tests).
+        run: |
+          pip install --only-binary :all: \
+            fastapi==0.164.0 'uvicorn[standard]==0.54.0' mysql-connector-python==26.10.0 \
+            SQLAlchemy==2.0.57 alembic==1.20.1 'passlib[bcrypt]==1.7.4' \
+            'python-jose[cryptography]==3.5.0' python-dotenv==1.2.4 email-validator==2.4.0 \
+            pydantic==2.14.3 bcrypt==5.0.0 pyjwt==2.15.1 fpdf2==2.9.0 \
+            pytest==9.2.0 pytest-cov==7.1.0 httpx2==2.16.2
       - name: Generar cobertura para SonarCloud
         run: |
           PYTHONPATH=backend python -m pytest backend/tests --cov=app --cov-report=xml:backend/coverage.xml --cov-report=term
