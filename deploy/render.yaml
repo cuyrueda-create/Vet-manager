@@ -35,6 +35,13 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      # Rol con DDL para las migraciones del arranque (§7.3). Si no se
+      # rellenan, config.py reutiliza DB_USER/DB_PASSWORD (válido en Aiven,
+      # donde el usuario por defecto avnadmin ya tiene todos los privilegios).
+      - key: DB_OWNER_USER
+        sync: false
+      - key: DB_OWNER_PASSWORD
+        sync: false
       - key: SECRET_KEY
         sync: false
       - key: ADMIN_CREATE_KEY

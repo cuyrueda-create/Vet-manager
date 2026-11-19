@@ -653,7 +653,7 @@ URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se
 
 1. Crear cuenta en Aiven y un servicio MySQL en plan Free; copiar host, puerto, usuario y contraseña desde el panel.
 2. Crear cuenta en Render → *New → Blueprint* → apuntar al repositorio; Render lee `deploy/render.yaml`.
-3. Definir los secretos **solo en el panel de Render** (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`, `ADMIN_CREATE_KEY`, `CORS_ORIGINS`); nunca en el repositorio.
+3. Definir los secretos **solo en el panel de Render** (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_OWNER_USER`, `DB_OWNER_PASSWORD`, `SECRET_KEY`, `ADMIN_CREATE_KEY`, `CORS_ORIGINS`); nunca en el repositorio. `DB_OWNER_*` es el rol con DDL que ejecuta las migraciones del arranque (§7.3). En Aiven el usuario por defecto `avnadmin` ya es administrador, así que mientras no se creen los roles separados allí se puede rellenar con el mismo usuario/contraseña que `DB_*` (config.py hace esa compatibilidad). Para aplicar la separación en la nube, crear en Aiven `vet_app` (CRUD+EXECUTE) y `vet_owner` (ALL) ejecutando el mismo SQL de `database/2-roles.sh` y usarlos en Render.
 4. Deploy; esperar que `/health` responda `healthy`.
 5. Ejecutar `bash scripts/smoke-test.sh https://<url-publica>` y guardar la salida.
 6. Probar el arranque en frío: apagar el servicio, medir el tiempo hasta que `/health` responda de nuevo.
