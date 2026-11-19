@@ -7,8 +7,10 @@ uvicorn[standard]==0.54.0
 mysql-connector-python==26.10.0
 SQLAlchemy==2.0.57
 alembic==1.20.1
+# python-jose[cryptography] ELIMINADO (2026-11-19): no se importa en ningún
+# archivo (la app usa PyJWT/pyjwt) y su vulnerabilidad PYSEC-2026-4298 no
+# tiene versión de arreglo — ver auditoría §9.1 del plan.
 passlib[bcrypt]==1.7.4
-python-jose[cryptography]==3.5.0
 python-dotenv==1.2.4
 email-validator==2.4.0
 pydantic==2.14.3

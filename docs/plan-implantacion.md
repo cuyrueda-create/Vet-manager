@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.1 |
-| Fecha | 2026-11-18 |
+| Versión del plan | 1.2 |
+| Fecha | 2026-11-19 |
 
 ---
 
@@ -685,7 +685,7 @@ URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se
 
 ## 6. Configuración y verificación — Semana 5 (CE-1, CE-3)
 
-**Versión del software cubierta:** 1.1.0 · **Fecha:** 2026-11-18 · **Estado:** base aplicada; migración a base gestionada pendiente de las cuentas de nube.
+**Versión del software cubierta:** 1.1.0 · **Fecha:** 2026-11-19 · **Estado:** base aplicada y verificada (51 pruebas en verde, rotación de logs en producción); migración a base gestionada pendiente de las cuentas de nube.
 
 ### 6.1 Inventario de configuración
 
@@ -707,12 +707,15 @@ Plantillas sin secretos: `.env.example`, `backend/.env.example`, `frontend/.env.
 
 | Servicio | Imagen / versión | Depende de | Política de reinicio | Healthcheck | Rotación de logs |
 |---|---|---|---|---|---|
-| `mysql` | `mysql:8.0` | — | `always` | `mysqladmin ping` (10 s) | `json-file` con límites por defecto de Docker; definir `max-size`/`max-file` en producción |
+| `mysql` | `mysql:8.0` | — | `always` | `mysqladmin ping` (10 s) | `json-file` 10 m × 3 (§6.2) |
 | `backend` | `vet-manager-backend:1.1.0` | `mysql` (`service_healthy`) | `always` | `GET /health` en el contenedor (15 s) | ídem |
 | `frontend` | `vet-manager-frontend:1.1.0` | `backend` (`service_healthy` en prod) | `always` | — (estático) | ídem |
 | `caddy` | `caddy:2.10.2-alpine` | `backend`, `frontend` | `unless-stopped` | — | log de accesos con `log` en el Caddyfile |
+| `uptime-kuma` | `louislam/uptime-kuma:1` | — | `always` | `node` sobre `127.0.0.1:3001` (30 s) | `json-file` 10 m × 3 (§8.5) |
 
-Orden de arranque: `mysql → backend (espera healthy) → frontend → caddy`. **Docker no reinicia un contenedor `unhealthy` por sí solo**: lo marca y detiene el `--wait`; la política `restart: always` cubre caídas, no salud. Pendiente de configurar: `logging: options: max-size/max-file` en `compose.prod.yaml` (rotación de logs).
+Orden de arranque: `mysql → backend (espera healthy) → frontend → caddy`. **Docker no reinicia un contenedor `unhealthy` por sí solo**: lo marca y detiene el `--wait`; la política `restart: always` cubre caídas, no salud.
+
+**Rotación de logs (cerrado 2026-11-19):** `deploy/compose.prod.yaml` define el ancla `x-logging` (`driver: json-file`, `max-size: 10m`, `max-file: 3`, ~30 MB por servicio antes de rotar) y la aplican los 5 servicios. Verificado con `docker compose -f deploy/compose.prod.yaml config --quiet` → exit 0.
 
 ### 6.3 Endpoint de salud
 
@@ -744,18 +747,20 @@ Salida contra el servidor (2026-11-18, instalación → actualización → rollb
 
 | ID | Caso | Pasos | Resultado esperado | Resultado obtenido |
 |---|---|---|---|---|
-| F-01 | Login con credenciales válidas | POST `/auth/login` con usuario de prueba | Token JWT + datos de usuario | Pendiente de automatizar (cubiertos por unitarias de `security.py`/`auth.py`) |
-| F-02 | Login con contraseña incorrecta | POST `/auth/login` con clave errónea | 401 | Pendiente de automatizar |
+| F-01 | Login con credenciales válidas | POST `/auth/login` con usuario de prueba | Token JWT + datos de usuario | ✅ automático: `test_login_funcional.py::test_f01_login_con_credenciales_validas_devuelve_token` |
+| F-02 | Login con contraseña incorrecta | POST `/auth/login` con clave errónea | 401 | ✅ automático: `test_f02_login_con_contrasena_incorrecta_responde_401` + `test_f02b_login_con_email_inexistente_responde_401` (sin enumerar usuarios) |
 | F-03 | Health sin base de datos | Detener `mysql`, GET `/health` | `unhealthy` | ✅ automático: `test_health_sin_base_de_datos` |
 | F-04 | CORS: origen desconocido rechazado | GET `/health` con `Origin` malicioso | Sin `access-control-allow-origin` | ✅ automático: `test_cors_denegado_para_origen_desconocido` |
 | F-05 | Política de contraseñas | Crear admin con clave débil | Rechazo con mensaje | ✅ automático: `test_admin.py` (6 casos) |
+
+Los tests de F-01/F-02 usan la base simulada de `tests/conftest.py` y ejercitan el handler real de `POST /auth/login` (no solo `security.py`), incluida la respuesta idéntica para correo inexistente. **Suite completa: 51 pruebas en verde** (`PYTEST_EXIT=0`, 2026-11-19).
 
 ### 6.5 Lista de verificación posterior al despliegue
 
 - [x] Toda la configuración obligatoria está en variables de entorno, con `.env.example` completo
 - [x] El proyecto no arranca si falta configuración obligatoria y lo dice claramente (`:?` en Compose, `RuntimeError` en `config.py`)
 - [x] Prueba de humo automática posterior a cada cambio (despliegue, actualización, rollback)
-- [ ] Logs con rotación configurada en producción (`max-size`/`max-file`)
+- [x] Logs con rotación configurada en producción (`max-size: 10m` / `max-file: 3` en los 5 servicios del compose de producción)
 - [ ] Migración de datos a la base gestionada con huellas idénticas y humo después del corte (§2.8)
 
 ### 2.8 Evidencia de migración ejecutada (se agrega a la sección 2)
@@ -770,7 +775,7 @@ Salida contra el servidor (2026-11-18, instalación → actualización → rollb
 
 ## 7. Seguridad, usuarios y permisos — Semana 6 (CE-1, CE-4)
 
-**Fecha:** 2026-11-18 · **Estado:** aplicación endurecida + evidencia local; endurecimiento del servidor Linux pendiente de existir el servidor.
+**Fecha:** 2026-11-19 · **Estado:** aplicación endurecida + evidencia local; endurecimiento del servidor Linux pendiente de existir el servidor.
 
 ### 7.1 Usuarios del sistema operativo
 
@@ -900,18 +905,20 @@ Problemas encontrados y cambios aplicados: `vet_user` no puede volcar (`PROCESS`
 
 ## 8. Pipeline de despliegue y monitoreo — Semana 7 (CE-1, CE-5)
 
-**Fecha:** 2026-11-18 · **Estado:** CI de pruebas + SonarCloud configurado; entrega continua (GHCR/Render) y monitoreo pendientes.
+**Fecha:** 2026-11-19 · **Estado:** CI de pruebas en verde, Quality Gate de SonarCloud en **OK** y monitoreo definido en el compose; entrega continua (GHCR/Render) pendiente de las cuentas de nube.
 
 ### 8.1 Pipeline
 
 | Workflow | Evento | Etapas | Resultado |
 |---|---|---|---|
-| `sonarcloud.yml` (job `tests`) | push a `main`/`develop`, pull request | instalar dependencias → `pytest --cov` | check **Pruebas del backend** en verde (42 pruebas) |
+| `sonarcloud.yml` (job `tests`) | push a `main`/`develop`, pull request | instalar dependencias → `pytest --cov` | check **Pruebas del backend** en verde (**51 pruebas**) |
 | `sonarcloud.yml` (job `sonarcloud`) | ídem (`needs: tests`) | generar cobertura → scan SonarCloud | check **SonarCloud Scan** solo corre si las pruebas pasan |
 
 Enlace: [`.github/workflows/sonarcloud.yml`](../.github/workflows/sonarcloud.yml).
 
 **Corrección aplicada (2026-11-18):** el scan se ejecutaba sin pruebas → cobertura 0 % y Quality Gate en ERROR (`new_coverage 0.0% < 80%`). Ahora los tests corren antes y `sonar-project.properties` apunta a `backend/coverage.xml` (marcadores de conflicto resueltos).
+
+**Calidad (2026-11-19): Quality Gate en OK.** Análisis de SonarCloud del commit `005938c` (2026-11-19T20:14:18Z): `new_coverage 100.0 %`, 0 issues nuevas, duplicados 0.0 %, security/reliability/maintainability 1 (las 3 reglas de higiene), hotspots revisados 100 %. Los 3 commits que lo cerraron: `e1d2117` (8 cambios de calidad + 6 tests), `3c01287` (`backend/tests/**` en `sonar.exclusions` por el error *can't be indexed twice*) y `005938c` (versiones `==` inline en los 3 `pip install`, porque la regla `docker:S8544` **no sigue `-r requirements.txt`**).
 
 Reglas de protección (propuestas, configurables en GitHub):
 
@@ -932,8 +939,9 @@ Pendiente cuando exista la nube: `RENDER_DEPLOY_HOOK_URL` (ambiente `produccion`
 
 | Evento | Enlace | Duración | Resultado |
 |---|---|---|---|
-| Push con pruebas nuevas (42 en verde) | commit `2cd4cf2` (local; se verá tras el push) | — | Pendiente de push para ver el check en GitHub |
-| Liberación `v1.0.0` / `v1.1.0` | Etiquetas locales creadas | — | Pendiente de push (`git push origin --tags`) |
+| Push con pruebas nuevas | commits `e1d2117` → `005938c` en `main` | ~2 min/job | ✅ Check **Pruebas del backend** en verde (51 pruebas) y **SonarCloud Scan** en verde |
+| Quality Gate | análisis de SonarCloud rev `005938c` (2026-11-19T20:14:18Z) | — | ✅ **OK** (new_coverage 100.0 %, 0 issues nuevas, duplicados 0.0 %) |
+| Liberación `v1.0.0` / `v1.1.0` | etiquetas en el remoto (`git ls-remote --tags` → `refs/tags/v1.0.0`, `refs/tags/v1.1.0`) | — | ✅ Pusheadas (`git push origin --tags`) |
 | Rollback `1.1.0 → 1.0.0` | §5.2 Evidencia | < 1 min | ✅ Smoke test 6/6 tras el rollback |
 
 ### 8.4 Procedimiento de despliegue y rollback
@@ -968,13 +976,14 @@ Rollback:    repetir 3-5 con la versión anterior
 
 | Campo | Valor |
 |---|---|
-| Dónde corre Uptime Kuma | **Pendiente:** contenedor propio en el servidor (`uptime-kuma` en el compose de operación) |
+| Dónde corre Uptime Kuma | Servicio `uptime-kuma` en `deploy/compose.prod.yaml`: imagen `louislam/uptime-kuma:1`, volumen `uptime_kuma_data`, UI **solo en loopback** (`127.0.0.1:${KUMA_PORT:-8081}`); para entrar: `ssh -L 8081:127.0.0.1:8081 <usuario>@<servidor>` |
+| Monitores creados (§8.5) | HTTP `http://backend:5000/health` cada 60 s (API + BD) y latido del respaldo (push, 25 h) — *a configurar en la primera entrada al panel* |
 | Canal de alertas y quién lo lee | Pendiente: canal de mensajería del equipo, atención del responsable técnico |
 | Horario de atención de alertas | Propuesta: horas hábiles; P1 las 24 h |
 
 ## 9. Mantenimiento, soporte y capacitación — Semana 8 (CE-5)
 
-**Fecha:** 2026-11-18 · **Estado:** plan propuesto; ejecución calendárica a partir de la puesta en producción.
+**Fecha:** 2026-11-19 · **Estado:** herramientas creadas (Dependabot, runbooks, guía, FAQ) y primera auditoría ejecutada; ejecución calendárica a partir de la puesta en producción.
 
 ### 9.1 Plan de mantenimiento
 
@@ -1007,13 +1016,35 @@ Ventana de mantenimiento propuesta: **domingos 02:00–04:00 (hora local), aviso
 | Parche de dependencias (Python/npm) | 14 días | PR de Dependabot → CI en verde → fusionar → versión de parche |
 | Actualización de imágenes base | Ventana mensual | Humo en verde antes y después |
 
-**Pendiente:** crear `.github/dependabot.yml` (pip + npm + docker) y ejecutar la primera auditoría (`pip-audit`/`npm audit`/`trivy`).
+**Creado (2026-11-19):** [`.github/dependabot.yml`](../.github/dependabot.yml) con los ecosistemas `pip` (`/backend`), `npm` (`/frontend`), `docker` (`/backend`) y `github-actions` (`/`), revisión semanal los lunes, hasta 5 PR abiertos por ecosistema, etiquetas `dependabot` + `python`/`frontend`/`docker`/`ci` y prefijos `chore(deps)`/`chore(docker)`/`chore(actions)`. YAML validado (`yaml.safe_load` → OK). **Primera auditoría ejecutada 2026-11-19** (tabla siguiente).
 
-#### Auditoría (resultado de la primera ejecución)
+#### Auditoría (primera ejecución: 2026-11-19)
 
 | Herramienta | Hallazgo | Severidad | ¿En la imagen desplegada? | Decisión |
-|---|---|---|:---:|---|
-| — | Pendiente de ejecutar (`pip-audit`, `npm audit`, `trivy`) | — | — | Abrir PR con Dependabot y decidir por hallazgo |
+|---|---|:---:|:---:|---|
+| `pnpm audit` (frontend) | **0 vulnerabilidades** | — | — | ✅ Nada que hacer |
+| `pip-audit` (antes de remediación) | 18 vulnerabilidades en 4 paquetes: `pip 24.0` (6 IDs), `setuptools 79.0.1` (2), `python-jose 3.5.0` (1, **sin fix**), `ecdsa 0.19.2` (2) | HIGH/CRITICAL | Sí | Remediado (ver abajo) |
+| `pip-audit` (después de remediación) | **"No known vulnerabilities found"** | — | — | ✅ Cerrado |
+| `trivy image` (imagen backend `52b2028e91e2`) | `setuptools 70.3.0` → CVE-2025-47273 (path traversal en `PackageIndex`) | HIGH | **No** — falso positivo explicado abajo | Sin acción; documentado |
+
+**Remediaciones aplicadas (commits de la rama `main`):**
+
+| Hallazgo | Acción | Evidencia |
+|---|---|---|
+| `python-jose 3.5.0` (PYSEC-2026-4298, sin versión de arreglo) | **Eliminado** de `requirements.txt` + de las 3 listas inline (Dockerfile y 2 jobs del workflow): nadie lo importa (`grep "from jose\|import jose"` → 0); la app usa **PyJWT** (`import jwt` en `main.py` y `security.py`) | `pip-audit` deja de reportarlo |
+| `ecdsa 0.19.2` (dependía solo de python-jose) | Desaparece con el paquete anterior | `pip show ecdsa` → `Required-by: python-jose` |
+| `pip 24.0` (PYSEC-2026-1795/1796/2875/2876/196/3721) | `pip==26.3` en el Dockerfile | `pip --version` → 26.3 |
+| `setuptools 79.0.1` (PYSEC-2026-3447, GHSA-xmj3-9gf7-h52w) | `setuptools==84.1.0` en el Dockerfile | `pip list` → 84.1.0 |
+| `wheel 0.45.1` / `jaraco.context 5.3.0` (trivy, HIGH) | `wheel==0.46.3`, `jaraco.context==6.1.0` en el Dockerfile | `pip list` → 0.46.3 / 6.1.0 |
+
+**Sobre el hallazgo residual de trivy (falso positivo, verificado):** trivy reporta `setuptools 70.3.0` en la capa `e49319cd…` de la imagen, pero:
+
+- `pip list` y `python -c "import setuptools; print(setuptools.__version__)"` → **84.1.0** (≥ 78.1.1, la versión corregida).
+- `find / -name package_index.py` (el módulo vulnerable) → **ningún resultado** en toda la imagen.
+- La cadena `setuptools==70.3.0` solo aparece en la **metadata interna de pip**: `pip/_vendor/vendor.txt` (el manifiesto de lo que pip vendora) y su SBOM `pip/_vendor/bom.cdx.json`. De ese paquete, pip solo incluye `pip/_vendor/pkg_resources`; **`pip/_vendor/setuptools` no existe** y `package_index.py` (el módulo afectado por el CVE) no está en ningún punto de la imagen.
+- `pip-audit` (que lee los `dist-info` reales) → **sin vulnerabilidades**.
+
+Es decir: trivy interpreta el manifest de dependencias de pip como si fuera un paquete instalado. No hay código vulnerable en la imagen; se deja registrado para no re-abrirlo en cada auditoría.
 
 ### 9.2 Soporte
 
@@ -1039,8 +1070,8 @@ Canal único de reporte: formulario/ dirección de soporte **(pendiente: crear e
 
 | Runbook | Alerta o síntoma | Probado por (rol, otro equipo) | Correcciones tras la prueba |
 |---|---|---|---|
-| `docs/runbooks/salud-en-rojo.md` (pendiente de crear) | "Salud" en rojo en el monitor | Pendiente (gate semana 9) | — |
-| `docs/runbooks/respaldo-fallido.md` (pendiente) | Latido de respaldo ausente | Pendiente | — |
+| [`docs/runbooks/salud-en-rojo.md`](runbooks/salud-en-rojo.md) (creado 2026-11-19) | "Salud" en rojo en el monitor | Pendiente (gate semana 9: simulacro con observador externo) | — |
+| [`docs/runbooks/respaldo-fallido.md`](runbooks/respaldo-fallido.md) (creado 2026-11-19) | Latido de respaldo ausente | Pendiente | — |
 
 ### 9.3 Capacitación
 
@@ -1056,14 +1087,14 @@ Cronograma: **a definir con el cliente** (semana 9, junto con el acta).
 
 | Ayuda | Enlace | Versión del software | Probada por (rol) |
 |---|---|---|---|
-| Guía rápida | `docs/guia-rapida.md` (pendiente de crear) | 1.1.0 | Pendiente |
-| Preguntas frecuentes | `docs/faq.md` (pendiente de crear) | 1.1.0 | Pendiente |
+| Guía rápida | [`docs/guia-rapida.md`](guia-rapida.md) (creada 2026-11-19) | 1.1.0 | Pendiente (cliente, sesión de capacitación §9.3) |
+| Preguntas frecuentes | [`docs/faq.md`](faq.md) (creada 2026-11-19) | 1.1.0 | Pendiente (soporte N1, §9.3) |
 
-Dónde se enlazan: README del repositorio y, en la app, el pie de página/panel de administración (pendiente).
+Dónde se enlazan: sección **"Ayudas en línea"** del [README](../README.md) (hecho); en la app, el pie de página/panel de administración (pendiente).
 
 ## 10. Aceptación y entrega — Semana 9 (CE-1 a CE-5)
 
-**Fecha:** 2026-11-18 (borrador) · **Estado:** preparado para el gate; pruebas de aceptación y simulacro cruzado pendientes de ejecutar con el cliente y otro equipo.
+**Fecha:** 2026-11-19 · **Estado:** materiales de aceptación preparados (guía de UAT, acta en borrador, registro de simulacro); ejecución de la UAT, simulacro cruzado y firma del acta pendientes de cliente y otro equipo.
 
 ### 10.1 Consolidación
 
@@ -1074,28 +1105,29 @@ Dónde se enlazan: README del repositorio y, en la app, el pie de página/panel 
 | 3. Respaldo | ✅ | Respaldo + restauración + simulacro de desastre reales (§3.5) |
 | 4. Hosting y dominio | ✅ | Reverse proxy probado con evidencia (§4.5) |
 | 5. Instalación | ✅ (local) / 🟡 (nube) | Instalación→actualización→rollback probados; nube pendiente de cuentas |
-| 6. Configuración | 🟡 | Inventario y health completos; migración y rotación de logs pendientes |
+| 6. Configuración | 🟡 | Inventario, health, rotación de logs y F-01/F-02 completos; migración a nube pendiente (§2.8) |
 | 7. Seguridad | 🟡 | Secretos fuera del repo + permisos 600; SSH/UFW/roles BD pendientes de servidor real |
-| 8. Pipeline y monitoreo | 🟡 | CI de pruebas + SonarCloud; entrega continua y Uptime Kuma pendientes |
-| 9. Mantenimiento, soporte y capacitación | 🟡 | Plan completo; runbooks, FAQ y cronograma pendientes |
+| 8. Pipeline y monitoreo | 🟡 | CI en verde + Quality Gate OK + tags pusheados; Uptime Kuma en compose; entrega continua y canal de alertas pendientes |
+| 9. Mantenimiento, soporte y capacitación | 🟡 | Dependabot + primera auditoría (pip-audit/pnpm/trivy) + runbooks + guía/FAQ; cronograma de capacitación pendiente |
 
 Registro de cambios del plan:
 
 | Versión | Fecha | Cambios |
 |---|---|---|
 | 1.0 | 2026-11-04 | Secciones 1–4 y v0 de la 5 |
-| **1.1** | **2026-11-18** | **Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma)** |
+| 1.1 | 2026-11-18 | Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma) |
+| **1.2** | **2026-11-19** | **Cierre de semanas 5–9: §6 rotación de logs + F-01/F-02 automatizados (51 tests); §7 actualizada; §8 Quality Gate OK + evidencia de CI y tags; §9 Dependabot + auditoría con decisión por hallazgo (pip-audit limpio, trivy falso positivo documentado) + runbooks + guía/FAQ; §10 materiales de aceptación (UAT, acta, registro de simulacro)** |
 
 ### 10.2 Pruebas de aceptación
 
 | Campo | Valor |
 |---|---|
-| Casos ejecutados / total | 5 automatizados (F-03…F-05 + seguridad) / 5 manuales pendientes (F-01, F-02 y flujos de negocio) |
-| Criterios de salida acordados | Smoke test 6/6, restauración conciliada, sin secretos en el repo, CI en verde |
+| Casos ejecutados / total | **51 automatizados en verde** (F-01…F-05 + seguridad + unitarias) / manuales de negocio C-01…P-07 y S-01…S-03 en la guía de UAT, pendientes con el cliente |
+| Criterios de salida acordados | Smoke test 6/6, restauración conciliada, sin secretos en el repo, CI en verde + Quality Gate OK |
 | Defectos (bloqueantes / mayores / menores / cosméticos) | 0 / 0 / 0 / 0 — pendiente de ejecutar la UAT con el cliente |
 | Decisión | **Pendiente** del cliente |
 
-Detalle de casos: `backend/tests/` (automatizados) + guía de UAT pendiente.
+Detalle de casos: automatizados en `backend/tests/` (51, incluidos F-01/F-02 de login); manuales y de seguridad en [`docs/uat.md`](uat.md) (guía creada 2026-11-19, con plantilla de defectos y decisión final firmable).
 
 ### 10.3 Simulacro cruzado
 
@@ -1108,11 +1140,11 @@ Detalle de casos: `backend/tests/` (automatizados) + guía de UAT pendiente.
 | Resultado | **Pendiente** |
 | Desviaciones y corrección aplicada | — |
 
-Registro firmado por el observador: pendiente (`docs/registro-simulacro.md`).
+Registro firmado por el observador: plantilla lista en [`docs/registro-simulacro.md`](registro-simulacro.md) (8 pasos de la §5.2, tabla de huellas 20/20 y firmas) — pendiente de ejecutar con el otro equipo.
 
 ### 10.4 Acta de entrega
 
-Enlace: pendiente (`docs/acta-entrega.md`) — sin firmas reales ni secretos; incluye niveles de servicio de la §9.2 y transferencia de accesos (panel Render/Aiven, GitHub, servidor).
+Enlace: [`docs/acta-entrega.md`](acta-entrega.md) — **borrador sin firmas** (creado 2026-11-19), sin secretos ni credenciales reales; incluye alcance entregado, niveles de servicio de la §9.2, transferencia de accesos por canal aparte, checklist de aceptación y tabla de firmas. Pendiente de completar con el cliente en la sesión de la semana 9.
 
 ### 10.5 Socialización y lecciones aprendidas
 

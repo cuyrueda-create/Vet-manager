@@ -24,8 +24,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --only-binary :all: \
     fastapi==0.164.0 'uvicorn[standard]==0.54.0' mysql-connector-python==26.10.0 \
     SQLAlchemy==2.0.57 alembic==1.20.1 'passlib[bcrypt]==1.7.4' \
-    'python-jose[cryptography]==3.5.0' python-dotenv==1.2.4 email-validator==2.4.0 \
+    python-dotenv==1.2.4 email-validator==2.4.0 \
     pydantic==2.14.3 bcrypt==5.0.0 pyjwt==2.15.1 fpdf2==2.9.0
+
+# Herramientas de empaquetado de la imagen base, actualizadas en cada build
+# para no arrastrar vulnerabilidades conocidas (pip-audit/trivy, §9.1).
+RUN pip install --no-cache-dir --only-binary :all: \
+    pip==26.3 setuptools==84.1.0 wheel==0.46.3 jaraco.context==6.1.0
 
 COPY . .
 

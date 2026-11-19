@@ -175,6 +175,16 @@ Documentación interactiva en `/docs` (Swagger UI) y `/redoc`. Algunos endpoints
 | Recepcionista | Dashboard, Citas, Clientes, Mascotas, Facturas, Reportes | `recepcionista/` |
 | Cliente | Mis citas, Nueva cita, Mis mascotas, Mis facturas | `usuario/` |
 
+## 📖 Ayudas en línea (v1.1.0)
+
+| Ayuda | Enlace |
+|---|---|
+| Guía rápida de uso | [`docs/guia-rapida.md`](docs/guia-rapida.md) |
+| Preguntas frecuentes (FAQ) | [`docs/faq.md`](docs/faq.md) |
+| Runbooks de operación | [`docs/runbooks/salud-en-rojo.md`](docs/runbooks/salud-en-rojo.md) · [`docs/runbooks/respaldo-fallido.md`](docs/runbooks/respaldo-fallido.md) |
+| Guía de UAT (aceptación) | [`docs/uat.md`](docs/uat.md) |
+| Plan de implantación (§1–§10) | [`docs/plan-implantacion.md`](docs/plan-implantacion.md) |
+
 ## 📄 Licencia
 
 Proyecto privado. Ver `mobile/LICENSE` para la licencia del código base de la app móvil.

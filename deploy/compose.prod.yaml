@@ -9,6 +9,7 @@
 #   HTTP_PORT     puerto publicado de Caddy (defecto 80)
 #   HTTPS_PORT    puerto publicado de Caddy (defecto 443)
 #   API_PORT      puerto loopback del backend (defecto 5000)
+#   KUMA_PORT     puerto loopback de Uptime Kuma (defecto 8081)
 #   CADDYFILE     ruta del Caddyfile a montar (defecto deploy/Caddyfile;
 #                 usar deploy/Caddyfile.local en pruebas sin dominio)
 #
@@ -21,14 +22,24 @@
 #   - El backend solo se publica en loopback; el único acceso público es
 #     Caddy (80/443).
 #   - Healthchecks para que `--wait` sepa cuándo el stack está listo.
+#   - Rotación de logs (json-file, 10m × 3) en todos los servicios (§6.5).
 
 name: vet-manager-prod
+
+# Rotación de logs compartida por todos los servicios (evita llenar el disco
+# con logs ilimitados de json-file). Ver §6.2 del plan.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   # ==================== BASE DE DATOS ====================
   mysql:
     image: mysql:8.0
     restart: always
+    logging: *logging
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Definida en .env (ver deploy/env.prod.example)}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-vet_manager}
@@ -53,6 +64,7 @@ services:
   backend:
     image: vet-manager-backend:${APP_VERSION:?Define APP_VERSION en .env o en el shell}
     restart: always
+    logging: *logging
     environment:
       APP_VERSION: ${APP_VERSION}
       APP_ENV: ${APP_ENV:-produccion}
@@ -87,6 +99,7 @@ services:
   frontend:
     image: vet-manager-frontend:${APP_VERSION:?Define APP_VERSION en .env o en el shell}
     restart: always
+    logging: *logging
     depends_on:
       backend:
         condition: service_healthy
@@ -97,6 +110,7 @@ services:
   caddy:
     image: caddy:2.10.2-alpine
     restart: unless-stopped
+    logging: *logging
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
@@ -112,11 +126,33 @@ services:
     networks:
       - vet_network
 
+  # ==================== MONITOREO (§8.5) ====================
+  # Uptime Kuma: monitorea http://backend:5000/health cada 60 s y el latido
+  # del respaldo. La UI queda SOLO en loopback (127.0.0.1:8081); para entrar
+  # desde el navegador del servidor: ssh -L 8081:127.0.0.1:8081 <usuario>@<servidor>
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: always
+    logging: *logging
+    volumes:
+      - uptime_kuma_data:/app/data
+    ports:
+      - "127.0.0.1:${KUMA_PORT:-8081}:3001"
+    networks:
+      - vet_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
 # ==================== VOLÚMENES ====================
 volumes:
   mysql_data:
   caddy_data:
   caddy_config:
+  uptime_kuma_data:
 
 # ==================== REDES ====================
 networks:

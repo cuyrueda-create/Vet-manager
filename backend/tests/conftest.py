@@ -12,8 +12,10 @@ if str(BACKEND_DIR) not in sys.path:
 
 os.environ.setdefault("SECRET_KEY", "clave_de_prueba_no_para_produccion")
 os.environ.setdefault("ADMIN_CREATE_KEY", "TEST-ADMIN-KEY")
-os.environ.setdefault("APP_VERSION", "test")
-os.environ.setdefault("APP_ENV", "test")
+# APP_VERSION/APP_ENV se FIJAN (no setdefault): la imagen Docker define
+# APP_VERSION=dev y los tests de /health exigen un valor determinista.
+os.environ["APP_VERSION"] = "test"
+os.environ["APP_ENV"] = "test"
 os.environ.setdefault("DB_HOST", "localhost")
 os.environ.setdefault("DB_PORT", "3307")
 os.environ.setdefault("DB_NAME", "vet_manager_test")
