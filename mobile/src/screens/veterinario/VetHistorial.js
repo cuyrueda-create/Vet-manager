@@ -41,17 +41,17 @@ export default function VetHistorial({ navigation }) {
     }
   };
 
-  useEffect(() => { loadMascotas(); }, []);
+  useEffect(() => { void loadMascotas(); }, []);
 
   useEffect(() => {
-    if (selectedPet) loadHistorial(selectedPet.id_mascota);
+    if (selectedPet) void loadHistorial(selectedPet.id_mascota);
   }, [selectedPet]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    if (selectedPet) loadHistorial(selectedPet.id_mascota);
+    if (selectedPet) void loadHistorial(selectedPet.id_mascota);
     else {
-      loadMascotas();
+      void loadMascotas();
       setRefreshing(false);
     }
   }, [selectedPet]);

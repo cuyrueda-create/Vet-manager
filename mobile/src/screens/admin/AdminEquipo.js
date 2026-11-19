@@ -31,7 +31,7 @@ export default function AdminEquipo({ navigation }) {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const vets = usuarios.filter(u => u.rol === 'veterinario');
   const receps = usuarios.filter(u => u.rol === 'recepcionista');
@@ -97,7 +97,7 @@ export default function AdminEquipo({ navigation }) {
       data={[]}
       renderItem={() => null}
       contentContainerStyle={styles.list}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
       ListHeaderComponent={
         <>
           <Text style={styles.title}>Equipo</Text>

@@ -34,7 +34,7 @@ export default function AdminBloc() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const sections = roleOrder
     .map(rol => ({
@@ -92,7 +92,7 @@ export default function AdminBloc() {
       renderSectionHeader={renderSectionHeader}
       contentContainerStyle={styles.list}
       stickySectionHeadersEnabled={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
       ListHeaderComponent={
         <>
           <Text style={styles.title}>Bloc de Usuarios</Text>

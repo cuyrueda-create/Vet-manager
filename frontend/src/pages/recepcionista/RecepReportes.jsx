@@ -16,7 +16,7 @@ const RecepReportes = () => {
     { id: 'pendiente', label: 'Pendiente por Cobrar', icon: 'document', color: '#f59e0b' },
   ];
 
-  useEffect(() => { fetchReport(); }, [activeTab, fecha]);
+  useEffect(() => { void fetchReport(); }, [activeTab, fecha]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -96,8 +96,8 @@ const RecepReportes = () => {
         {activeTab !== 'pendiente' && (
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Fecha</label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)}
+              <label htmlFor="campo_99_3926" style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Fecha</label>
+              <input id="campo_99_3926" type="date" value={fecha} onChange={e => setFecha(e.target.value)}
                 style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
             </div>
           </div>

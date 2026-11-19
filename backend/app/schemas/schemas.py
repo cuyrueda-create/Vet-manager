@@ -39,8 +39,8 @@ class MascotaResponse(BaseModel):
     id: int
     nombre: str
     especie: str
-    raza: Optional[str]
-    edad: Optional[int]
+    raza: Optional[str] = None
+    edad: Optional[int] = None
     dueno_id: int
     
     class Config:
@@ -52,7 +52,7 @@ class CitaResponse(BaseModel):
     mascota_id: int
     mascota_nombre: Optional[str] = None
     fecha: datetime
-    motivo: Optional[str]
+    motivo: Optional[str] = None
     estado: str
     
     class Config:

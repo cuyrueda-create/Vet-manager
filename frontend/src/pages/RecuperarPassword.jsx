@@ -36,8 +36,8 @@ const RecuperarPassword = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Correo electrónico</label>
-            <input
+            <label htmlFor="campo_39_1283">Correo electrónico</label>
+            <input id="campo_39_1283"
               type="email"
               placeholder="ejemplo@correo.com"
               value={email}

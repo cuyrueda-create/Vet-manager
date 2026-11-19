@@ -31,11 +31,11 @@ class ClienteResponse(BaseModel):
     id_cliente: int
     nombre: str
     apellido: str
-    email: Optional[str]
-    telefono: Optional[str]
-    direccion: Optional[str]
-    tipo_documento: Optional[str]
-    numero_documento: Optional[str]
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    tipo_documento: Optional[str] = None
+    numero_documento: Optional[str] = None
     is_active: bool
 
 # ==================== ENDPOINTS ====================

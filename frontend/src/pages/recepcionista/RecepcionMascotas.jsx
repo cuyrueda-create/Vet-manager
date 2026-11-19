@@ -37,8 +37,8 @@ const RecepcionMascotas = () => {
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio';
     const especieFinal = form.especie === 'Otro' ? form.especie_custom.trim() : form.especie;
     if (!especieFinal) e.especie = 'La especie es obligatoria';
-    if (form.edad !== '' && (isNaN(form.edad) || Number(form.edad) < 0 || Number(form.edad) > 100)) e.edad = 'Edad inválida (0-100)';
-    if (form.peso !== '' && (isNaN(form.peso) || Number(form.peso) <= 0)) e.peso = 'Peso inválido';
+    if (form.edad !== '' && (Number.isNaN(form.edad) || Number(form.edad) < 0 || Number(form.edad) > 100)) e.edad = 'Edad inválida (0-100)';
+    if (form.peso !== '' && (Number.isNaN(form.peso) || Number(form.peso) <= 0)) e.peso = 'Peso inválido';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -56,8 +56,8 @@ const RecepcionMascotas = () => {
         especie: especieFinal,
         raza: form.raza.trim() || null,
         sexo: 'Desconocido',
-        edad: form.edad !== '' ? parseInt(form.edad) : null,
-        peso: form.peso !== '' ? parseFloat(form.peso) : null,
+        edad: form.edad !== '' ? Number.parseInt(form.edad) : null,
+        peso: form.peso !== '' ? Number.parseFloat(form.peso) : null,
       });
       const res = await api.get('/api/mascotas');
       setMascotas(res.data || []);
@@ -119,8 +119,8 @@ const RecepcionMascotas = () => {
             <form onSubmit={handleSubmit}>
               {/* Fila 0: Dueño - completo */}
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Dueño *</label>
-                <select value={form.id_cliente} onChange={e => updateField('id_cliente', e.target.value)}
+                <label htmlFor="campo_122_6605" style={labelStyle}>Dueño *</label>
+                <select id="campo_122_6605" value={form.id_cliente} onChange={e => updateField('id_cliente', e.target.value)}
                   style={errors.id_cliente ? inputError : inputStyle}>
                   <option value="">Seleccionar cliente...</option>
                   {clientes.map(c => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido}</option>)}
@@ -131,14 +131,14 @@ const RecepcionMascotas = () => {
               {/* Fila 1: Nombre | Especie */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
-                  <label style={labelStyle}>Nombre *</label>
-                  <input value={form.nombre} onChange={e => updateField('nombre', e.target.value)}
+                  <label htmlFor="campo_134_7345" style={labelStyle}>Nombre *</label>
+                  <input id="campo_134_7345" value={form.nombre} onChange={e => updateField('nombre', e.target.value)}
                     placeholder="Nombre de la mascota" style={errors.nombre ? inputError : inputStyle} />
                   {errors.nombre && <p style={errorTextStyle}>{errors.nombre}</p>}
                 </div>
                 <div>
-                  <label style={labelStyle}>Especie *</label>
-                  <select value={form.especie} onChange={e => updateField('especie', e.target.value)}
+                  <label htmlFor="campo_140_7740" style={labelStyle}>Especie *</label>
+                  <select id="campo_140_7740" value={form.especie} onChange={e => updateField('especie', e.target.value)}
                     style={errors.especie ? inputError : inputStyle}>
                     <option value="">Seleccionar especie...</option>
                     {ESPECIES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -150,8 +150,8 @@ const RecepcionMascotas = () => {
               {/* Campo condicional: especie custom */}
               {form.especie === 'Otro' && (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={labelStyle}>Especie (custom) *</label>
-                  <input value={form.especie_custom} onChange={e => updateField('especie_custom', e.target.value)}
+                  <label htmlFor="campo_153_8441" style={labelStyle}>Especie (custom) *</label>
+                  <input id="campo_153_8441" value={form.especie_custom} onChange={e => updateField('especie_custom', e.target.value)}
                     placeholder="Escriba la especie..." style={errors.especie ? inputError : inputStyle} />
                   {errors.especie && <p style={errorTextStyle}>{errors.especie}</p>}
                 </div>
@@ -160,13 +160,13 @@ const RecepcionMascotas = () => {
               {/* Fila 2: Raza | Edad */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
-                  <label style={labelStyle}>Raza</label>
-                  <input value={form.raza} onChange={e => updateField('raza', e.target.value)}
+                  <label htmlFor="campo_163_9018" style={labelStyle}>Raza</label>
+                  <input id="campo_163_9018" value={form.raza} onChange={e => updateField('raza', e.target.value)}
                     placeholder="Ej: Pastor Alemán, Siamés..." style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Edad (años)</label>
-                  <input type="number" min="0" max="100" value={form.edad} onChange={e => updateField('edad', e.target.value)}
+                  <label htmlFor="campo_168_9307" style={labelStyle}>Edad (años)</label>
+                  <input id="campo_168_9307" type="number" min="0" max="100" value={form.edad} onChange={e => updateField('edad', e.target.value)}
                     placeholder="0" style={errors.edad ? inputError : inputStyle} />
                   {errors.edad && <p style={errorTextStyle}>{errors.edad}</p>}
                 </div>
@@ -175,8 +175,8 @@ const RecepcionMascotas = () => {
               {/* Fila 3: Peso | (vacío) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                 <div>
-                  <label style={labelStyle}>Peso (kg)</label>
-                  <input type="number" min="0" step="0.1" value={form.peso} onChange={e => updateField('peso', e.target.value)}
+                  <label htmlFor="campo_178_9879" style={labelStyle}>Peso (kg)</label>
+                  <input id="campo_178_9879" type="number" min="0" step="0.1" value={form.peso} onChange={e => updateField('peso', e.target.value)}
                     placeholder="0.0" style={errors.peso ? inputError : inputStyle} />
                   {errors.peso && <p style={errorTextStyle}>{errors.peso}</p>}
                 </div>

@@ -160,8 +160,8 @@ const Registro = () => {
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div style={{ textAlign: 'left' }}>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Nombre</label>
-              <input
+              <label htmlFor="nombre" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Nombre</label>
+              <input id="nombre"
                 type="text"
                 name="nombre"
                 placeholder="Tu nombre"
@@ -179,8 +179,8 @@ const Registro = () => {
               />
             </div>
             <div style={{ textAlign: 'left' }}>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Apellido</label>
-              <input
+              <label htmlFor="apellido" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Apellido</label>
+              <input id="apellido"
                 type="text"
                 name="apellido"
                 placeholder="Tu apellido"
@@ -200,8 +200,8 @@ const Registro = () => {
           </div>
 
           <div style={{ marginTop: 16, textAlign: 'left' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Correo electrónico</label>
-            <input
+            <label htmlFor="email" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Correo electrónico</label>
+            <input id="email"
               type="email"
               name="email"
               placeholder="correo@ejemplo.com"
@@ -221,7 +221,7 @@ const Registro = () => {
           </div>
 
           <div style={{ marginTop: 16, textAlign: 'left' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Teléfono</label>
+            <label htmlFor="telefono" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Teléfono</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <span style={{
                 padding: '12px 12px',
@@ -235,7 +235,7 @@ const Registro = () => {
                 display: 'flex',
                 alignItems: 'center'
               }}>+57</span>
-              <input
+              <input id="telefono"
                 type="tel"
                 name="telefono"
                 placeholder="300 123 4567"
@@ -256,8 +256,8 @@ const Registro = () => {
           </div>
 
           <div style={{ marginTop: 16, textAlign: 'left' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Dirección</label>
-            <input
+            <label htmlFor="direccion" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Dirección</label>
+            <input id="direccion"
               type="text"
               name="direccion"
               placeholder="Calle, número, ciudad"
@@ -277,8 +277,8 @@ const Registro = () => {
           </div>
 
           <div style={{ marginTop: 16, textAlign: 'left' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Contraseña</label>
-            <input
+            <label htmlFor="contraseña" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Contraseña</label>
+            <input id="contraseña"
               type="password"
               name="contraseña"
               placeholder="Ingresa tu contraseña"
@@ -327,8 +327,8 @@ const Registro = () => {
           </div>
 
           <div style={{ marginTop: 16, textAlign: 'left' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Confirmar Contraseña</label>
-            <input
+            <label htmlFor="confirmarContraseña" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Confirmar Contraseña</label>
+            <input id="confirmarContraseña"
               type="password"
               name="confirmarContraseña"
               placeholder="Repite tu contraseña"

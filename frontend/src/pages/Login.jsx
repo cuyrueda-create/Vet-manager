@@ -34,10 +34,10 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>
+            <label htmlFor="campo_37_1219" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>
               Correo electrónico
             </label>
-            <input
+            <input id="campo_37_1219"
               type="email"
               placeholder="ejemplo@correo.com"
               value={email}
@@ -55,11 +55,11 @@ const Login = () => {
           </div>
 
           <div className="form-group" style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>
+            <label htmlFor="campo_58_2113" style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14 }}>
               Contraseña
             </label>
             <div className="pwd-wrapper">
-              <input
+              <input id="campo_58_2113"
                 type={showPwd ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}

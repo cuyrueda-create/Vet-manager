@@ -170,8 +170,8 @@ const AdminUsuarios = () => {
                     </div>
                   ))}
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Rol *</label>
-                    <select name="rol" value={createForm.rol} onChange={handleCreateChange} required style={inputStyle}>
+                    <label htmlFor="rol" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Rol *</label>
+                    <select id="rol" name="rol" value={createForm.rol} onChange={handleCreateChange} required style={inputStyle}>
                       {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </div>

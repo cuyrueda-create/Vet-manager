@@ -14,7 +14,7 @@ export default function ClientesScreen() {
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const renderItem = ({ item: c }) => (
     <View style={styles.card}>
@@ -39,7 +39,7 @@ export default function ClientesScreen() {
   return (
     <FlatList data={clientes} renderItem={renderItem} keyExtractor={c => String(c.id_cliente)}
       contentContainerStyle={styles.list}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
       ListHeaderComponent={<View style={styles.header}><Text style={styles.title}>Clientes</Text><Text style={styles.sub}>Dueños de mascotas registrados</Text></View>}
       ListEmptyComponent={<View style={styles.center}><Text style={{ color: '#64748b' }}>No hay clientes</Text></View>}
     />

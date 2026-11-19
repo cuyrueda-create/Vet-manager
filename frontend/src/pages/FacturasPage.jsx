@@ -290,15 +290,15 @@ const FacturasPage = () => {
               <div style={{ padding: '20px 24px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Cliente *</label>
-                    <select name="id_cliente" value={form.id_cliente} onChange={e => { handleChange(e); setForm(f => ({ ...f, id_mascota: '' })); }} required style={inputStyle}>
+                    <label htmlFor="id_cliente" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Cliente *</label>
+                    <select id="id_cliente" name="id_cliente" value={form.id_cliente} onChange={e => { handleChange(e); setForm(f => ({ ...f, id_mascota: '' })); }} required style={inputStyle}>
                       <option value="">Seleccionar...</option>
                       {clientes.map(c => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Mascota</label>
-                    <select name="id_mascota" value={form.id_mascota} onChange={handleChange} style={inputStyle}>
+                    <label htmlFor="id_mascota" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Mascota</label>
+                    <select id="id_mascota" name="id_mascota" value={form.id_mascota} onChange={handleChange} style={inputStyle}>
                       <option value="">Sin mascota</option>
                       {mascotas.filter(m => !form.id_cliente || m.id_cliente == form.id_cliente).map(m => (
                         <option key={m.id_mascota} value={m.id_mascota}>{m.nombre} ({m.especie})</option>
@@ -306,8 +306,8 @@ const FacturasPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Cita (opcional)</label>
-                    <select name="id_cita" value={form.id_cita} onChange={e => { handleChange(e); cargarCita(e.target.value); }} style={inputStyle}>
+                    <label htmlFor="id_cita" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Cita (opcional)</label>
+                    <select id="id_cita" name="id_cita" value={form.id_cita} onChange={e => { handleChange(e); cargarCita(e.target.value); }} style={inputStyle}>
                       <option value="">Sin cita</option>
                       {citas.filter(c => !form.id_cliente || c.id_cliente == form.id_cliente).map(ct => (
                         <option key={ct.id_cita} value={ct.id_cita}>
@@ -317,12 +317,12 @@ const FacturasPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Fecha limite de pago</label>
-                    <input type="datetime-local" name="fecha_vencimiento" value={form.fecha_vencimiento} onChange={handleChange} style={inputStyle} />
+                    <label htmlFor="fecha_vencimiento" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Fecha limite de pago</label>
+                    <input id="fecha_vencimiento" type="datetime-local" name="fecha_vencimiento" value={form.fecha_vencimiento} onChange={handleChange} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Correo notificacion (opcional)</label>
-                    <input type="email" name="correo_notificacion" placeholder="correo@ejemplo.com" value={form.correo_notificacion} onChange={handleChange} style={inputStyle} />
+                    <label htmlFor="correo_notificacion" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Correo notificacion (opcional)</label>
+                    <input id="correo_notificacion" type="email" name="correo_notificacion" placeholder="correo@ejemplo.com" value={form.correo_notificacion} onChange={handleChange} style={inputStyle} />
                   </div>
                 </div>
 
@@ -330,9 +330,9 @@ const FacturasPage = () => {
                   background: '#f8fafc', borderRadius: 10, padding: '12px 16px', marginBottom: 20,
                   border: '1px solid #e2e8f0'
                 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 8 }}>Agregar rapido</label>
+                  <label htmlFor="campo_333_15992" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 8 }}>Agregar rapido</label>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <select defaultValue="" onChange={e => { addServicio(e.target.value); e.target.value = ''; }} style={{ ...inputStyle, width: 'auto', flex: 1 }}>
+                    <select id="campo_333_15992" defaultValue="" onChange={e => { addServicio(e.target.value); e.target.value = ''; }} style={{ ...inputStyle, width: 'auto', flex: 1 }}>
                       <option value="" disabled>Servicios...</option>
                       {servicios.map(s => <option key={s.id_servicio} value={s.id_servicio}>{s.nombre} ({formatter.format(s.precio)})</option>)}
                     </select>

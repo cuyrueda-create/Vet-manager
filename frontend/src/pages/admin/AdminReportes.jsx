@@ -19,7 +19,7 @@ const AdminReportes = () => {
   ];
 
   useEffect(() => {
-    fetchReport();
+    void fetchReport();
   }, [activeTab, fechaInicio, fechaFin]);
 
   const fetchReport = async () => {
@@ -89,13 +89,13 @@ const AdminReportes = () => {
         {/* Filtros de fecha */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Desde</label>
-            <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
+            <label htmlFor="campo_92_3581" style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Desde</label>
+            <input id="campo_92_3581" type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Hasta</label>
-            <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
+            <label htmlFor="campo_97_3968" style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Hasta</label>
+            <input id="campo_97_3968" type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
           </div>
           {(fechaInicio || fechaFin) && (

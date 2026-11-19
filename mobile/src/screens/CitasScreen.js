@@ -27,7 +27,7 @@ export default function CitasScreen() {
     } catch {}
   };
 
-  useEffect(() => { loadCitas(); loadFormData(); }, []);
+  useEffect(() => { void loadCitas(); void loadFormData(); }, []);
 
   const handleSubmit = async () => {
     if (!form.id_mascota || !form.id_usuario_vet || !form.id_servicio || !form.id_consultorio || !form.fecha || !form.hora) {
@@ -38,20 +38,20 @@ export default function CitasScreen() {
       await api.post('/api/citas', form);
       setShowForm(false);
       setForm({ id_mascota: '', id_usuario_vet: '', id_servicio: '', id_consultorio: '', fecha: '', hora: '' });
-      loadCitas();
+      void loadCitas();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.detail || 'Error al crear cita');
     } finally { setSaving(false); }
   };
 
   const handleStatus = async (id, estado) => {
-    try { await api.put(`/api/citas/${id}`, { estado }); loadCitas(); } catch {}
+    try { await api.put(`/api/citas/${id}`, { estado }); void loadCitas(); } catch {}
   };
 
   const handleDelete = async (id) => {
     Alert.alert('Eliminar', '¿Eliminar esta cita?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await api.delete(`/api/citas/${id}`); loadCitas(); } catch {} } },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await api.delete(`/api/citas/${id}`); void loadCitas(); } catch {} } },
     ]);
   };
 
@@ -125,12 +125,12 @@ export default function CitasScreen() {
     <View style={{ flex: 1, backgroundColor: '#f0f4f8' }}>
       <FlatList data={citas} renderItem={renderItem} keyExtractor={(c, i) => String(c.id_cita || i)}
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadCitas(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadCitas(); }} />}
         ListHeaderComponent={
           <View style={{ alignItems: 'center', marginBottom: 16 }}>
             <Text style={styles.title}>Gestión de Citas</Text>
             <Text style={styles.sub}>Administra las citas veterinarias</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={() => { setShowForm(true); loadFormData(); }}>
+            <TouchableOpacity style={styles.addBtn} onPress={() => { setShowForm(true); void loadFormData(); }}>
               <Text style={styles.addBtnText}>{showForm ? 'Cancelar' : '+ Nueva Cita'}</Text>
             </TouchableOpacity>
           </View>

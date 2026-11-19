@@ -32,7 +32,7 @@ export default function AdminMedicamentos() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const filtered = medicamentos.filter((m) => {
     const term = search.toLowerCase();
@@ -71,7 +71,7 @@ export default function AdminMedicamentos() {
         await api.post('/api/medicamentos', payload);
       }
       setShowForm(false);
-      load();
+      void load();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.detail || 'No se pudo guardar');
     } finally { setSaving(false); }
@@ -85,7 +85,7 @@ export default function AdminMedicamentos() {
         onPress: async () => {
           try {
             await api.delete(`/api/medicamentos/${m.id_medicamento || m.id}`);
-            load();
+            void load();
           } catch (err) {
             Alert.alert('Error', err.response?.data?.detail || 'No se pudo eliminar');
           }
@@ -132,7 +132,7 @@ export default function AdminMedicamentos() {
         renderItem={renderItem}
         keyExtractor={m => String(m.id_medicamento || m.id)}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Medicamentos</Text>

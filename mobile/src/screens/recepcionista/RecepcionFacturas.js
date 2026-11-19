@@ -69,12 +69,12 @@ export default function RecepcionFacturas() {
     setSaving(true);
     try {
       await api.post('/api/facturas', {
-        id_cliente: parseInt(form.id_cliente),
+        id_cliente: Number.parseInt(form.id_cliente),
         fecha_vencimiento: form.fecha_vencimiento,
         items: form.items.map(i => ({
           descripcion: i.descripcion,
-          cantidad: parseInt(i.cantidad),
-          precio_unitario: parseFloat(i.precio_unitario),
+          cantidad: Number.parseInt(i.cantidad),
+          precio_unitario: Number.parseFloat(i.precio_unitario),
         })),
       });
       Alert.alert('Éxito', 'Factura creada correctamente');

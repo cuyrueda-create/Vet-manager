@@ -32,7 +32,7 @@ const RecepcionClientes = () => {
     if (!form.apellido.trim()) errs.apellido = 'Requerido';
     else if (form.apellido.length > 60) errs.apellido = 'Max 60';
     if (form.telefono && form.telefono.length > 20) errs.telefono = 'Max 20 caracteres';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Email invalido';
+    if (form.email && !/^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(form.email)) errs.email = 'Email invalido';
     if (form.numero_documento && form.numero_documento.length > docLimits[form.tipo_documento]) errs.numero_documento = `Max ${docLimits[form.tipo_documento]}`;
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -89,12 +89,12 @@ const RecepcionClientes = () => {
             {error && <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#dc2626', fontSize: 14 }}>{error}</div>}
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div><label style={labelStyle}>Nombre *</label><input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.nombre ? '#ef4444' : undefined }} required />{fieldErrors.nombre && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.nombre}</span>}</div>
-                <div><label style={labelStyle}>Apellido *</label><input value={form.apellido} onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.apellido ? '#ef4444' : undefined }} required />{fieldErrors.apellido && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.apellido}</span>}</div>
-                <div><label style={labelStyle}>Celular / Telefono</label><input placeholder="3101234567" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} maxLength={20} style={{ ...inputStyle, borderColor: fieldErrors.telefono ? '#ef4444' : undefined }} />{fieldErrors.telefono && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.telefono}</span>}</div>
-                <div><label style={labelStyle}>Email</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} maxLength={100} style={{ ...inputStyle, borderColor: fieldErrors.email ? '#ef4444' : undefined }} />{fieldErrors.email && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.email}</span>}</div>
-                <div><label style={labelStyle}>Tipo Doc</label>
-                  <select value={form.tipo_documento} onChange={e => setForm(p => ({ ...p, tipo_documento: e.target.value, numero_documento: '' }))} style={inputStyle}>
+                <div><label htmlFor="campo_92_4820" style={labelStyle}>Nombre *</label><input id="campo_92_4820" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.nombre ? '#ef4444' : undefined }} required />{fieldErrors.nombre && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.nombre}</span>}</div>
+                <div><label htmlFor="campo_93_5193" style={labelStyle}>Apellido *</label><input id="campo_93_5193" value={form.apellido} onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))} maxLength={60} style={{ ...inputStyle, borderColor: fieldErrors.apellido ? '#ef4444' : undefined }} required />{fieldErrors.apellido && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.apellido}</span>}</div>
+                <div><label htmlFor="campo_94_5584" style={labelStyle}>Celular / Telefono</label><input id="campo_94_5584" placeholder="3101234567" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} maxLength={20} style={{ ...inputStyle, borderColor: fieldErrors.telefono ? '#ef4444' : undefined }} />{fieldErrors.telefono && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.telefono}</span>}</div>
+                <div><label htmlFor="campo_95_5978" style={labelStyle}>Email</label><input id="campo_95_5978" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} maxLength={100} style={{ ...inputStyle, borderColor: fieldErrors.email ? '#ef4444' : undefined }} />{fieldErrors.email && <span style={{ fontSize: 11, color: '#ef4444' }}>{fieldErrors.email}</span>}</div>
+                <div><label htmlFor="campo_96_6368" style={labelStyle}>Tipo Doc</label>
+                  <select id="campo_96_6368" value={form.tipo_documento} onChange={e => setForm(p => ({ ...p, tipo_documento: e.target.value, numero_documento: '' }))} style={inputStyle}>
                     <option value="CC">Cedula (10 digitos)</option><option value="CE">Cedula Extranjeria (15 digitos)</option><option value="TI">Tarjeta Identidad (11 digitos)</option>
                   </select>
                 </div>

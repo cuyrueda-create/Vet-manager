@@ -16,7 +16,7 @@ export default function MascotasScreen() {
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const renderItem = ({ item: m }) => (
     <View style={styles.card}>
@@ -45,7 +45,7 @@ export default function MascotasScreen() {
   return (
     <FlatList data={mascotas} renderItem={renderItem} keyExtractor={m => String(m.id_mascota)}
       contentContainerStyle={styles.list}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
       ListHeaderComponent={<View style={styles.header}><Text style={styles.title}>Mascotas</Text><Text style={styles.sub}>Pacientes registrados</Text></View>}
       ListEmptyComponent={<View style={styles.center}><Text style={{ color: '#64748b' }}>No hay mascotas</Text></View>}
     />

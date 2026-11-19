@@ -126,7 +126,7 @@ const RecepcionNuevaCita = () => {
     if (!newCliente.apellido.trim()) errs.apellido = 'Apellido requerido';
     else if (newCliente.apellido.length > 60) errs.apellido = 'Maximo 60 caracteres';
     if (newCliente.telefono && newCliente.telefono.length > 20) errs.telefono = 'Maximo 20 caracteres';
-    if (newCliente.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newCliente.email)) errs.email = 'Email invalido';
+    if (newCliente.email && !/^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(newCliente.email)) errs.email = 'Email invalido';
     if (newCliente.direccion && newCliente.direccion.length > 150) errs.direccion = 'Maximo 150 caracteres';
     setClienteErrors(errs);
     return Object.keys(errs).length === 0;
@@ -140,8 +140,8 @@ const RecepcionNuevaCita = () => {
     if (!especieFinal) errs.especie = 'Especie requerida';
     else if (especieFinal.length > 40) errs.especie = 'Maximo 40 caracteres';
     if (newMascota.raza && newMascota.raza.length > 40) errs.raza = 'Maximo 40 caracteres';
-    if (newMascota.edad && (isNaN(newMascota.edad) || parseInt(newMascota.edad) < 0 || parseInt(newMascota.edad) > 50)) errs.edad = 'Edad: 0-50';
-    if (newMascota.peso && (isNaN(newMascota.peso) || parseFloat(newMascota.peso) < 0 || parseFloat(newMascota.peso) > 200)) errs.peso = 'Peso: 0-200 kg';
+    if (newMascota.edad && (Number.isNaN(newMascota.edad) || Number.parseInt(newMascota.edad) < 0 || Number.parseInt(newMascota.edad) > 50)) errs.edad = 'Edad: 0-50';
+    if (newMascota.peso && (Number.isNaN(newMascota.peso) || Number.parseFloat(newMascota.peso) < 0 || Number.parseFloat(newMascota.peso) > 200)) errs.peso = 'Peso: 0-200 kg';
     setMascotaErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -169,8 +169,8 @@ const RecepcionNuevaCita = () => {
         especie: especieFinal,
         especie_custom: undefined,
         id_cliente: form.clienteSelected.id_cliente,
-        edad: newMascota.edad ? parseInt(newMascota.edad) : null,
-        peso: newMascota.peso ? parseFloat(newMascota.peso) : null
+        edad: newMascota.edad ? Number.parseInt(newMascota.edad) : null,
+        peso: newMascota.peso ? Number.parseFloat(newMascota.peso) : null
       });
       const res = await api.get(`/api/clientes/${form.clienteSelected.id_cliente}/mascotas`);
       const lista = res.data || [];
@@ -197,8 +197,8 @@ const RecepcionNuevaCita = () => {
     try {
       await api.post('/api/citas', {
         id_mascota: form.mascotaSelected.id_mascota,
-        id_usuario_vet: parseInt(form.id_usuario_vet),
-        id_servicio: parseInt(form.id_servicio),
+        id_usuario_vet: Number.parseInt(form.id_usuario_vet),
+        id_servicio: Number.parseInt(form.id_servicio),
         fecha: form.fecha,
         hora: form.hora,
         notas: form.notas
@@ -276,7 +276,7 @@ const RecepcionNuevaCita = () => {
                 {showClienteDropdown && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: 10, maxHeight: 200, overflow: 'auto', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                     {filteredClientes.slice(0, 8).map(c => (
-                      <div key={c.id_cliente} onMouseDown={e => { e.preventDefault(); handleSelectCliente(c); setClienteFocused(false); }} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                      <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } }} key={c.id_cliente} onMouseDown={e => { e.preventDefault(); handleSelectCliente(c); setClienteFocused(false); }} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
                         onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
                         onMouseLeave={ev => ev.currentTarget.style.background = 'white'}>
                         <strong style={{ fontSize: 14 }}>{c.nombre} {c.apellido}</strong>
@@ -344,7 +344,7 @@ const RecepcionNuevaCita = () => {
                     {showMascotaDropdown && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: 10, maxHeight: 200, overflow: 'auto', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                         {filteredMascotas.slice(0, 8).map(m => (
-                          <div key={m.id_mascota} onMouseDown={e => { e.preventDefault(); handleSelectMascota(m); setMascotaFocused(false); }} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } }} key={m.id_mascota} onMouseDown={e => { e.preventDefault(); handleSelectMascota(m); setMascotaFocused(false); }} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
                             onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
                             onMouseLeave={ev => ev.currentTarget.style.background = 'white'}>
                             <strong style={{ fontSize: 14 }}>{m.nombre}</strong>
@@ -418,8 +418,8 @@ const RecepcionNuevaCita = () => {
 
               {/* Paso 1: Servicio */}
               <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>1. Servicio *</label>
-                <select value={form.id_servicio} onChange={e => setForm(f => ({ ...f, id_servicio: e.target.value, id_usuario_vet: '', hora: '' }))} style={inputStyle} required>
+                <label htmlFor="campo_421_24212" style={labelStyle}>1. Servicio *</label>
+                <select id="campo_421_24212" value={form.id_servicio} onChange={e => setForm(f => ({ ...f, id_servicio: e.target.value, id_usuario_vet: '', hora: '' }))} style={inputStyle} required>
                   <option value="">Seleccionar servicio...</option>
                   {servicios.map(s => (
                     <option key={s.id_servicio} value={s.id_servicio}>{s.nombre} - ${s.precio?.toLocaleString()}</option>
@@ -429,8 +429,8 @@ const RecepcionNuevaCita = () => {
 
               {/* Paso 2: Fecha */}
               <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>2. Fecha *</label>
-                <input type="date" value={form.fecha} min={today} onChange={e => setForm(f => ({ ...f, fecha: e.target.value, id_usuario_vet: '', hora: '' }))} style={inputStyle} required />
+                <label htmlFor="campo_432_24836" style={labelStyle}>2. Fecha *</label>
+                <input id="campo_432_24836" type="date" value={form.fecha} min={today} onChange={e => setForm(f => ({ ...f, fecha: e.target.value, id_usuario_vet: '', hora: '' }))} style={inputStyle} required />
               </div>
 
               {/* Paso 3: Veterinarios disponibles */}
@@ -450,7 +450,7 @@ const RecepcionNuevaCita = () => {
                         const estadoBg = v.estado === 'disponible' ? '#ecfdf5' : v.estado === 'ocupado' ? '#fffbeb' : '#f8fafc';
                         const estadoLabel = v.estado === 'disponible' ? 'Disponible' : v.estado === 'ocupado' ? 'Ocupado' : 'No trabaja';
                         return (
-                          <div key={v.id_usuario}
+                          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} key={v.id_usuario}
                             onClick={() => !isDisabled && setForm(f => ({ ...f, id_usuario_vet: String(v.id_usuario), hora: '' }))}
                             style={{
                               padding: '12px 14px', borderRadius: 10, border: `2px solid ${isSelected ? '#3b82f6' : '#e2e8f0'}`,
@@ -492,7 +492,7 @@ const RecepcionNuevaCita = () => {
                         const isSelected = form.hora === h.hora;
                         const isOcupado = h.estado === 'ocupado';
                         return (
-                          <div key={h.hora}
+                          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} key={h.hora}
                             onClick={() => !isOcupado && setForm(f => ({ ...f, hora: h.hora }))}
                             style={{
                               padding: '10px 8px', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: 14,
@@ -514,8 +514,8 @@ const RecepcionNuevaCita = () => {
 
               {/* Notas */}
               <div>
-                <label style={labelStyle}>Notas</label>
-                <textarea placeholder="Observaciones adicionales..." value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+                <label htmlFor="campo_517_30362" style={labelStyle}>Notas</label>
+                <textarea id="campo_517_30362" placeholder="Observaciones adicionales..." value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
               </div>
             </div>
 

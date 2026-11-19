@@ -44,7 +44,7 @@ export default function AdminCitas() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const filtered = citas.filter((c) => {
     const filter = tabFilterMap[activeTab];
@@ -99,7 +99,7 @@ export default function AdminCitas() {
         renderItem={renderItem}
         keyExtractor={(c, i) => String(c.id_cita || i)}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Citas</Text>

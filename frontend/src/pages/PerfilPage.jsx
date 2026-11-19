@@ -186,7 +186,7 @@ const PerfilPage = () => {
             height: 120, background: `linear-gradient(135deg, ${rc.color}22, ${rc.color}44)`,
             position: 'relative'
           }}>
-            <div style={{
+            <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} style={{
               position: 'absolute', bottom: -40, left: 28,
               width: 88, height: 88, borderRadius: '50%',
               background: foto ? 'transparent' : rc.bg, border: `4px solid white`,
@@ -397,10 +397,10 @@ const PerfilPage = () => {
                     {user?.rol === 'veterinario' ? (
                       <>
                         <div>
-                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                          <label htmlFor="especialidad" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                             Especialidad
                           </label>
-                          <select name="especialidad" value={form.especialidad} onChange={handleChange}
+                          <select id="especialidad" name="especialidad" value={form.especialidad} onChange={handleChange}
                             style={{
                               width: '100%', padding: '10px 12px', borderRadius: 8,
                               border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none',
@@ -419,10 +419,10 @@ const PerfilPage = () => {
                           </select>
                         </div>
                         <div>
-                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                          <label htmlFor="anos_experiencia" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                             Años de Experiencia
                           </label>
-                          <input type="number" name="anos_experiencia" value={form.anos_experiencia}
+                          <input id="anos_experiencia" type="number" name="anos_experiencia" value={form.anos_experiencia}
                             onChange={handleChange} placeholder="Ej. 5" min="0"
                             style={{
                               width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -434,10 +434,10 @@ const PerfilPage = () => {
                     ) : (
                       <>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                          <label htmlFor="nombre_negocio" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                             Nombre del Negocio
                           </label>
-                          <input type="text" name="nombre_negocio" value={form.nombre_negocio}
+                          <input id="nombre_negocio" type="text" name="nombre_negocio" value={form.nombre_negocio}
                             onChange={handleChange} placeholder="Ej. Vet Manager S.A.S."
                             style={{
                               width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -446,10 +446,10 @@ const PerfilPage = () => {
                             }} />
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                          <label htmlFor="direccion_negocio" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                             Dirección del Negocio
                           </label>
-                          <input type="text" name="direccion_negocio" value={form.direccion_negocio}
+                          <input id="direccion_negocio" type="text" name="direccion_negocio" value={form.direccion_negocio}
                             onChange={handleChange} placeholder="Calle 123 #45-67"
                             style={{
                               width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -505,10 +505,10 @@ const PerfilPage = () => {
               <form onSubmit={handlePwdSubmit}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, maxWidth: 700 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                    <label htmlFor="contraseña_actual" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                       Contraseña actual *
                     </label>
-                    <input type="password" name="contraseña_actual" value={pwdForm.contraseña_actual}
+                    <input id="contraseña_actual" type="password" name="contraseña_actual" value={pwdForm.contraseña_actual}
                       onChange={(e) => setPwdForm({ ...pwdForm, contraseña_actual: e.target.value })} required
                       style={{
                         width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -516,10 +516,10 @@ const PerfilPage = () => {
                       }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                    <label htmlFor="nueva_contraseña" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                       Nueva contraseña *
                     </label>
-                    <input type="password" name="nueva_contraseña" value={pwdForm.nueva_contraseña}
+                    <input id="nueva_contraseña" type="password" name="nueva_contraseña" value={pwdForm.nueva_contraseña}
                       onChange={(e) => setPwdForm({ ...pwdForm, nueva_contraseña: e.target.value })} required minLength={8}
                       style={{
                         width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -527,10 +527,10 @@ const PerfilPage = () => {
                       }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                    <label htmlFor="confirmar" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
                       Confirmar *
                     </label>
-                    <input type="password" name="confirmar" value={pwdForm.confirmar}
+                    <input id="confirmar" type="password" name="confirmar" value={pwdForm.confirmar}
                       onChange={(e) => setPwdForm({ ...pwdForm, confirmar: e.target.value })} required
                       style={{
                         width: '100%', padding: '10px 12px', borderRadius: 8,

@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const stored = await AsyncStorage.getItem('user');
         if (stored) setUser(JSON.parse(stored));
