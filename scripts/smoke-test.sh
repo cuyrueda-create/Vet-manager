@@ -13,7 +13,7 @@ set -u
 BASE_URL="${1:-}"
 CA_CERT="${2:-}"
 
-if [ -z "$BASE_URL" ]; then
+if [[ -z "$BASE_URL" ]]; then
   printf 'Uso: %s https://TU_DOMINIO [ruta_del_certificado_CA]\n' "$0" >&2
   exit 2
 fi
@@ -22,17 +22,17 @@ fi
 BASE_URL="${BASE_URL%/}"
 
 CURL_OPTS="-fsS --max-time 15"
-if [ -n "$CA_CERT" ]; then
+if [[ -n "$CA_CERT" ]]; then
   # Con CA propia: verificar TLS de verdad (sin -k)
   CURL_OPTS="$CURL_OPTS --cacert $CA_CERT"
 fi
-if [ -n "${SMOKE_INSECURE:-}" ]; then
+if [[ -n "${SMOKE_INSECURE:-}" ]]; then
   # Solo para entornos de prueba con certificado autofirmado
   CURL_OPTS="$CURL_OPTS -k"
 fi
 # Opciones extra de curl (variable de entorno), p. ej. en Windows/Schannel:
 #   SMOKE_CURL_OPTS="--ssl-no-revoke" bash scripts/smoke-test.sh ...
-if [ -n "${SMOKE_CURL_OPTS:-}" ]; then
+if [[ -n "${SMOKE_CURL_OPTS:-}" ]]; then
   CURL_OPTS="$CURL_OPTS $SMOKE_CURL_OPTS"
 fi
 
@@ -46,7 +46,7 @@ printf '\n'
 
 # 1. Healthcheck del backend
 HEALTH=$(curl $CURL_OPTS "$BASE_URL/health" 2>/dev/null)
-if [ $? -eq 0 ] && [ -n "$HEALTH" ]; then
+if [[ $? -eq 0 ]] && [[ -n "$HEALTH" ]]; then
   if printf '%s' "$HEALTH" | grep -q '"status": *"healthy"'; then
     paso "1. GET /health" "OK — $HEALTH"
   else
@@ -58,7 +58,7 @@ else
 fi
 
 # 2. Estado de la base de datos
-if [ -n "$HEALTH" ]; then
+if [[ -n "$HEALTH" ]]; then
   if printf '%s' "$HEALTH" | grep -q '"database": *"healthy"'; then
     paso "2. Base de datos reportada" "OK — healthy"
   else
@@ -67,9 +67,9 @@ if [ -n "$HEALTH" ]; then
 
   # 3. Versión desplegada
   VERSION=$(printf '%s' "$HEALTH" | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')
-  if [ -n "$VERSION" ]; then
+  if [[ -n "$VERSION" ]]; then
     paso "3. Versión desplegada" "OK — $VERSION"
-    if [ -n "${ESPERADA:-}" ] && [ "$VERSION" != "$ESPERADA" ]; then
+    if [[ -n "${ESPERADA:-}" ]] && [[ "$VERSION" != "$ESPERADA" ]]; then
       falla "3. Versión desplegada" "esperada $ESPERADA, llegó $VERSION"
     fi
   else
@@ -99,7 +99,7 @@ else
 fi
 
 printf '\n'
-if [ "$FALLOS" -eq 0 ]; then
+if [[ "$FALLOS" -eq 0 ]]; then
   printf 'RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos)\n'
   exit 0
 else

@@ -26,5 +26,7 @@ COPY . .
 EXPOSE 5000
 
 # Usa la variable PORT si el proveedor la define (Render, Heroku, etc.);
-# en local y en Compose se mantiene 5000.
-CMD uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-5000}" ${UVICORN_OPTS}
+# en local y en Compose se mantiene 5000. La expansión de ${PORT} y
+# ${UVICORN_OPTS} no funciona en la forma exec de CMD, así que el comando
+# vive en un script invocado con forma exec (regla de SonarCloud docker:S7019).
+CMD ["sh", "docker-entrypoint.sh"]

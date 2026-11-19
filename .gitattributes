@@ -1,0 +1,6 @@
+# Finales de línea LF también en Windows (core.autocrlf=true en este equipo).
+# Los scripts .sh se ejecutan desde bash y desde el contenedor Docker
+# (montados por Compose); con CRLF dejan de funcionar.
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

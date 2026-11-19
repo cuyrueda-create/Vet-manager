@@ -1,6 +1,7 @@
 # Dependencias para desarrollo y pruebas (CI y local).
 # En producción la imagen solo instala requirements.txt.
+# Versiones fijadas (=) para reproducibilidad (regla SonarCloud S8544).
 -r requirements.txt
-pytest>=8.0
-pytest-cov>=5.0
-httpx2>=1.0
+pytest==9.2.0
+pytest-cov==7.1.0
+httpx2==2.16.2

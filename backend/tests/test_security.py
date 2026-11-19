@@ -28,7 +28,9 @@ def test_verify_password_rechaza_la_incorrecta():
 
 def test_el_mismo_password_genera_hashes_distintos():
     """pbkdf2_sha256 usa sal aleatoria: dos hashes nunca son idénticos."""
-    assert get_password_hash("clave12345") != get_password_hash("clave12345")
+    hash_a = get_password_hash("clave12345")
+    hash_b = get_password_hash("clave12345")
+    assert hash_a != hash_b
 
 
 def test_token_se_puede_decodificar():

@@ -22,11 +22,15 @@ jobs:
         with:
           python-version: "3.11"
       - name: Instalar dependencias
-        run: pip install -r backend/requirements-dev.txt
+        # --only-binary :all: impide ejecutar scripts de instalación (S8541)
+        # y las versiones vienen fijadas en requirements-dev.txt (S8544).
+        run: "pip install --only-binary :all: -r backend/requirements-dev.txt"
       - name: Ejecutar pruebas con cobertura
-        working-directory: backend
+        # Se corre desde la RAÍZ del repo (no desde backend/) para que
+        # coverage.xml use rutas relativas al repo (backend/app/...), que es
+        # lo que SonarCloud espera en sonar.python.coverage.reportPaths.
         run: |
-          python -m pytest --cov=app --cov-report=xml --cov-report=term
+          PYTHONPATH=backend python -m pytest backend/tests --cov=app --cov-report=xml:backend/coverage.xml --cov-report=term
       - name: Subir cobertura como artefacto
         uses: actions/upload-artifact@v4
         with:
@@ -45,14 +49,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Instalar dependencias
-        run: pip install -r backend/requirements-dev.txt
+        run: "pip install --only-binary :all: -r backend/requirements-dev.txt"
       - name: Generar cobertura para SonarCloud
-        working-directory: backend
         run: |
-          python -m pytest --cov=app --cov-report=xml --cov-report=term
-      # Acción fijada por SHA por seguridad (recomendación de SonarCloud)
+          PYTHONPATH=backend python -m pytest backend/tests --cov=app --cov-report=xml:backend/coverage.xml --cov-report=term
+      # Acción fijada por SHA completo por seguridad (regla SonarCloud S7637)
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
