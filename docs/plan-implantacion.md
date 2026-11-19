@@ -818,14 +818,28 @@ compose.prod.yaml: mysql sin publicación de puertos; backend solo 127.0.0.1
 | `vet_user` (actual) | CRUD sobre `vet_manager` | Crear bases/roles, `PROCESS` | La app (backend) | `.env` del servidor (600) |
 | `root` (solo en el contenedor) | Total | — | `mysqldump` del respaldo (`scripts/respaldar.sh`) | `.env` del servidor (600) |
 
-**Estado:** con un solo usuario la separación de privilegios es parcial (el script de respaldo necesita `root` porque `vet_user` carece de `PROCESS`/`SHOW CREATE PROCEDURE` — evidencia en §3.5). Planificado para el servidor real: crear `<proyecto>_owner` (DDL/migraciones) y `<proyecto>_app` (solo CRUD) y que la app use el segundo.
+**Estado (2026-11-19): separación de privilegios implementada y probada.** Antes había un solo usuario (`vet_user` con `ALL PRIVILEGES`), por lo que la separación era parcial. Ahora existen tres roles reales en MySQL:
 
-Pruebas de privilegios:
+| Rol | Privilegios | Lo usa | Cómo se crea en un deploy nuevo |
+|---|---|---|---|
+| `vet_owner` | `ALL PRIVILEGES ON vet_manager.*` (DDL + DML + rutinas) | Solo el arranque: 10 migraciones + `sp_citas_activas` + alembic | `database/2-roles.sh` (initdb) |
+| `vet_app` | `SELECT, INSERT, UPDATE, DELETE, EXECUTE` | Todas las peticiones de la API | `MYSQL_USER` del entrypoint (`MYSQL_APP_USER`) |
+| `root` | Total | `mysqldump` del respaldo, dentro del contenedor | entrypoint MySQL |
+
+El código separa las dos conexiones: `get_db_connection(owner=True)` usa `DB_OWNER_CONFIG` únicamente en las funciones `migrate_*`, `hash_existing_passwords()` y `run_alembic_migrations()`; el resto de rutas usa `get_db_connection()` con `vet_app`. `migrate_stored_procedures()` garantiza `sp_citas_activas` en bases nuevas (la API solo tiene `EXECUTE`). Los cambios: `backend/app/core/config.py`, `backend/app/core/database.py`, `backend/app/main.py`, `backend/migrations/env.py`, ambos compose y `database/2-roles.sh`.
+
+Pruebas de privilegios (ejecutadas en la BD de producción local, 2026-11-19):
 
 | Rol | Operación | Esperado | Obtenido |
 |---|---|:---:|---|
-| `vet_user` | `DROP TABLE` ajena | ❌ | ✅ Rechazado (evidencia §3.5: MySQL bloqueó el `DROP` por FK `citas_ibfk_2`) |
-| `vet_user` | `SHOW CREATE PROCEDURE` | ❌ | ✅ Rechazado: `vet_user has insufficient privileges` (detectado y registrado en §3.5) |
+| `vet_app` | `SELECT COUNT(*) FROM usuarios` | ✅ | ✅ Consulta permitida (0 filas en la BD prod local; 14 en desarrollo) |
+| `vet_app` | `CREATE TABLE t_prueba_app` | ❌ | ✅ Rechazado: `ERROR 1142 (42000) CREATE command denied` |
+| `vet_app` | `DROP TABLE usuarios` | ❌ | ✅ Rechazado: `ERROR 1142 (42000) DROP command denied` |
+| `vet_app` | `ALTER TABLE usuarios ADD COLUMN x` | ❌ | ✅ Rechazado: `ERROR 1142 (42000) ALTER command denied` |
+| `vet_app` | `CALL sp_citas_activas()` | ✅ | ✅ Correcto (gracias a `EXECUTE`) |
+| `vet_owner` | `CREATE TABLE t_prueba_owner` | ✅ | ✅ Creada y borrada después |
+
+Verificación del arranque con roles separados: `DB_USER=vet_app`, `DB_OWNER_USER=vet_owner` en ambos stacks, `/health` en verde y smoke test **6/6**. Nota: el script de respaldo sigue usando `root` dentro del contenedor porque `vet_app` no tiene `PROCESS`/`SHOW CREATE PROCEDURE` (evidencia §3.5); se mantiene así deliberadamente para no dar esos privilegios al usuario de la API.
 
 ### 7.4 Inventario de secretos
 
@@ -878,6 +892,17 @@ SHA-256: 0ce11a55cd27ce053a883cca3126ca16399b1c4c552ab963ff6d845e1fef9494
 Retención aplicada: 7 días
 ```
 
+Ejecución de verificación (2026-11-19, con `KUMA_PUSH_URL` configurado):
+
+```text
+Respaldo creado: backups/mysql/vet_manager-20261119T221810Z.sql.gz
+SHA-256: a4d45e9449d14d2aa6114800c1f16a65d5d9e630d1a012238dfb9df44750cb68
+Retención aplicada: 7 días
+Latido a Uptime Kuma: OK (heartbeat monitor 3 → status=1)
+```
+
+El script ahora avisa a Uptime Kuma al terminar: `status=up` si el respaldo termina bien y `status=down` desde un trap `ERR` si falla (§8.5).
+
 ### 3.3 Procedimiento de restauración de desastre
 
 1. Detener escritores: `docker compose -f deploy/compose.prod.yaml stop backend`.
@@ -901,7 +926,9 @@ Retención aplicada: 7 días
 
 Huellas antes y después: 20/20 tablas con `COUNT(*)` idéntico (110 filas), `diff` sin diferencias — tabla completa en **§3.5**. Simulacro de desastre: `DROP TABLE usuarios` → recuperación desde el dump con PK, UNIQUE y 4 FK intactas.
 
-Problemas encontrados y cambios aplicados: `vet_user` no puede volcar (`PROCESS`/`SHOW CREATE PROCEDURE`) → el script ahora usa `root` dentro del contenedor.
+**Re-verificación (2026-11-19):** se importó `vet_manager-20261119T221810Z.sql.gz` en una base destino `vet_manager_restore_test` (creada solo para la prueba y borrada después). Resultado: **20/20 tablas con `COUNT(*)` idéntico** entre origen y destino (ej. `usuarios` 14/14, `medicamentos` 15/15, `notificaciones` 17/17, `facturas` 2/2) y restricciones equivalentes: **PRIMARY KEY 21/21, FOREIGN KEY 26/26, UNIQUE 7/7**. La importación devolvió RC=0.
+
+Problemas encontrados y cambios aplicados: `vet_user` no puede volcar (`PROCESS`/`SHOW CREATE PROCEDURE`) → el script ahora usa `root` dentro del contenedor; desde el 2026-11-19 el usuario de la API es `vet_app` (§7.3), que tampoco tiene esos privilegios, así que se mantiene `root` para el respaldo de forma intencional.
 
 ## 8. Pipeline de despliegue y monitoreo — Semana 7 (CE-1, CE-5)
 
@@ -977,13 +1004,15 @@ Rollback:    repetir 3-5 con la versión anterior
 | Campo | Valor |
 |---|---|
 | Dónde corre Uptime Kuma | Servicio `uptime-kuma` en `deploy/compose.prod.yaml`: imagen `louislam/uptime-kuma:1`, volumen `uptime_kuma_data`, UI **solo en loopback** (`127.0.0.1:${KUMA_PORT:-8081}`); para entrar: `ssh -L 8081:127.0.0.1:8081 <usuario>@<servidor>` |
-| Monitores creados (§8.5) | HTTP `http://backend:5000/health` cada 60 s (API + BD) y latido del respaldo (push, 25 h) — *a configurar en la primera entrada al panel* |
-| Canal de alertas y quién lo lee | Pendiente: canal de mensajería del equipo, atención del responsable técnico |
+| Monitores creados (§8.5) | **Creados y activos el 2026-11-19** vía API Socket.IO de Uptime Kuma: ID 2 HTTP `http://backend:5000/health` cada 60 s (2 reintentos, espera 200) e ID 3 push «Respaldo diario (latido)». Latidos registrados en `kuma.db`: monitor 2 → `status=1, "200 - OK"`; monitor 3 → `status=1, "OK"` |
+| Cómo entrar al panel | `ssh -L 8081:127.0.0.1:8081 <usuario>@<servidor>` y abrir `http://127.0.0.1:8081`. Usuario admin del simulacro: `admin` / `VetManager-Kuma-2026!` (**cambiar en producción**) |
+| Latido del respaldo | `respaldar.sh` envía `KUMA_PUSH_URL` al terminar (éxito `status=up`, fallo `status=down` vía trap `ERR`). URL local: `http://127.0.0.1:8081/api/push/af504418340a7d6e87ea` (token de 20 chars: `af504418340a7d6e87ea`) |
+| Canal de alertas y quién lo lee | Pendiente: canal de mensajería del equipo, atención del responsable técnico (no configurable hasta crear el canal) |
 | Horario de atención de alertas | Propuesta: horas hábiles; P1 las 24 h |
 
 ## 9. Mantenimiento, soporte y capacitación — Semana 8 (CE-5)
 
-**Fecha:** 2026-11-19 · **Estado:** herramientas creadas (Dependabot, runbooks, guía, FAQ) y primera auditoría ejecutada; ejecución calendárica a partir de la puesta en producción.
+**Fecha:** 2026-11-19 · **Estado:** runbooks, guía y FAQ creados y primera auditoría ejecutada; ejecución calendárica a partir de la puesta en producción. **Dependabot fue retirado el 2026-11-19**: al activarlo abrió 8 PRs y ramas `dependabot/*` no deseados (se cerraron y borraron; quedan solo `main`, `develop`, `fix`). Se eliminó `.github/dependabot.yml` (PR #24) y se deshabilitaron las *Dependabot security updates* en GitHub. Las auditorías se ejecutan manualmente con `pip-audit`, `pnpm audit` y Trivy (§9.1).
 
 ### 9.1 Plan de mantenimiento
 
@@ -1013,7 +1042,7 @@ Ventana de mantenimiento propuesta: **domingos 02:00–04:00 (hora local), aviso
 | Tipo | Plazo | Cómo se decide |
 |---|---|---|
 | Parche de seguridad (SO) | 7 días | Automático en el servidor |
-| Parche de dependencias (Python/npm) | 14 días | PR de Dependabot → CI en verde → fusionar → versión de parche |
+| Parche de dependencias (Python/npm) | 14 días | `pip-audit` / `pnpm audit` manuales → rama `develop` → CI en verde → PR a `main` → versión de parche (sin Dependabot; ver nota arriba) |
 | Actualización de imágenes base | Ventana mensual | Humo en verde antes y después |
 
 **Creado (2026-11-19):** [`.github/dependabot.yml`](../.github/dependabot.yml) con los ecosistemas `pip` (`/backend`), `npm` (`/frontend`), `docker` (`/backend`) y `github-actions` (`/`), revisión semanal los lunes, hasta 5 PR abiertos por ecosistema, etiquetas `dependabot` + `python`/`frontend`/`docker`/`ci` y prefijos `chore(deps)`/`chore(docker)`/`chore(actions)`. YAML validado (`yaml.safe_load` → OK). **Primera auditoría ejecutada 2026-11-19** (tabla siguiente).
@@ -1108,7 +1137,7 @@ Dónde se enlazan: sección **"Ayudas en línea"** del [README](../README.md) (h
 | 6. Configuración | 🟡 | Inventario, health, rotación de logs y F-01/F-02 completos; migración a nube pendiente (§2.8) |
 | 7. Seguridad | 🟡 | Secretos fuera del repo + permisos 600; SSH/UFW/roles BD pendientes de servidor real |
 | 8. Pipeline y monitoreo | 🟡 | CI en verde + Quality Gate OK + tags pusheados; Uptime Kuma en compose; entrega continua y canal de alertas pendientes |
-| 9. Mantenimiento, soporte y capacitación | 🟡 | Dependabot + primera auditoría (pip-audit/pnpm/trivy) + runbooks + guía/FAQ; cronograma de capacitación pendiente |
+| 9. Mantenimiento, soporte y capacitación | 🟡 | Auditoría manual (pip-audit/pnpm/trivy) + runbooks + guía/FAQ; Dependabot retirado; cronograma de capacitación pendiente |
 
 Registro de cambios del plan:
 
@@ -1116,7 +1145,7 @@ Registro de cambios del plan:
 |---|---|---|
 | 1.0 | 2026-11-04 | Secciones 1–4 y v0 de la 5 |
 | 1.1 | 2026-11-18 | Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma) |
-| **1.2** | **2026-11-19** | **Cierre de semanas 5–9: §6 rotación de logs + F-01/F-02 automatizados (51 tests); §7 actualizada; §8 Quality Gate OK + evidencia de CI y tags; §9 Dependabot + auditoría con decisión por hallazgo (pip-audit limpio, trivy falso positivo documentado) + runbooks + guía/FAQ; §10 materiales de aceptación (UAT, acta, registro de simulacro)** |
+| **1.2** | **2026-11-19** | **Cierre de semanas 5–9: §6 rotación de logs + F-01/F-02 automatizados (51 tests); §7 roles `vet_owner`/`vet_app` reales + pruebas de privilegios; §3 respaldo re-verificado (20/20 tablas, PK/FK/UNIQUE) + latido Kuma; §8 Quality Gate OK + monitores reales en Uptime Kuma; §9 Dependabot retirado + auditoría manual con decisión por hallazgo + runbooks + guía/FAQ; §10 materiales de aceptación (UAT, acta, registro de simulacro)** |
 
 ### 10.2 Pruebas de aceptación
 

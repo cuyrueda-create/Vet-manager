@@ -13,6 +13,16 @@ DB_CONFIG = {
     'use_unicode': True
 }
 
+# Credenciales del rol con privilegios de DDL (§7.3): migraciones y rutinas
+# se ejecutan con `DB_OWNER_USER`, mientras que el runtime de la API usa el
+# usuario restringido `DB_USER` (solo CRUD). Si el rol owner no está definido
+# se reutilizan las de la app, para no romper despliegues antiguos.
+DB_OWNER_CONFIG = dict(DB_CONFIG)
+DB_OWNER_CONFIG['user'] = os.getenv("DB_OWNER_USER") or DB_CONFIG['user']
+DB_OWNER_CONFIG['password'] = (
+    os.getenv("DB_OWNER_PASSWORD") or DB_CONFIG['password']
+)
+
 EMAIL_CONFIG = {
     'host': os.getenv("EMAIL_HOST", "smtp.gmail.com"),
     'port': int(os.getenv("EMAIL_PORT", 587)),
