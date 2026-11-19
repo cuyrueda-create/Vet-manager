@@ -1474,7 +1474,8 @@ async def confirm_email(data: dict):
         
         # Verificar expiración
         expires = user.get("reset_token_expires")
-        if expires and expires < datetime.utcnow():  # NOSONAR: expires es naive (MySQL DATETIME)
+        # expires viene de una columna MySQL DATETIME (naive, en UTC).
+        if expires and expires < datetime.utcnow():  # NOSONAR
             raise HTTPException(status_code=400, detail="El token de confirmación ha expirado. Solicita un nuevo registro.")
         
         cursor.execute("UPDATE usuarios SET confirm_token = NULL, reset_token_expires = NULL, is_active = TRUE WHERE id_usuario = %s", (user["id_usuario"],))
