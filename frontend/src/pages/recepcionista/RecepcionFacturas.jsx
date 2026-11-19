@@ -130,8 +130,8 @@ const RecepcionFacturas = () => {
     setSubmitting(true);
     try {
       await api.post('/api/facturas', {
-        id_cliente: parseInt(form.id_cliente),
-        id_cita: form.id_cita ? parseInt(form.id_cita) : null,
+        id_cliente: Number.parseInt(form.id_cliente),
+        id_cita: form.id_cita ? Number.parseInt(form.id_cita) : null,
         fecha_emision: form.fecha_emision ? form.fecha_emision.replace('T', ' ') + ':00' : null,
         fecha_vencimiento: form.fecha_vencimiento || null,
         correo_notificacion: form.correo_notificacion || null,
@@ -216,15 +216,15 @@ const RecepcionFacturas = () => {
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
-                  <label style={labelStyle}>Cliente *</label>
-                  <select value={form.id_cliente} onChange={e => setForm(f => ({ ...f, id_cliente: e.target.value, id_mascota: '', id_cita: '' }))} style={inputStyle} required>
+                  <label htmlFor="campo_219_9437" style={labelStyle}>Cliente *</label>
+                  <select id="campo_219_9437" value={form.id_cliente} onChange={e => setForm(f => ({ ...f, id_cliente: e.target.value, id_mascota: '', id_cita: '' }))} style={inputStyle} required>
                     <option value="">Seleccionar cliente...</option>
                     {clientes.map(c => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Mascota</label>
-                  <select value={form.id_mascota} onChange={e => setForm(f => ({ ...f, id_mascota: e.target.value }))} style={inputStyle}>
+                  <label htmlFor="campo_226_9938" style={labelStyle}>Mascota</label>
+                  <select id="campo_226_9938" value={form.id_mascota} onChange={e => setForm(f => ({ ...f, id_mascota: e.target.value }))} style={inputStyle}>
                     <option value="">Sin mascota</option>
                     {mascotas.filter(m => !form.id_cliente || m.id_cliente == form.id_cliente).map(m => (
                       <option key={m.id_mascota} value={m.id_mascota}>{m.nombre} ({m.especie})</option>
@@ -232,8 +232,8 @@ const RecepcionFacturas = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Cita asociada</label>
-                  <select value={form.id_cita} onChange={e => setForm(f => ({ ...f, id_cita: e.target.value }))} style={inputStyle}>
+                  <label htmlFor="campo_235_10508" style={labelStyle}>Cita asociada</label>
+                  <select id="campo_235_10508" value={form.id_cita} onChange={e => setForm(f => ({ ...f, id_cita: e.target.value }))} style={inputStyle}>
                     <option value="">Sin cita</option>
                     {citas.filter(c => !form.id_cliente || c.id_cliente == form.id_cliente).map(c => (
                       <option key={c.id_cita} value={c.id_cita}>{c.mascota_nombre} - {c.servicio_nombre} ({c.fecha})</option>
@@ -241,12 +241,12 @@ const RecepcionFacturas = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Fecha vencimiento</label>
-                  <input type="date" value={form.fecha_vencimiento} onChange={e => setForm(f => ({ ...f, fecha_vencimiento: e.target.value }))} style={inputStyle} />
+                  <label htmlFor="campo_244_11092" style={labelStyle}>Fecha vencimiento</label>
+                  <input id="campo_244_11092" type="date" value={form.fecha_vencimiento} onChange={e => setForm(f => ({ ...f, fecha_vencimiento: e.target.value }))} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Correo notificacion (opcional)</label>
-                  <input type="email" placeholder="correo@ejemplo.com" value={form.correo_notificacion} onChange={e => setForm(f => ({ ...f, correo_notificacion: e.target.value }))} style={inputStyle} />
+                  <label htmlFor="campo_248_11386" style={labelStyle}>Correo notificacion (opcional)</label>
+                  <input id="campo_248_11386" type="email" placeholder="correo@ejemplo.com" value={form.correo_notificacion} onChange={e => setForm(f => ({ ...f, correo_notificacion: e.target.value }))} style={inputStyle} />
                 </div>
               </div>
 
@@ -265,7 +265,7 @@ const RecepcionFacturas = () => {
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Agregar servicio rapido</label>
+                <div style={labelStyle}>Agregar servicio rapido</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {servicios.slice(0, 5).map(s => (
                     <button key={s.id_servicio} type="button" onClick={() => addServicio(s)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 12, cursor: 'pointer', color: '#334155' }}>
@@ -277,7 +277,7 @@ const RecepcionFacturas = () => {
 
               {medicamentosMascota.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={labelStyle}>Medicamentos asignados a la mascota</label>
+                  <div style={labelStyle}>Medicamentos asignados a la mascota</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {medicamentosMascota.map((m, i) => (
                       <button key={i} type="button" onClick={() => addMedicamento(m)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1fae5', background: '#ecfdf5', fontSize: 12, cursor: 'pointer', color: '#065f46' }}>
@@ -290,7 +290,7 @@ const RecepcionFacturas = () => {
 
               {medicamentosCatalogo.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={labelStyle}>Agregar medicamento del catalogo</label>
+                  <label htmlFor="campo_293_15223" style={labelStyle}>Agregar medicamento del catalogo</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {medicamentosCatalogo.map((m, i) => (
                       <button key={i} type="button" onClick={() => addMedicamento({ medicamento_nombre: m.nombre, dosis: m.dosis, precio: m.precio })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e0e7ff', background: '#eef2ff', fontSize: 12, cursor: 'pointer', color: '#3730a3' }}>
@@ -302,12 +302,12 @@ const RecepcionFacturas = () => {
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Detalles</label>
+                <label htmlFor="campo_293_15223" style={labelStyle}>Detalles</label>
                 {form.detalles.map((d, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                    <input placeholder="Descripcion" value={d.descripcion} onChange={e => updateDetalle(i, 'descripcion', e.target.value)} style={inputStyle} />
-                    <input type="number" placeholder="Cant" value={d.cantidad} onChange={e => updateDetalle(i, 'cantidad', parseInt(e.target.value) || 1)} style={inputStyle} min="1" />
-                    <input type="number" placeholder="Precio" value={d.precio_unitario || ''} onChange={e => updateDetalle(i, 'precio_unitario', parseFloat(e.target.value) || 0)} style={inputStyle} min="0" />
+                    <input id="campo_293_15223" placeholder="Descripcion" value={d.descripcion} onChange={e => updateDetalle(i, 'descripcion', e.target.value)} style={inputStyle} />
+                    <input type="number" placeholder="Cant" value={d.cantidad} onChange={e => updateDetalle(i, 'cantidad', Number.parseInt(e.target.value) || 1)} style={inputStyle} min="1" />
+                    <input type="number" placeholder="Precio" value={d.precio_unitario || ''} onChange={e => updateDetalle(i, 'precio_unitario', Number.parseFloat(e.target.value) || 0)} style={inputStyle} min="0" />
                     {form.detalles.length > 1 && (
                       <button type="button" onClick={() => removeDetalle(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 8 }}>
                         <Icon name="trash" size={16} />
@@ -379,8 +379,8 @@ const RecepcionFacturas = () => {
         )}
 
         {selectedFactura && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setSelectedFactura(null); setShowPagoModal(false); }}>
-            <div style={{ background: 'white', borderRadius: 20, padding: 32, maxWidth: 500, width: '90%', maxHeight: '80vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setSelectedFactura(null); setShowPagoModal(false); }}>
+            <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} style={{ background: 'white', borderRadius: 20, padding: 32, maxWidth: 500, width: '90%', maxHeight: '80vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: 0 }}>Factura {selectedFactura.numero}</h2>
                 <button onClick={() => { setSelectedFactura(null); setShowPagoModal(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -462,8 +462,8 @@ const RecepcionFacturas = () => {
 
         {/* Modal Simulacion de Pago */}
         {showPagoModal && selectedFactura && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => { if (!procesandoPago) setShowPagoModal(false); }}>
-            <div style={{ background: 'white', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => { if (!procesandoPago) setShowPagoModal(false); }}>
+            <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} style={{ background: 'white', borderRadius: 20, padding: 32, maxWidth: 420, width: '90%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
               {procesandoPago ? (
                 <>
                   <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>

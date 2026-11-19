@@ -44,7 +44,7 @@ export default function AdminUsuarios({ navigation }) {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const filtered = usuarios.filter((u) => {
     const matchRole = filterRole === 'Todos' || (u.rol || '').toLowerCase() === filterRole.toLowerCase();
@@ -82,7 +82,7 @@ export default function AdminUsuarios({ navigation }) {
     try {
       await api.post('/api/v1/admin/usuarios', form);
       setShowCreate(false);
-      load();
+      void load();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.detail || 'No se pudo crear el usuario');
     } finally { setSaving(false); }
@@ -99,7 +99,7 @@ export default function AdminUsuarios({ navigation }) {
       delete payload.password;
       await api.put(`/api/v1/admin/usuarios/${editingUser.id_usuario}`, payload);
       setShowEdit(false);
-      load();
+      void load();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.detail || 'No se pudo actualizar');
     } finally { setSaving(false); }
@@ -116,7 +116,7 @@ export default function AdminUsuarios({ navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/api/v1/admin/usuarios/${u.id_usuario}`);
-              load();
+              void load();
             } catch (err) {
               Alert.alert('Error', err.response?.data?.detail || 'No se pudo desactivar');
             }
@@ -223,7 +223,7 @@ export default function AdminUsuarios({ navigation }) {
         renderItem={renderItem}
         keyExtractor={u => String(u.id_usuario)}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Usuarios</Text>

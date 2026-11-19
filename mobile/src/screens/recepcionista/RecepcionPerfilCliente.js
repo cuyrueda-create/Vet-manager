@@ -66,7 +66,7 @@ export default function RecepcionPerfilCliente({ route, navigation }) {
     if (!petForm.nombre || !especieFinal) { Alert.alert('Error', 'Nombre y especie son requeridos'); return; }
     setPetSaving(true);
     try {
-      await api.post('/api/mascotas', { ...petForm, especie: especieFinal, especie_custom: undefined, id_cliente: client.id_cliente, edad: petForm.edad ? parseInt(petForm.edad) : null, peso: petForm.peso ? parseFloat(petForm.peso) : null });
+      await api.post('/api/mascotas', { ...petForm, especie: especieFinal, especie_custom: undefined, id_cliente: client.id_cliente, edad: petForm.edad ? Number.parseInt(petForm.edad) : null, peso: petForm.peso ? Number.parseFloat(petForm.peso) : null });
       Alert.alert('Éxito', 'Mascota registrada');
       setShowPetForm(false);
       setPetForm({ nombre: '', especie: '', especie_custom: '', raza: '', sexo: '', edad: '', peso: '', observaciones: '' });

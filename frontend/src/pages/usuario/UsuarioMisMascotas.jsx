@@ -49,7 +49,7 @@ const UsuarioMisMascotas = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { void loadData(); }, []);
 
   const verHistorial = async (m) => {
     setMascotaHistorial(m);
@@ -91,7 +91,7 @@ const UsuarioMisMascotas = () => {
       await api.post('/api/mascotas', payload);
       setShowModal(false);
       setForm({ nombre: '', especie: 'Perro', raza: '', sexo: 'Desconocido', edad: '', peso: '', observaciones: '' });
-      loadData();
+      void loadData();
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al registrar mascota');
     } finally {
@@ -104,7 +104,7 @@ const UsuarioMisMascotas = () => {
     setError('');
     try {
       await api.delete(`/api/mascotas/${m.id_mascota}`);
-      loadData();
+      void loadData();
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al eliminar la mascota');
     }
@@ -329,10 +329,10 @@ const UsuarioMisMascotas = () => {
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="nombre" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Nombre de la mascota *
                 </label>
-                <input type="text" name="nombre" value={form.nombre}
+                <input id="nombre" type="text" name="nombre" value={form.nombre}
                   onChange={handleChange} placeholder="Ej. Max, Luna..." required
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -343,10 +343,10 @@ const UsuarioMisMascotas = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="especie" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Especie *
                 </label>
-                <select name="especie" value={form.especie} onChange={handleChange} required
+                <select id="especie" name="especie" value={form.especie} onChange={handleChange} required
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
                     border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none',
@@ -361,10 +361,10 @@ const UsuarioMisMascotas = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="raza" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Raza
                 </label>
-                <input type="text" name="raza" value={form.raza}
+                <input id="raza" type="text" name="raza" value={form.raza}
                   onChange={handleChange} placeholder="Ej. Labrador"
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -374,10 +374,10 @@ const UsuarioMisMascotas = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="sexo" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Sexo
                 </label>
-                <select name="sexo" value={form.sexo} onChange={handleChange}
+                <select id="sexo" name="sexo" value={form.sexo} onChange={handleChange}
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
                     border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none',
@@ -390,10 +390,10 @@ const UsuarioMisMascotas = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="edad" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Edad (años)
                 </label>
-                <input type="number" name="edad" value={form.edad}
+                <input id="edad" type="number" name="edad" value={form.edad}
                   onChange={handleChange} placeholder="Ej. 3" min="0"
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -403,10 +403,10 @@ const UsuarioMisMascotas = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="peso" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Peso (kg)
                 </label>
-                <input type="number" name="peso" value={form.peso}
+                <input id="peso" type="number" name="peso" value={form.peso}
                   onChange={handleChange} placeholder="Ej. 12.5" min="0" step="0.01"
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -416,10 +416,10 @@ const UsuarioMisMascotas = () => {
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                <label htmlFor="observaciones" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                   Observaciones
                 </label>
-                <textarea name="observaciones" value={form.observaciones}
+                <textarea id="observaciones" name="observaciones" value={form.observaciones}
                   onChange={handleChange} placeholder="Notas adicionales sobre tu mascota..."
                   rows={3}
                   style={{

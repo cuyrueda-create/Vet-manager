@@ -28,7 +28,7 @@ const AdminBloc = () => {
   const copiarCredenciales = (u) => {
     const texto = `=== ${u.nombre} ${u.apellido} ===\nEmail: ${u.email}\nRol: ${u.rol}\nEstado: ${u.is_active ? 'Activo' : 'Inactivo'}`;
     try {
-      navigator.clipboard.writeText(texto);
+      void navigator.clipboard.writeText(texto);
       setSuccess(`Datos de ${u.nombre} copiados`);
     } catch {
       setError('No se pudo copiar al portapapeles');
@@ -41,7 +41,7 @@ const AdminBloc = () => {
       `${u.nombre} ${u.apellido} | ${u.email} | ${u.rol} | ${u.is_active ? 'Activo' : 'Inactivo'}`
     ).join('\n');
     try {
-      navigator.clipboard.writeText(texto);
+      void navigator.clipboard.writeText(texto);
       setSuccess('Datos copiados al portapapeles');
     } catch {
       setError('No se pudo copiar al portapapeles');

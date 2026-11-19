@@ -289,8 +289,8 @@ const AdminCitas = () => {
                   </div>
                 ))}
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Estado</label>
-                  <select name="estado" value={editForm.estado || 'programada'} onChange={handleChange} style={{
+                  <label htmlFor="estado" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Estado</label>
+                  <select id="estado" name="estado" value={editForm.estado || 'programada'} onChange={handleChange} style={{
                     width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
                     fontSize: 14, outline: 'none', background: 'white', boxSizing: 'border-box'
                   }}>
@@ -300,8 +300,8 @@ const AdminCitas = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Servicio</label>
-                  <select name="id_servicio" value={editForm.id_servicio || ''} onChange={handleChange} style={{
+                  <label htmlFor="id_servicio" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Servicio</label>
+                  <select id="id_servicio" name="id_servicio" value={editForm.id_servicio || ''} onChange={handleChange} style={{
                     width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
                     fontSize: 14, outline: 'none', background: 'white', boxSizing: 'border-box'
                   }}>
@@ -312,8 +312,8 @@ const AdminCitas = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Consultorio</label>
-                  <select name="id_consultorio" value={editForm.id_consultorio || ''} onChange={handleChange} style={{
+                  <label htmlFor="id_consultorio" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Consultorio</label>
+                  <select id="id_consultorio" name="id_consultorio" value={editForm.id_consultorio || ''} onChange={handleChange} style={{
                     width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
                     fontSize: 14, outline: 'none', background: 'white', boxSizing: 'border-box'
                   }}>
@@ -324,8 +324,8 @@ const AdminCitas = () => {
                   </select>
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Notas</label>
-                  <textarea
+                  <label htmlFor="notas" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Notas</label>
+                  <textarea id="notas"
                     name="notas"
                     value={editForm.notas || ''}
                     onChange={handleChange}

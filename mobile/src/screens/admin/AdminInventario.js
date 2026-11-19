@@ -45,7 +45,7 @@ export default function AdminInventario() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const filtered = insumos.filter((ins) => {
     const term = search.toLowerCase();
@@ -62,7 +62,7 @@ export default function AdminInventario() {
       await api.post('/api/medicamentos', { ...form, cantidad: Number(form.cantidad) });
       setShowForm(false);
       setForm({ ...emptyForm });
-      load();
+      void load();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.detail || 'No se pudo crear el insumo');
     } finally { setSaving(false); }
@@ -87,7 +87,7 @@ export default function AdminInventario() {
         motivo: movement.motivo,
       });
       setShowMovement(false);
-      load();
+      void load();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.detail || 'No se pudo registrar el movimiento');
     } finally { setSaving(false); }
@@ -128,7 +128,7 @@ export default function AdminInventario() {
         renderItem={renderItem}
         keyExtractor={ins => String(ins.id)}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Inventario</Text>

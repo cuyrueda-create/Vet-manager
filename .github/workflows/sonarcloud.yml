@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   tests:
@@ -48,6 +47,11 @@ jobs:
     name: SonarCloud Scan
     needs: tests
     runs-on: ubuntu-latest
+    # S8264: el permiso de PRs se da solo al job que lo necesita (decoración
+    # de pull requests), no a todo el workflow.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:

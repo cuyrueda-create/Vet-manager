@@ -22,7 +22,7 @@ export default function AdminDashboard() {
     try { const r = await api.get('/api/v1/admin/informes'); setData(r.data); } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="small" color="#0066b3" /></View>;
 
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   return (
     <ScrollView style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={{ paddingBottom: 20 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}>
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}>
       <View style={styles.header}>
         <Text style={styles.title}>Panel Admin</Text>
         <Text style={styles.sub}>Resumen del sistema</Text>

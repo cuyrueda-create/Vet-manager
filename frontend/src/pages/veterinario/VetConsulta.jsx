@@ -52,7 +52,7 @@ const VetConsulta = () => {
       api.get('/api/citas'),
       api.get('/api/medicamentos')
     ]).then(([citasRes, medsRes]) => {
-      const citaEncontrada = (citasRes.data || []).find(c => c.id_cita === parseInt(id_cita));
+      const citaEncontrada = (citasRes.data || []).find(c => c.id_cita === Number.parseInt(id_cita));
       if (!citaEncontrada) {
         setError('Cita no encontrada');
       } else if (citaEncontrada.estado === 'realizada') {
@@ -143,7 +143,7 @@ const VetConsulta = () => {
         }))
       ];
       const payload = {
-        id_cita: parseInt(id_cita),
+        id_cita: Number.parseInt(id_cita),
         signos_vitales: buildSignosVitalesText(),
         peso: signosVitales.peso || null,
         diagnostico: form.diagnostico,
@@ -303,8 +303,8 @@ const VetConsulta = () => {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Motivo de Consulta *</label>
-              <textarea
+              <label htmlFor="campo_306_14346" style={labelStyle}>Motivo de Consulta *</label>
+              <textarea id="campo_306_14346"
                 value={form.motivo_consulta}
                 onChange={e => updateField('motivo_consulta', e.target.value)}
                 rows={2}
@@ -313,8 +313,8 @@ const VetConsulta = () => {
               />
             </div>
             <div>
-              <label style={labelStyle}>Anamnesis / Observaciones</label>
-              <textarea
+              <label htmlFor="campo_316_14774" style={labelStyle}>Anamnesis / Observaciones</label>
+              <textarea id="campo_316_14774"
                 value={form.anamnesis}
                 onChange={e => updateField('anamnesis', e.target.value)}
                 rows={3}
@@ -340,29 +340,29 @@ const VetConsulta = () => {
             {/* Fila 1: Constantes vitales */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>Temperatura (°C)</label>
-                <input type="number" step="0.1" min="35" max="43"
+                <label htmlFor="campo_343_16162" style={labelStyle}>Temperatura (°C)</label>
+                <input id="campo_343_16162" type="number" step="0.1" min="35" max="43"
                   value={signosVitales.temperatura}
                   onChange={e => updateSigno('temperatura', e.target.value)}
                   placeholder="Ej: 38.5" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Peso (kg)</label>
-                <input type="number" step="0.1" min="0"
+                <label htmlFor="campo_350_16521" style={labelStyle}>Peso (kg)</label>
+                <input id="campo_350_16521" type="number" step="0.1" min="0"
                   value={signosVitales.peso}
                   onChange={e => updateSigno('peso', e.target.value)}
                   placeholder="Ej: 12.5" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Frec. Cardíaca (lpm)</label>
-                <input type="number" min="0"
+                <label htmlFor="campo_357_16867" style={labelStyle}>Frec. Cardíaca (lpm)</label>
+                <input id="campo_357_16867" type="number" min="0"
                   value={signosVitales.frecuencia_cardiaca}
                   onChange={e => updateSigno('frecuencia_cardiaca', e.target.value)}
                   placeholder="Ej: 120" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Frec. Respiratoria (rpm)</label>
-                <input type="number" min="0"
+                <label htmlFor="campo_364_17235" style={labelStyle}>Frec. Respiratoria (rpm)</label>
+                <input id="campo_364_17235" type="number" min="0"
                   value={signosVitales.frecuencia_respiratoria}
                   onChange={e => updateSigno('frecuencia_respiratoria', e.target.value)}
                   placeholder="Ej: 25" style={inputStyle} />
@@ -372,8 +372,8 @@ const VetConsulta = () => {
             {/* Fila 2: Estado clínico */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>Estado de Hidratación</label>
-                <select value={signosVitales.hidratacion} onChange={e => updateSigno('hidratacion', e.target.value)} style={selectStyle}>
+                <label htmlFor="campo_375_17782" style={labelStyle}>Estado de Hidratación</label>
+                <select id="campo_375_17782" value={signosVitales.hidratacion} onChange={e => updateSigno('hidratacion', e.target.value)} style={selectStyle}>
                   <option value="">Seleccionar...</option>
                   <option value="Normal">Normal</option>
                   <option value="Leve (5%)">Leve (5%)</option>
@@ -382,8 +382,8 @@ const VetConsulta = () => {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Mucosas</label>
-                <select value={signosVitales.mucosas} onChange={e => updateSigno('mucosas', e.target.value)} style={selectStyle}>
+                <label htmlFor="campo_385_18372" style={labelStyle}>Mucosas</label>
+                <select id="campo_385_18372" value={signosVitales.mucosas} onChange={e => updateSigno('mucosas', e.target.value)} style={selectStyle}>
                   <option value="">Seleccionar...</option>
                   <option value="Rosadas">Rosadas</option>
                   <option value="Pálidas">Pálidas</option>
@@ -393,8 +393,8 @@ const VetConsulta = () => {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Condición Corporal</label>
-                <select value={signosVitales.condicion_corporal} onChange={e => updateSigno('condicion_corporal', e.target.value)} style={selectStyle}>
+                <label htmlFor="campo_396_19008" style={labelStyle}>Condición Corporal</label>
+                <select id="campo_396_19008" value={signosVitales.condicion_corporal} onChange={e => updateSigno('condicion_corporal', e.target.value)} style={selectStyle}>
                   <option value="">Seleccionar...</option>
                   <option value="1 - Emaciado">1 - Emaciado</option>
                   <option value="2 - Delgado">2 - Delgado</option>
@@ -404,8 +404,8 @@ const VetConsulta = () => {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Estado General</label>
-                <select value={signosVitales.estado_general} onChange={e => updateSigno('estado_general', e.target.value)} style={selectStyle}>
+                <label htmlFor="campo_407_19684" style={labelStyle}>Estado General</label>
+                <select id="campo_407_19684" value={signosVitales.estado_general} onChange={e => updateSigno('estado_general', e.target.value)} style={selectStyle}>
                   <option value="">Seleccionar...</option>
                   <option value="Alerta">Alerta</option>
                   <option value="Deprimido">Deprimido</option>
@@ -419,16 +419,16 @@ const VetConsulta = () => {
             {/* Fila 3: Hallazgos adicionales */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
-                <label style={labelStyle}>Piel y Pelaje</label>
-                <input
+                <label htmlFor="campo_422_20496" style={labelStyle}>Piel y Pelaje</label>
+                <input id="campo_422_20496"
                   value={signosVitales.piel_pelaje}
                   onChange={e => updateSigno('piel_pelaje', e.target.value)}
                   placeholder="Ej: Pelaje brillante, sin lesiones..."
                   style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Otros Hallazgos</label>
-                <input
+                <label htmlFor="campo_430_20865" style={labelStyle}>Otros Hallazgos</label>
+                <input id="campo_430_20865"
                   value={signosVitales.otros_hallazgos}
                   onChange={e => updateSigno('otros_hallazgos', e.target.value)}
                   placeholder="Ej: Linfadenomegalia, masas..."
@@ -496,8 +496,8 @@ const VetConsulta = () => {
           <div style={{ padding: '20px 24px' }}>
             {/* Descripcion del tratamiento */}
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Descripción / Plan terapéutico</label>
-              <textarea
+              <label htmlFor="campo_499_24268" style={labelStyle}>Descripción / Plan terapéutico</label>
+              <textarea id="campo_499_24268"
                 value={form.tratamiento}
                 onChange={e => updateField('tratamiento', e.target.value)}
                 rows={4}
@@ -524,23 +524,23 @@ const VetConsulta = () => {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <div>
-                        <label style={{ ...labelStyle, fontSize: 12 }}>Dosis *</label>
-                        <input value={med.dosis} onChange={e => updateMedCatalogo(i, 'dosis', e.target.value)}
+                        <label htmlFor="campo_527_26034" style={{ ...labelStyle, fontSize: 12 }}>Dosis *</label>
+                        <input id="campo_527_26034" value={med.dosis} onChange={e => updateMedCatalogo(i, 'dosis', e.target.value)}
                           placeholder="Ej: 500mg cada 8h" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                       <div>
-                        <label style={{ ...labelStyle, fontSize: 12 }}>Frecuencia</label>
-                        <input value={med.frecuencia} onChange={e => updateMedCatalogo(i, 'frecuencia', e.target.value)}
+                        <label htmlFor="campo_532_26393" style={{ ...labelStyle, fontSize: 12 }}>Frecuencia</label>
+                        <input id="campo_532_26393" value={med.frecuencia} onChange={e => updateMedCatalogo(i, 'frecuencia', e.target.value)}
                           placeholder="Ej: Cada 8 horas" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                       <div>
-                        <label style={{ ...labelStyle, fontSize: 12 }}>Duración</label>
-                        <input value={med.duracion} onChange={e => updateMedCatalogo(i, 'duracion', e.target.value)}
+                        <label htmlFor="campo_537_26759" style={{ ...labelStyle, fontSize: 12 }}>Duración</label>
+                        <input id="campo_537_26759" value={med.duracion} onChange={e => updateMedCatalogo(i, 'duracion', e.target.value)}
                           placeholder="Ej: 7 días" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                       <div>
-                        <label style={{ ...labelStyle, fontSize: 12 }}>Instrucciones</label>
-                        <input value={med.instrucciones} onChange={e => updateMedCatalogo(i, 'instrucciones', e.target.value)}
+                        <label htmlFor="campo_542_27120" style={{ ...labelStyle, fontSize: 12 }}>Instrucciones</label>
+                        <input id="campo_542_27120" value={med.instrucciones} onChange={e => updateMedCatalogo(i, 'instrucciones', e.target.value)}
                           placeholder="Ej: Con alimentos" style={{ ...inputStyle, fontSize: 13 }} />
                       </div>
                     </div>
@@ -619,28 +619,28 @@ const VetConsulta = () => {
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={labelStyle}>Nombre del medicamento/producto *</label>
-                    <input value={customMed.nombre} onChange={e => setCustomMed(p => ({ ...p, nombre: e.target.value }))}
+                    <label htmlFor="campo_622_31849" style={labelStyle}>Nombre del medicamento/producto *</label>
+                    <input id="campo_622_31849" value={customMed.nombre} onChange={e => setCustomMed(p => ({ ...p, nombre: e.target.value }))}
                       placeholder="Nombre del medicamento, producto o procedimiento..." style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Dosis *</label>
-                    <input value={customMed.dosis} onChange={e => setCustomMed(p => ({ ...p, dosis: e.target.value }))}
+                    <label htmlFor="campo_627_32192" style={labelStyle}>Dosis *</label>
+                    <input id="campo_627_32192" value={customMed.dosis} onChange={e => setCustomMed(p => ({ ...p, dosis: e.target.value }))}
                       placeholder="Ej: 500mg, 10ml, 1 comprimido..." style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Frecuencia</label>
-                    <input value={customMed.frecuencia} onChange={e => setCustomMed(p => ({ ...p, frecuencia: e.target.value }))}
+                    <label htmlFor="campo_632_32517" style={labelStyle}>Frecuencia</label>
+                    <input id="campo_632_32517" value={customMed.frecuencia} onChange={e => setCustomMed(p => ({ ...p, frecuencia: e.target.value }))}
                       placeholder="Ej: Cada 8 horas, 2 veces al día..." style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Duración</label>
-                    <input value={customMed.duracion} onChange={e => setCustomMed(p => ({ ...p, duracion: e.target.value }))}
+                    <label htmlFor="campo_637_32853" style={labelStyle}>Duración</label>
+                    <input id="campo_637_32853" value={customMed.duracion} onChange={e => setCustomMed(p => ({ ...p, duracion: e.target.value }))}
                       placeholder="Ej: 7 días, 2 semanas..." style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Instrucciones</label>
-                    <input value={customMed.instrucciones} onChange={e => setCustomMed(p => ({ ...p, instrucciones: e.target.value }))}
+                    <label htmlFor="campo_642_33179" style={labelStyle}>Instrucciones</label>
+                    <input id="campo_642_33179" value={customMed.instrucciones} onChange={e => setCustomMed(p => ({ ...p, instrucciones: e.target.value }))}
                       placeholder="Ej: Con alimentos, vía oral..." style={inputStyle} />
                   </div>
                 </div>
@@ -679,8 +679,8 @@ const VetConsulta = () => {
           </div>
           <div style={{ padding: '20px 24px' }}>
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Recomendaciones</label>
-              <textarea
+              <label htmlFor="campo_682_35525" style={labelStyle}>Recomendaciones</label>
+              <textarea id="campo_682_35525"
                 value={form.recomendaciones}
                 onChange={e => updateField('recomendaciones', e.target.value)}
                 rows={3}
@@ -689,8 +689,8 @@ const VetConsulta = () => {
               />
             </div>
             <div>
-              <label style={labelStyle}>Observaciones Adicionales</label>
-              <textarea
+              <label htmlFor="campo_692_36008" style={labelStyle}>Observaciones Adicionales</label>
+              <textarea id="campo_692_36008"
                 value={form.observaciones}
                 onChange={e => updateField('observaciones', e.target.value)}
                 rows={2}

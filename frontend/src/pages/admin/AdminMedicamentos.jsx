@@ -38,8 +38,8 @@ const AdminMedicamentos = () => {
         nombre: form.nombre,
         descripcion: form.descripcion || null,
         dosis: form.dosis || null,
-        precio: parseFloat(form.precio),
-        stock: parseInt(form.stock) || 0
+        precio: Number.parseFloat(form.precio),
+        stock: Number.parseInt(form.stock) || 0
       };
       if (editId) {
         await api.put(`/api/admin/medicamentos/${editId}`, payload);
@@ -111,24 +111,24 @@ const AdminMedicamentos = () => {
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Nombre *</label>
-                  <input name="nombre" value={form.nombre} onChange={handleChange} placeholder="Nombre del medicamento" style={inputStyle} required />
+                  <label htmlFor="nombre" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Nombre *</label>
+                  <input id="nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="Nombre del medicamento" style={inputStyle} required />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Descripcion</label>
-                  <input name="descripcion" value={form.descripcion} onChange={handleChange} placeholder="Descripcion" style={inputStyle} />
+                  <label htmlFor="descripcion" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Descripcion</label>
+                  <input id="descripcion" name="descripcion" value={form.descripcion} onChange={handleChange} placeholder="Descripcion" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis</label>
-                  <input name="dosis" value={form.dosis} onChange={handleChange} placeholder="Ej: 500mg" style={inputStyle} />
+                  <label htmlFor="dosis" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis</label>
+                  <input id="dosis" name="dosis" value={form.dosis} onChange={handleChange} placeholder="Ej: 500mg" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Precio *</label>
-                  <input type="number" name="precio" value={form.precio} onChange={handleChange} placeholder="0" min="0" style={inputStyle} required />
+                  <label htmlFor="precio" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Precio *</label>
+                  <input id="precio" type="number" name="precio" value={form.precio} onChange={handleChange} placeholder="0" min="0" style={inputStyle} required />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Stock</label>
-                  <input type="number" name="stock" value={form.stock} onChange={handleChange} placeholder="0" min="0" style={inputStyle} />
+                  <label htmlFor="stock" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Stock</label>
+                  <input id="stock" type="number" name="stock" value={form.stock} onChange={handleChange} placeholder="0" min="0" style={inputStyle} />
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

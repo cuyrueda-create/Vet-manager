@@ -47,9 +47,9 @@ const RecepcionPerfilCliente = () => {
         ...newMascota,
         especie: especieFinal,
         especie_custom: undefined,
-        id_cliente: parseInt(id),
-        edad: newMascota.edad ? parseInt(newMascota.edad) : null,
-        peso: newMascota.peso ? parseFloat(newMascota.peso) : null
+        id_cliente: Number.parseInt(id),
+        edad: newMascota.edad ? Number.parseInt(newMascota.edad) : null,
+        peso: newMascota.peso ? Number.parseFloat(newMascota.peso) : null
       });
       const res = await api.get(`/api/clientes/${id}/perfil`);
       setPerfil(res.data);
@@ -87,7 +87,7 @@ const RecepcionPerfilCliente = () => {
     setSavingMed(true); setError('');
     try {
       await api.post(`/api/vet/historial/${medForm.id_historial}/medicamentos`, {
-        id_medicamento: parseInt(medForm.id_medicamento),
+        id_medicamento: Number.parseInt(medForm.id_medicamento),
         dosis: medForm.dosis,
         frecuencia: medForm.frecuencia || null,
         duracion: medForm.duracion || null,
@@ -270,7 +270,7 @@ const RecepcionPerfilCliente = () => {
                     <p style={{ fontSize: 16 }}>Este cliente no tiene mascotas registradas</p>
                   </div>
                 ) : perfil.mascotas.map(m => (
-                  <div key={m.id_mascota} style={cardStyle}
+                  <div role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }} key={m.id_mascota} style={cardStyle}
                     onClick={() => setMascotaExpandida(mascotaExpandida === m.id_mascota ? null : m.id_mascota)}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                       <div style={{ width: 48, height: 48, borderRadius: 12, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
@@ -499,13 +499,13 @@ const RecepcionPerfilCliente = () => {
             <div style={{ padding: '20px 24px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Nombre *</label>
-                  <input value={newMascota.nombre} onChange={e => setNewMascota(p => ({ ...p, nombre: e.target.value }))}
+                  <label htmlFor="campo_502_30308" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Nombre *</label>
+                  <input id="campo_502_30308" value={newMascota.nombre} onChange={e => setNewMascota(p => ({ ...p, nombre: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Especie *</label>
-                  <select value={newMascota.especie} onChange={e => setNewMascota(p => ({ ...p, especie: e.target.value }))}
+                  <label htmlFor="campo_507_30787" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Especie *</label>
+                  <select id="campo_507_30787" value={newMascota.especie} onChange={e => setNewMascota(p => ({ ...p, especie: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
                     <option value="">Seleccionar especie...</option>
                     {speciesList.map(s => <option key={s} value={s}>{s}</option>)}
@@ -513,33 +513,33 @@ const RecepcionPerfilCliente = () => {
                 </div>
                 {newMascota.especie === 'Otro' && (
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Especie (custom) *</label>
-                    <input value={newMascota.especie_custom} onChange={e => setNewMascota(p => ({ ...p, especie_custom: e.target.value }))}
+                    <label htmlFor="campo_516_31514" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Especie (custom) *</label>
+                    <input id="campo_516_31514" value={newMascota.especie_custom} onChange={e => setNewMascota(p => ({ ...p, especie_custom: e.target.value }))}
                       placeholder="Escriba la especie..."
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                 )}
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Raza</label>
-                  <input value={newMascota.raza} onChange={e => setNewMascota(p => ({ ...p, raza: e.target.value }))}
+                  <label htmlFor="campo_523_32085" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Raza</label>
+                  <input id="campo_523_32085" value={newMascota.raza} onChange={e => setNewMascota(p => ({ ...p, raza: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Sexo</label>
-                  <select value={newMascota.sexo} onChange={e => setNewMascota(p => ({ ...p, sexo: e.target.value }))}
+                  <label htmlFor="campo_528_32555" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Sexo</label>
+                  <select id="campo_528_32555" value={newMascota.sexo} onChange={e => setNewMascota(p => ({ ...p, sexo: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
                     <option value="M">Macho</option>
                     <option value="H">Hembra</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Edad</label>
-                  <input type="number" value={newMascota.edad} onChange={e => setNewMascota(p => ({ ...p, edad: e.target.value }))}
+                  <label htmlFor="campo_536_33159" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Edad</label>
+                  <input id="campo_536_33159" type="number" value={newMascota.edad} onChange={e => setNewMascota(p => ({ ...p, edad: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Peso (kg)</label>
-                  <input type="number" step="0.1" value={newMascota.peso} onChange={e => setNewMascota(p => ({ ...p, peso: e.target.value }))}
+                  <label htmlFor="campo_541_33648" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Peso (kg)</label>
+                  <input id="campo_541_33648" type="number" step="0.1" value={newMascota.peso} onChange={e => setNewMascota(p => ({ ...p, peso: e.target.value }))}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               </div>
@@ -582,8 +582,8 @@ const RecepcionPerfilCliente = () => {
             <div style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Registro de historial *</label>
-                  <select name="id_historial" value={medForm.id_historial} onChange={handleMedChange}
+                  <label htmlFor="id_historial" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Registro de historial *</label>
+                  <select id="id_historial" name="id_historial" value={medForm.id_historial} onChange={handleMedChange}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} required>
                     <option value="">Seleccionar registro...</option>
                     {perfil.historial.map(h => (
@@ -592,8 +592,8 @@ const RecepcionPerfilCliente = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Medicamento *</label>
-                  <select name="id_medicamento" value={medForm.id_medicamento} onChange={handleMedChange}
+                  <label htmlFor="id_medicamento" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Medicamento *</label>
+                  <select id="id_medicamento" name="id_medicamento" value={medForm.id_medicamento} onChange={handleMedChange}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} required>
                     <option value="">Seleccionar medicamento...</option>
                     {medicamentos.map(m => (
@@ -602,25 +602,25 @@ const RecepcionPerfilCliente = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis *</label>
-                  <input name="dosis" value={medForm.dosis} onChange={handleMedChange} placeholder="Ej: 500mg cada 8 horas"
+                  <label htmlFor="dosis" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis *</label>
+                  <input id="dosis" name="dosis" value={medForm.dosis} onChange={handleMedChange} placeholder="Ej: 500mg cada 8 horas"
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} required />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Frecuencia</label>
-                    <input name="frecuencia" value={medForm.frecuencia} onChange={handleMedChange} placeholder="Ej: Cada 8 horas"
+                    <label htmlFor="frecuencia" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Frecuencia</label>
+                    <input id="frecuencia" name="frecuencia" value={medForm.frecuencia} onChange={handleMedChange} placeholder="Ej: Cada 8 horas"
                       style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Duracion</label>
-                    <input name="duracion" value={medForm.duracion} onChange={handleMedChange} placeholder="Ej: 7 dias"
+                    <label htmlFor="duracion" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Duracion</label>
+                    <input id="duracion" name="duracion" value={medForm.duracion} onChange={handleMedChange} placeholder="Ej: 7 dias"
                       style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Instrucciones</label>
-                  <textarea name="instrucciones" value={medForm.instrucciones} onChange={handleMedChange} rows={2} placeholder="Notas adicionales..."
+                  <label htmlFor="instrucciones" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Instrucciones</label>
+                  <textarea id="instrucciones" name="instrucciones" value={medForm.instrucciones} onChange={handleMedChange} rows={2} placeholder="Notas adicionales..."
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
                 </div>
               </div>

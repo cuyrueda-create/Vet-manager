@@ -17,7 +17,7 @@ export default function RecepcionNuevaCita({ navigation }) {
   const [openPicker, setOpenPicker] = useState(null);
 
   useEffect(() => {
-    Promise.all([
+    void Promise.all([
       api.get('/api/v1/clientes/').catch(() => ({ data: [] })),
       api.get('/api/veterinarios').catch(() => ({ data: [] })),
       api.get('/api/servicios').catch(() => ({ data: [] })),
@@ -47,10 +47,10 @@ export default function RecepcionNuevaCita({ navigation }) {
     setSaving(true);
     try {
       await api.post('/api/citas', {
-        id_mascota: parseInt(form.id_mascota),
-        id_usuario_vet: parseInt(form.id_usuario_vet),
-        id_servicio: parseInt(form.id_servicio),
-        id_consultorio: parseInt(form.id_consultorio),
+        id_mascota: Number.parseInt(form.id_mascota),
+        id_usuario_vet: Number.parseInt(form.id_usuario_vet),
+        id_servicio: Number.parseInt(form.id_servicio),
+        id_consultorio: Number.parseInt(form.id_consultorio),
         fecha: form.fecha,
         hora: form.hora,
       });

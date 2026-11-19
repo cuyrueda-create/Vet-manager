@@ -69,7 +69,7 @@ const VetHistorial = () => {
       setSuccess('Historial registrado');
       setShowAddHistorial(false);
       setHistorialForm({ diagnostico: '', tratamiento: '', observaciones: '', id_cita: '' });
-      verHistorial(mascotaActual);
+      void verHistorial(mascotaActual);
     } catch (err) { setError(err.response?.data?.detail || 'Error al guardar historial'); }
     finally { setSaving(false); }
   };
@@ -83,7 +83,7 @@ const VetHistorial = () => {
     setSaving(true); setError('');
     try {
       await api.post(`/api/vet/historial/${medForm.id_historial}/medicamentos`, {
-        id_medicamento: parseInt(medForm.id_medicamento),
+        id_medicamento: Number.parseInt(medForm.id_medicamento),
         dosis: medForm.dosis,
         frecuencia: medForm.frecuencia || null,
         duracion: medForm.duracion || null,
@@ -92,7 +92,7 @@ const VetHistorial = () => {
       setSuccess('Medicamento asignado exitosamente');
       setShowAddMedicamento(false);
       setMedForm({ id_historial: '', id_medicamento: '', dosis: '', frecuencia: '', duracion: '', instrucciones: '' });
-      verHistorial(mascotaActual);
+      void verHistorial(mascotaActual);
     } catch (err) { setError(err.response?.data?.detail || 'Error al asignar medicamento'); }
     finally { setSaving(false); }
   };
@@ -296,8 +296,8 @@ const VetHistorial = () => {
             <div style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Cita asociada (opcional)</label>
-                  <select name="id_cita" value={historialForm.id_cita} onChange={handleHistorialChange} style={inputStyle}>
+                  <label htmlFor="id_cita" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Cita asociada (opcional)</label>
+                  <select id="id_cita" name="id_cita" value={historialForm.id_cita} onChange={handleHistorialChange} style={inputStyle}>
                     <option value="">Sin cita</option>
                     {citas.map(c => (
                       <option key={c.id_cita} value={c.id_cita}>#{c.id_cita} — {c.fecha} {c.hora?.slice(0, 5)} ({c.servicio_nombre})</option>
@@ -360,8 +360,8 @@ const VetHistorial = () => {
             <div style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Registro de historial *</label>
-                  <select name="id_historial" value={medForm.id_historial} onChange={handleMedChange} style={inputStyle} required>
+                  <label htmlFor="id_historial" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Registro de historial *</label>
+                  <select id="id_historial" name="id_historial" value={medForm.id_historial} onChange={handleMedChange} style={inputStyle} required>
                     <option value="">Seleccionar registro...</option>
                     {historial.map(h => (
                       <option key={h.id_historial} value={h.id_historial}>#{h.id_historial} — {h.fecha} - {h.diagnostico?.slice(0, 30) || h.tratamiento?.slice(0, 30) || 'Sin diagnostico'}</option>
@@ -369,8 +369,8 @@ const VetHistorial = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Medicamento *</label>
-                  <select name="id_medicamento" value={medForm.id_medicamento} onChange={handleMedChange} style={inputStyle} required>
+                  <label htmlFor="id_medicamento" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Medicamento *</label>
+                  <select id="id_medicamento" name="id_medicamento" value={medForm.id_medicamento} onChange={handleMedChange} style={inputStyle} required>
                     <option value="">Seleccionar medicamento...</option>
                     {medicamentos.map(m => (
                       <option key={m.id_medicamento} value={m.id_medicamento}>{m.nombre} - ${m.precio?.toLocaleString() || 0}</option>
@@ -378,22 +378,22 @@ const VetHistorial = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis *</label>
-                  <input name="dosis" value={medForm.dosis} onChange={handleMedChange} placeholder="Ej: 500mg cada 8 horas" style={inputStyle} required />
+                  <label htmlFor="dosis" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Dosis *</label>
+                  <input id="dosis" name="dosis" value={medForm.dosis} onChange={handleMedChange} placeholder="Ej: 500mg cada 8 horas" style={inputStyle} required />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Frecuencia</label>
-                    <input name="frecuencia" value={medForm.frecuencia} onChange={handleMedChange} placeholder="Ej: Cada 8 horas" style={inputStyle} />
+                    <label htmlFor="frecuencia" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Frecuencia</label>
+                    <input id="frecuencia" name="frecuencia" value={medForm.frecuencia} onChange={handleMedChange} placeholder="Ej: Cada 8 horas" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Duracion</label>
-                    <input name="duracion" value={medForm.duracion} onChange={handleMedChange} placeholder="Ej: 7 dias" style={inputStyle} />
+                    <label htmlFor="duracion" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Duracion</label>
+                    <input id="duracion" name="duracion" value={medForm.duracion} onChange={handleMedChange} placeholder="Ej: 7 dias" style={inputStyle} />
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Instrucciones</label>
-                  <textarea name="instrucciones" value={medForm.instrucciones} onChange={handleMedChange} rows={2} placeholder="Notas adicionales..." style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+                  <label htmlFor="instrucciones" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Instrucciones</label>
+                  <textarea id="instrucciones" name="instrucciones" value={medForm.instrucciones} onChange={handleMedChange} rows={2} placeholder="Notas adicionales..." style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
                 </div>
               </div>
             </div>

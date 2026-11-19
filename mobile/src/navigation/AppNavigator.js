@@ -62,7 +62,7 @@ const TabBarIcon = ({ label, focused }) => {
     Mascotas: focused ? '🐾' : '🐕',
     'Mis Citas': focused ? '📋' : '📝',
     Historial: focused ? '💊' : '📖',
-    Perfil: focused ? '👤' : '👤',
+    Perfil: '👤',
     Usuarios: focused ? '👥' : '👤',
     Inventario: focused ? '📦' : '📋',
     Más: focused ? '⚡' : '⚙️',

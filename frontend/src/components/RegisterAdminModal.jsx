@@ -66,7 +66,7 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email)) {
+    if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(formData.email)) {
       setError('El correo corporativo no tiene un formato válido');
       return;
     }
@@ -176,26 +176,26 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label>Nombre completo</label>
-          <input type="text" name="nombre" placeholder="Nombre y apellido" value={formData.nombre} onChange={handleChange} required />
+          <label htmlFor="nombre">Nombre completo</label>
+          <input id="nombre" type="text" name="nombre" placeholder="Nombre y apellido" value={formData.nombre} onChange={handleChange} required />
         </div>
 
         <div className="form-group">
-          <label>Email corporativo</label>
-          <input type="email" name="email" placeholder="nombre@tuclinica.com" value={formData.email} onChange={handleChange} maxLength={100} required />
+          <label htmlFor="email">Email corporativo</label>
+          <input id="email" type="email" name="email" placeholder="nombre@tuclinica.com" value={formData.email} onChange={handleChange} maxLength={100} required />
         </div>
 
         <div className="form-group">
-          <label>Teléfono de contacto</label>
+          <label htmlFor="telefono">Teléfono de contacto</label>
           <div className="phone-input">
             <span className="phone-prefix">+57</span>
-            <input type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} maxLength={20} required />
+            <input id="telefono" type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} maxLength={20} required />
           </div>
         </div>
 
         <div className="form-group">
-          <label>Contraseña</label>
-          <input type="password" name="contraseña" placeholder="Mínimo 8 caracteres" value={formData.contraseña} onChange={handleChange} required minLength={8} />
+          <label htmlFor="contraseña">Contraseña</label>
+          <input id="contraseña" type="password" name="contraseña" placeholder="Mínimo 8 caracteres" value={formData.contraseña} onChange={handleChange} required minLength={8} />
           {formData.contraseña && (
             <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
               {[
@@ -214,39 +214,39 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
         </div>
 
         <div className="form-group">
-          <label>Confirmar contraseña</label>
-          <input type="password" name="confirmarContraseña" placeholder="Repite tu contraseña" value={formData.confirmarContraseña} onChange={handleChange} required />
+          <label htmlFor="confirmarContraseña">Confirmar contraseña</label>
+          <input id="confirmarContraseña" type="password" name="confirmarContraseña" placeholder="Repite tu contraseña" value={formData.confirmarContraseña} onChange={handleChange} required />
           {formData.confirmarContraseña && !passwordsMatch && (
             <span className="pwd-mismatch">Las contraseñas no coinciden</span>
           )}
         </div>
 
         <div className="form-group">
-          <label>Número de identificación fiscal / RUT / Cédula</label>
-          <input type="text" name="numeroDocumento" placeholder="Ej: 901234567-1" value={formData.numeroDocumento} onChange={handleChange} required />
+          <label htmlFor="numeroDocumento">Número de identificación fiscal / RUT / Cédula</label>
+          <input id="numeroDocumento" type="text" name="numeroDocumento" placeholder="Ej: 901234567-1" value={formData.numeroDocumento} onChange={handleChange} required />
         </div>
 
         <div className="form-group">
-          <label>Nombre de la clínica o negocio</label>
-          <input type="text" name="nombreNegocio" placeholder="Ej: Clínica Veterinaria Patitas" value={formData.nombreNegocio} onChange={handleChange} required />
+          <label htmlFor="nombreNegocio">Nombre de la clínica o negocio</label>
+          <input id="nombreNegocio" type="text" name="nombreNegocio" placeholder="Ej: Clínica Veterinaria Patitas" value={formData.nombreNegocio} onChange={handleChange} required />
         </div>
 
         <div className="form-group">
-          <label>Dirección de la clínica</label>
-          <input type="text" name="direccionNegocio" placeholder="Calle, número, ciudad" value={formData.direccionNegocio} onChange={handleChange} maxLength={150} required />
+          <label htmlFor="direccionNegocio">Dirección de la clínica</label>
+          <input id="direccionNegocio" type="text" name="direccionNegocio" placeholder="Calle, número, ciudad" value={formData.direccionNegocio} onChange={handleChange} maxLength={150} required />
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Especialidad</label>
-            <select name="especialidad" value={formData.especialidad} onChange={handleChange} required>
+            <label htmlFor="especialidad">Especialidad</label>
+            <select id="especialidad" name="especialidad" value={formData.especialidad} onChange={handleChange} required>
               <option value="Veterinaria">Veterinaria</option>
               <option value="Recepción">Recepción</option>
             </select>
           </div>
           <div className="form-group">
-            <label>Años de experiencia</label>
-            <input type="number" name="anosExperiencia" placeholder="Ej: 5" min="0" max="99" value={formData.anosExperiencia} onChange={handleChange} required />
+            <label htmlFor="anosExperiencia">Años de experiencia</label>
+            <input id="anosExperiencia" type="number" name="anosExperiencia" placeholder="Ej: 5" min="0" max="99" value={formData.anosExperiencia} onChange={handleChange} required />
           </div>
         </div>
 

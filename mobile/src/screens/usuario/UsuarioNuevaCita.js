@@ -44,7 +44,7 @@ export default function UsuarioNuevaCita({ navigation }) {
   const [showOffices, setShowOffices] = useState(false);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const loadData = async () => {

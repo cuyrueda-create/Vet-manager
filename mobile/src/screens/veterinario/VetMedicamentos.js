@@ -26,7 +26,7 @@ export default function VetMedicamentos({ navigation }) {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -44,7 +44,7 @@ export default function VetMedicamentos({ navigation }) {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    load();
+    void load();
   }, []);
 
   const renderItem = ({ item: med }) => (

@@ -49,9 +49,9 @@ export default function RecepcionMascotas() {
         ...form,
         especie: especieFinal,
         especie_custom: undefined,
-        edad: form.edad ? parseInt(form.edad) : null,
-        peso: form.peso ? parseFloat(form.peso) : null,
-        id_cliente: parseInt(form.id_cliente),
+        edad: form.edad ? Number.parseInt(form.edad) : null,
+        peso: form.peso ? Number.parseFloat(form.peso) : null,
+        id_cliente: Number.parseInt(form.id_cliente),
       });
       Alert.alert('Éxito', 'Mascota registrada correctamente');
       setShowForm(false);

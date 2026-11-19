@@ -17,7 +17,7 @@ const VetReportes = () => {
     { id: 'seguimiento', label: 'Seguimiento', icon: 'calendar', color: '#f59e0b' },
   ];
 
-  useEffect(() => { fetchReport(); }, [activeTab, fechaInicio, fechaFin]);
+  useEffect(() => { void fetchReport(); }, [activeTab, fechaInicio, fechaFin]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -93,13 +93,13 @@ const VetReportes = () => {
         {activeTab !== 'seguimiento' && (
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Desde</label>
-              <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
+              <label htmlFor="campo_96_3905" style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Desde</label>
+              <input id="campo_96_3905" type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
                 style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Hasta</label>
-              <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
+              <label htmlFor="campo_101_4302" style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Hasta</label>
+              <input id="campo_101_4302" type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
                 style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
             </div>
             {(fechaInicio || fechaFin) && (

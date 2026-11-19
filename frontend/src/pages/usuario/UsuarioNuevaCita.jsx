@@ -55,7 +55,7 @@ const UsuarioNuevaCita = () => {
         setLoading(false);
       }
     };
-    loadData();
+    void loadData();
   }, []);
 
   const handleChange = (e) => {

@@ -78,9 +78,9 @@ const ResetPassword = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Nueva Contraseña</label>
+            <label htmlFor="campo_81_2497">Nueva Contraseña</label>
             <div className="pwd-wrapper">
-              <input
+              <input id="campo_81_2497"
                 type={showPwd ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={newPassword}
@@ -112,9 +112,9 @@ const ResetPassword = () => {
           </div>
 
           <div className="form-group">
-            <label>Confirmar Contraseña</label>
+            <label htmlFor="campo_115_4319">Confirmar Contraseña</label>
             <div className="pwd-wrapper">
-              <input
+              <input id="campo_115_4319"
                 type={showConfirm ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={confirmPassword}

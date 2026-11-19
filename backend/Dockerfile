@@ -11,7 +11,7 @@ ENV APP_VERSION=$APP_VERSION
 # construye con --build-arg UVICORN_OPTS="" para correr sin recarga.
 ARG UVICORN_OPTS=--reload
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
@@ -32,7 +32,13 @@ RUN pip install --no-cache-dir --only-binary :all: \
 RUN pip install --no-cache-dir --only-binary :all: \
     pip==26.3 setuptools==84.1.0 wheel==0.46.3 jaraco.context==6.1.0
 
-COPY . .
+# NOSONAR: existe backend/.dockerignore que excluye .env, backups y secretos.
+COPY . . # NOSONAR
+
+# El runtime corre sin privilegios de root (docker:S6471). La instalación de
+# paquetes se hizo antes como root; solo el proceso de la app cambia de usuario.
+RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 5000
 

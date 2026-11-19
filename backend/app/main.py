@@ -8,7 +8,7 @@ import mysql.connector
 from mysql.connector import Error
 from passlib.context import CryptContext
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 import re
 import os
@@ -562,7 +562,7 @@ def get_password_hash(password):
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -1011,7 +1011,9 @@ async def register(user_data: UsuarioCreate):
         
         # Generar token de confirmación (expira en 24h)
         confirm_token = secrets.token_urlsafe(32)
-        confirm_token_expires = datetime.utcnow() + timedelta(hours=24)
+        # NOSONAR: la columna MySQL es DATETIME (naive, en UTC); un valor
+        # timezone-aware romperia la comparacion con el valor leido de la BD.
+        confirm_token_expires = datetime.utcnow() + timedelta(hours=24)  # NOSONAR
         
         # Insertar usuario - COLUMNA: contrasea (sin ñ y sin tilde)
         # El rol siempre es 'usuario' en el registro público: los roles
@@ -1472,7 +1474,7 @@ async def confirm_email(data: dict):
         
         # Verificar expiración
         expires = user.get("reset_token_expires")
-        if expires and expires < datetime.utcnow():
+        if expires and expires < datetime.utcnow():  # NOSONAR: expires es naive (MySQL DATETIME)
             raise HTTPException(status_code=400, detail="El token de confirmación ha expirado. Solicita un nuevo registro.")
         
         cursor.execute("UPDATE usuarios SET confirm_token = NULL, reset_token_expires = NULL, is_active = TRUE WHERE id_usuario = %s", (user["id_usuario"],))
@@ -4669,4 +4671,5 @@ if __name__ == "__main__":
     print(f"📚 Documentación: http://localhost:5000/docs")
     print(f"📧 Correo configurado: {'✅ Sí' if EMAIL_CONFIG['user'] else '❌ No'}")
     print("="*50 + "\n")
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    # NOSONAR: en contenedor/Render el proceso debe escuchar en todas las interfaces.
+    uvicorn.run(app, host="0.0.0.0", port=5000)  # NOSONAR

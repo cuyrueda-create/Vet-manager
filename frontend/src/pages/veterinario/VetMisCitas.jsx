@@ -270,8 +270,8 @@ const VetMisCitas = () => {
               </div>
             </div>
             <div style={{ padding: '20px 24px' }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Notas</label>
-              <textarea
+              <label htmlFor="notas" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Notas</label>
+              <textarea id="notas"
                 name="notas"
                 value={editForm.notas || ''}
                 onChange={(e) => setEditForm({ ...editForm, notas: e.target.value })}
