@@ -344,7 +344,7 @@ const FacturasPage = () => {
                     background: '#f0fdf4', borderRadius: 10, padding: '12px 16px', marginBottom: 20,
                     border: '1px solid #bbf7d0'
                   }}>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#166534', marginBottom: 8 }}>Medicamentos de la mascota</label>
+                    <div style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#166534', marginBottom: 8 }}>Medicamentos de la mascota</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {medicamentosMascota.map((m, i) => (
                         <button key={i} type="button" onClick={() => addMedicamento(m)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1fae5', background: '#ecfdf5', fontSize: 12, cursor: 'pointer', color: '#065f46' }}>

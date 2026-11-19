@@ -436,7 +436,7 @@ const RecepcionNuevaCita = () => {
               {/* Paso 3: Veterinarios disponibles */}
               {form.fecha && (
                 <div style={{ marginBottom: 20 }}>
-                  <label style={labelStyle}>3. Veterinario *</label>
+                  <div style={labelStyle}>3. Veterinario *</div>
                   {loadingDisponibilidad ? (
                     <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Cargando disponibilidad...</div>
                   ) : disponibilidad.length === 0 ? (
@@ -481,7 +481,7 @@ const RecepcionNuevaCita = () => {
               {/* Paso 4: Horarios disponibles */}
               {form.id_usuario_vet && form.fecha && (
                 <div style={{ marginBottom: 20 }}>
-                  <label style={labelStyle}>4. Horario *</label>
+                  <div style={labelStyle}>4. Horario *</div>
                   {loadingHorarios ? (
                     <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Cargando horarios...</div>
                   ) : horarios.length === 0 ? (
