@@ -62,3 +62,16 @@ printf 'SHA-256: '
 sha256sum "$BACKUP_FILE"
 printf 'Retención aplicada: %s días\n' "$RETENTION_DAYS"
 printf '%s\n' 'Nota: el dump está comprimido, no cifrado; cifra las copias antes de transferirlas o guardarlas fuera del host.'
+
+# Latido a Uptime Kuma (§8.5). Definir KUMA_PUSH_URL con la URL del monitor
+# push, p. ej. http://127.0.0.1:8081/api/push/<token>. Si no está definida,
+# el respaldo funciona igual y no se envía nada.
+KUMA_PUSH_URL=${KUMA_PUSH_URL:-}
+kuma_push() {
+  [[ -n "$KUMA_PUSH_URL" ]] || return 0
+  command -v curl >/dev/null 2>&1 || return 0
+  curl -fsS --max-time 10 -o /dev/null "${KUMA_PUSH_URL}${1}" || true
+}
+trap 'kuma_push "?status=down&msg=FAIL"' ERR
+kuma_push "?status=up&msg=OK"
+printf '%s\n' 'Latido a Uptime Kuma enviado (si estaba configurado).'

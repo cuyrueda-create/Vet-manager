@@ -46,9 +46,56 @@ app = FastAPI(
     description="Sistema de gestión veterinaria con FastAPI"
 )
 
+# ==================== OBJETOS DE BD QUE EXIGE LA API ====================
+# GET /data/procedimiento hace CALL a este procedimiento. El rol de la app solo
+# tiene CRUD (+EXECUTE) y no puede crear rutinas, así que el arranque lo garantiza
+# con el rol owner. Así funciona también en una base de datos nueva (§7.3).
+SQL_SP_CITAS_ACTIVAS = """
+    CREATE PROCEDURE sp_citas_activas()
+    BEGIN
+        SELECT
+            c.id_cita,
+            m.nombre AS mascota_nombre,
+            CONCAT(cl.nombre, ' ', cl.apellido) AS cliente_nombre,
+            c.fecha,
+            c.hora,
+            s.nombre AS servicio_nombre,
+            c.estado,
+            CONCAT(u.nombre, ' ', u.apellido) AS veterinario_nombre
+        FROM citas c
+        INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
+        INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
+        INNER JOIN servicios s ON c.id_servicio = s.id_servicio
+        INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
+        WHERE c.estado = 'programada'
+            AND CONCAT(c.fecha, ' ', c.hora) >= NOW()
+        ORDER BY c.fecha ASC, c.hora ASC
+        LIMIT 20;
+    END
+"""
+
+
+def migrate_stored_procedures():
+    """Garantiza sp_citas_activas (la API solo tiene EXECUTE, no CREATE ROUTINE)."""
+    conn = get_db_connection(owner=True)
+    if not conn:
+        print("⚠️ No se pudo conectar a la BD para migración de rutinas")
+        return
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
+        cursor.execute(SQL_SP_CITAS_ACTIVAS)
+        conn.commit()
+        print("✅ Rutina sp_citas_activas verificada/creada")
+    except Exception as e:
+        print(f"⚠️ Error creando sp_citas_activas: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
 def migrate_usuarios_table():
     """Agrega columnas faltantes a la tabla usuarios"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración")
         return
@@ -77,7 +124,7 @@ def migrate_usuarios_table():
 
 def migrate_clientes_table():
     """Agrega columnas faltantes a la tabla clientes (email, is_active, id_usuario)"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de clientes")
         return
@@ -101,7 +148,7 @@ def migrate_clientes_table():
 
 def migrate_citas_table():
     """Agrega columna de creador a la tabla citas"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de citas")
         return
@@ -127,7 +174,7 @@ def migrate_citas_table():
 
 def migrate_facturas_tables():
     """Crea las tablas de facturación (facturas y factura_detalle)"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de facturas")
         return
@@ -171,7 +218,7 @@ def migrate_facturas_tables():
 
 def migrate_facturas_pago():
     """Agrega fecha_vencimiento, estado de pago y tabla de notificaciones"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de facturas/pago")
         return
@@ -219,7 +266,7 @@ def migrate_medicamentos_asignados():
     """Crea la tabla medicamentos_asignados si no existe"""
     import time
     for attempt in range(5):
-        conn = get_db_connection()
+        conn = get_db_connection(owner=True)
         if conn:
             break
         print(f"Intento {attempt + 1}/5 - Esperando BD...")
@@ -253,7 +300,7 @@ def migrate_medicamentos_asignados():
 
 def migrate_veterinario_horarios():
     """Crea la tabla de horarios de veterinarios si no existe"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de horarios")
         return
@@ -292,7 +339,7 @@ def migrate_veterinario_horarios():
 
 def hash_existing_passwords():
     """Convierte contraseñas en texto plano a pbkdf2_sha256"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         return
     cursor = conn.cursor(dictionary=True)
@@ -314,7 +361,7 @@ def hash_existing_passwords():
 
 def migrate_roles():
     """Unifica los roles en 4: administrador, veterinario, recepcionista, usuario"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de roles")
         return
@@ -341,7 +388,7 @@ def migrate_roles():
 
 def migrate_admin_columns():
     """Agrega columnas de datos del negocio a la tabla usuarios"""
-    conn = get_db_connection()
+    conn = get_db_connection(owner=True)
     if not conn:
         print("⚠️ No se pudo conectar a la BD para migración de admin")
         return
@@ -374,6 +421,7 @@ def startup():
     migrate_facturas_pago()
     migrate_medicamentos_asignados()
     migrate_veterinario_horarios()
+    migrate_stored_procedures()
     hash_existing_passwords()
     run_alembic_migrations()
     print("Migraciones completadas")
@@ -1540,30 +1588,10 @@ async def get_listado_procedimiento(current_user: dict = Depends(get_current_use
     
     try:
         try:
+            # Con el rol de la app esto falla (solo EXECUTE); se usa la rutina
+            # que garantiza el arranque con el rol owner (§7.3).
             cursor.execute("DROP PROCEDURE IF EXISTS sp_citas_activas")
-            cursor.execute("""
-                CREATE PROCEDURE sp_citas_activas()
-                BEGIN
-                    SELECT 
-                        c.id_cita,
-                        m.nombre AS mascota_nombre,
-                        CONCAT(cl.nombre, ' ', cl.apellido) AS cliente_nombre,
-                        c.fecha,
-                        c.hora,
-                        s.nombre AS servicio_nombre,
-                        c.estado,
-                        CONCAT(u.nombre, ' ', u.apellido) AS veterinario_nombre
-                    FROM citas c
-                    INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
-                    INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
-                    INNER JOIN servicios s ON c.id_servicio = s.id_servicio
-                    INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-                    WHERE c.estado = 'programada'
-                        AND CONCAT(c.fecha, ' ', c.hora) >= NOW()
-                    ORDER BY c.fecha ASC, c.hora ASC
-                    LIMIT 20;
-                END
-            """)
+            cursor.execute(SQL_SP_CITAS_ACTIVAS)
             connection.commit()
         except Exception as create_error:
             # El usuario de BD puede carecer de permisos para crear rutinas

@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.pool import NullPool
 
-from app.core.config import DB_CONFIG
+from app.core.config import DB_OWNER_CONFIG
 
 config = context.config
 
@@ -11,12 +11,12 @@ config = context.config
 def database_url():
     return URL.create(
         "mysql+mysqlconnector",
-        username=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        host=DB_CONFIG["host"],
-        port=DB_CONFIG["port"],
-        database=DB_CONFIG["database"],
-        query={"charset": DB_CONFIG["charset"]},
+        username=DB_OWNER_CONFIG["user"],
+        password=DB_OWNER_CONFIG["password"],
+        host=DB_OWNER_CONFIG["host"],
+        port=DB_OWNER_CONFIG["port"],
+        database=DB_OWNER_CONFIG["database"],
+        query={"charset": DB_OWNER_CONFIG["charset"]},
     )
 
 
