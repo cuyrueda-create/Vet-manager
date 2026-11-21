@@ -33,7 +33,7 @@ from app.core.auth import get_current_user, require_admin, require_veterinario, 
 # ==================== IMPORTAR CONFIGURACIÓN ====================
 from app.core.config import (
     DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
-    FRONTEND_BASE_URL, RESET_TOKEN_HOURS, CONFIRM_TOKEN_HOURS,
+    FRONTEND_BASE_URL, RESET_TOKEN_HOURS, CONFIRM_TOKEN_HOURS, _url_publica,
 )
 from app.core.database import get_db_connection
 from app.utils.email import send_cita_email, send_recordatorio_email
@@ -446,7 +446,7 @@ def run_alembic_migrations():
 # Orígenes permitidos en variables de entorno (separados por coma) para que el
 # frontend desplegado en la nube pueda consumir la API. Ver .env.example.
 CORS_ORIGINS = [
-    origen.strip()
+    _url_publica(origen.strip(), "")
     for origen in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     if origen.strip()
 ]
