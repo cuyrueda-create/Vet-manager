@@ -167,3 +167,89 @@ def test_reset_email_usa_la_url_base_configurada(monkeypatch):
     # Se usa FRONTEND_BASE_URL en la construcción del enlace; el cuerpo sale
     # codificado (quoted-printable), así que basta con comprobar que se envió.
     assert capturado.get("body")
+
+
+def test_register_sin_smtp_activa_la_cuenta(client_con_bd, conexion_falsa, monkeypatch):
+    """Sin SMTP no se puede confirmar: la cuenta se activa directamente."""
+    import app.main as main_module
+
+    cursor = conexion_falsa.cursor.return_value
+    cursor.fetchone.return_value = None
+    cursor.lastrowid = 21
+    monkeypatch.setattr(main_module, "EMAIL_CONFIG", {"user": "", "password": ""})
+
+    r = client_con_bd.post("/auth/register", json={
+        "nombre": "Ana", "apellido": "Pérez", "email": "local@test.com",
+        "telefono": "+571234", "direccion": "Calle 1", "contraseña": "ClaveSegura123!",
+    })
+
+    assert r.status_code == 201
+    assert "activada" in r.json()["message"]
+    updates = [c for c in cursor.execute.call_args_list if "is_active = TRUE" in str(c)]
+    assert len(updates) == 1
+
+
+def test_register_user_con_smtp_y_fallo_de_correo(client_con_bd, conexion_falsa, monkeypatch):
+    """Si falla el SMTP, el registro sigue adelante y avisa por consola."""
+    import app.main as main_module
+
+    cursor = conexion_falsa.cursor.return_value
+    cursor.fetchone.return_value = None
+    cursor.lastrowid = 22
+    monkeypatch.setattr(
+        main_module, "EMAIL_CONFIG",
+        {"user": "correo@test.com", "password": "clave"},
+    )
+
+    def falla(**kwargs):
+        raise RuntimeError("SMTP caído")
+
+    monkeypatch.setattr(main_module, "send_confirmation_email", falla)
+
+    r = client_con_bd.post("/auth/register/user", json={
+        "nombre": "Ana", "apellido": "Pérez", "email": "smtpfallo@test.com",
+        "telefono": "+571234", "direccion": "Calle 1", "contraseña": "ClaveSegura123!",
+    })
+
+    assert r.status_code == 201
+    assert r.json().get("requires_confirmation") is True
+
+
+def test_run_alembic_migrations_aplica_head(monkeypatch):
+    """Se invoca command.upgrade(..., 'head') con la config del repo."""
+    import sys
+    import types
+    import app.main as main_module
+
+    upgrade = MagicMock()
+    fake_alembic = types.ModuleType("alembic")
+    fake_alembic.command = types.SimpleNamespace(upgrade=upgrade)
+    fake_config = types.ModuleType("alembic.config")
+    fake_config.Config = lambda path: f"config:{path}"
+    monkeypatch.setitem(sys.modules, "alembic", fake_alembic)
+    monkeypatch.setitem(sys.modules, "alembic.config", fake_config)
+
+    main_module.run_alembic_migrations()
+
+    upgrade.assert_called_once()
+    assert upgrade.call_args.args[1] == "head"
+    assert "alembic.ini" in upgrade.call_args.args[0]
+
+
+def test_run_alembic_migrations_no_rompe_el_arranque(monkeypatch):
+    """Un fallo de Alembic solo avisa; no propaga la excepción."""
+    import sys
+    import types
+    import app.main as main_module
+
+    def falla(*args):
+        raise RuntimeError("alembic roto")
+
+    fake_alembic = types.ModuleType("alembic")
+    fake_alembic.command = types.SimpleNamespace(upgrade=falla)
+    fake_config = types.ModuleType("alembic.config")
+    fake_config.Config = lambda path: path
+    monkeypatch.setitem(sys.modules, "alembic", fake_alembic)
+    monkeypatch.setitem(sys.modules, "alembic.config", fake_config)
+
+    main_module.run_alembic_migrations()  # no debe lanzar
