@@ -92,6 +92,14 @@ useEffect(() => {
   const registerUser = async (userData) => {
     try {
       const response = await api.post('/auth/register/user', userData);
+      if (response.data.requires_confirmation) {
+        // La cuenta queda inactiva hasta confirmar el correo: no hay sesión aún.
+        return {
+          success: true,
+          requiresConfirmation: true,
+          message: response.data.message
+        };
+      }
       const { access_token, user } = response.data;
       localStorage.setItem('token', access_token);
       localStorage.setItem('user', JSON.stringify(user));

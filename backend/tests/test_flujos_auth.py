@@ -5,6 +5,8 @@ caminos de validación de /auth/register/user, /auth/request-reset y
 /auth/reset-password.
 """
 
+from datetime import datetime, timedelta
+
 
 def test_register_user_rechaza_contrasena_vacia(client_con_bd, conexion_falsa):
     """Sin contraseña el registro no crea el usuario (400)."""
@@ -67,8 +69,8 @@ def test_request_reset_guarda_token_aunque_falle_el_correo(
 
     cursor = conexion_falsa.cursor.return_value
     cursor.fetchone.return_value = {"id_usuario": 7, "email": "ana@test.com"}
-    # SELECT ok, ALTER falla (columna ya existe), UPDATE ok
-    cursor.execute.side_effect = [None, RuntimeError("columna ya existe"), None]
+    # SELECT ok, UPDATE con token + caducidad ok (ya no hace falta ALTER)
+    cursor.execute.side_effect = [None, None]
 
     monkeypatch.setattr(
         main_module,
@@ -87,14 +89,19 @@ def test_request_reset_guarda_token_aunque_falle_el_correo(
 
     assert respuesta.status_code == 200
     assert "Si el correo está registrado" in respuesta.json()["message"]
-    assert cursor.execute.call_count == 3  # SELECT + ALTER + UPDATE
+    assert cursor.execute.call_count == 2  # SELECT + UPDATE (con caducidad)
     conexion_falsa.commit.assert_called_once()
 
 
 def test_reset_password_rechaza_contrasena_debil(client_con_bd, conexion_falsa):
     """Con token válido pero contraseña débil, no se cambia nada (400)."""
+    from datetime import datetime, timedelta
+
     cursor = conexion_falsa.cursor.return_value
-    cursor.fetchone.return_value = {"id_usuario": 7}
+    cursor.fetchone.return_value = {
+        "id_usuario": 7,
+        "reset_token_expires": datetime.utcnow() + timedelta(hours=1),
+    }
 
     respuesta = client_con_bd.post(
         "/auth/reset-password",
@@ -103,3 +110,50 @@ def test_reset_password_rechaza_contrasena_debil(client_con_bd, conexion_falsa):
 
     assert respuesta.status_code == 400
     assert "al menos 8 caracteres" in respuesta.json()["detail"]
+
+
+def test_reset_password_rechaza_token_caducado(client_con_bd, conexion_falsa):
+    """Un token de reset vencido no permite cambiar la contraseña."""
+    cursor = conexion_falsa.cursor.return_value
+    cursor.fetchone.return_value = {
+        "id_usuario": 7,
+        "reset_token_expires": datetime.utcnow() - timedelta(hours=2),
+    }
+
+    respuesta = client_con_bd.post(
+        "/auth/reset-password",
+        json={"token": "token-vencido", "new_password": "ClaveSegura123!"},
+    )
+
+    assert respuesta.status_code == 400
+    assert "expirado" in respuesta.json()["detail"]
+
+
+def test_reset_password_rechaza_token_sin_caducidad(client_con_bd, conexion_falsa):
+    """Los tokens antiguos sin fecha de caducidad se consideran inválidos."""
+    cursor = conexion_falsa.cursor.return_value
+    cursor.fetchone.return_value = {"id_usuario": 7, "reset_token_expires": None}
+
+    respuesta = client_con_bd.post(
+        "/auth/reset-password",
+        json={"token": "token-antiguo", "new_password": "ClaveSegura123!"},
+    )
+
+    assert respuesta.status_code == 400
+
+
+def test_request_reset_escribe_la_caducidad(client_con_bd, conexion_falsa):
+    """El token de reset se guarda junto a su fecha de expiración."""
+    cursor = conexion_falsa.cursor.return_value
+    cursor.fetchone.return_value = {
+        "id_usuario": 7, "nombre": "Ana", "apellido": "Pérez", "email": "ana@test.com"
+    }
+
+    respuesta = client_con_bd.post(
+        "/auth/request-reset", json={"email": "ana@test.com"}
+    )
+
+    assert respuesta.status_code == 200
+    updates = [c for c in cursor.execute.call_args_list if "UPDATE usuarios" in str(c)]
+    assert len(updates) == 1
+    assert "reset_token_expires" in str(updates[0])

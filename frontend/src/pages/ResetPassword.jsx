@@ -39,8 +39,10 @@ const ResetPassword = () => {
       return;
     }
 
-    if (newPassword.length < 4) {
-      setError('La contraseña debe tener al menos 4 caracteres');
+    // Misma regla que validate_password_strength del backend (evita un error opaco)
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword)
+        || !/\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      setError('La contraseña debe tener 8+ caracteres, mayúscula, minúscula, número y símbolo');
       return;
     }
 
@@ -86,7 +88,7 @@ const ResetPassword = () => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                minLength="4"
+                minLength="8"
               />
               <button type="button" className="pwd-toggle" onClick={() => setShowPwd(!showPwd)}>
                 {showPwd ? (

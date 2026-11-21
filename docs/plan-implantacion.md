@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.2 |
-| Fecha | 2026-11-19 |
+| Versión del plan | 1.3 |
+| Fecha | 2026-11-21 |
 
 ---
 
@@ -855,8 +855,41 @@ Verificación del arranque con roles separados: `DB_USER=vet_app`, `DB_OWNER_USE
 
 ```text
 $ git grep -l -E "zwonlbxjjomngdcp|root123|vet_pass|mi_secreto_super_seguro_2024|VET-ADMIN-2026" -- .
-(sin resultados — ningun secreto en archivos rastreados)
+docs/plan-implantacion.md   (esta propia tabla, como referencia de rotación)
 ```
+
+El único hallazgo en el árbol rastreado es **esta propia tabla** (el valor aparece escrito en el §7.4 como recordatorio de rotación). Sigue siendo un secreto en texto plano: **rotarlo en Google no basta**, hay que borrar la referencia del historial o al menos dejar claro que el valor ya no es válido. `git log -S` muestra 3 commits donde apareció (`a7aad1f`, `50fa133`, `3e7989f`). Acción pendiente del usuario.
+
+### 7.5 Lógica de veterinario: cierre de extremo a extremo (2026-11-21)
+
+El perfil veterinario ya estaba implementado en backend y frontend (consultas, historial clínico, medicamentos, citas asignadas, horarios, reportes y notificaciones). Se cerraron los huecos detectados en la auditoría:
+
+| Hallazgo | Corrección |
+|---|---|
+| No existía `require_veterinario`; 6 endpoints repetían el mismo `if rol != 'veterinario'` inline | Nuevo dependency en `app/core/auth.py`, aplicado a los 6 endpoints exclusivos del veterinario |
+| `GET /api/vet/disponibilidad` y `/api/vet/horarios` solo exigían autenticación | Pasan a `require_staff` (admin/vet/recepción); recepción los necesita para agendar, por eso no son solo-vet |
+| `get_medicamentos_historial()` no tenía decorador → función muerta | Ahora es `GET /api/vet/historial/{historial_id}/medicamentos` con `require_staff` |
+| `/api/stats` contaba `citas_hoy` del vet con `fecha >= CURDATE()` (acumulaba futuras) | Cambiado a `fecha = CURDATE()`, igual que `/api/vet/citas-hoy` |
+| 3 pantallas descargaban PDF con `fetch('http://localhost:5000/...')` | Usan la instancia de axios (`baseURL` + interceptor de token), válido en local y en Render |
+| `console.log` de datos de citas en `UsuarioNuevaCita.jsx` | Eliminado |
+
+**Evidencia real (BD de desarrollo, 2026-11-21):** con el JWT de un usuario normal, `GET /api/vet/citas-hoy` → **403** `"Se requieren permisos de veterinario"`, `GET /api/vet/disponibilidad` → **403** `"Se requieren permisos de personal"` y el nuevo endpoint de medicamentos → **403**. El frontend compila (`pnpm run build`) y los 61 tests pasan.
+
+### 7.6 Tokens de correo: confirmación de registro y recuperación (2026-11-21)
+
+Antes había dos fallos graves: el token de **reset nunca caducaba** (no se escribía `reset_token_expires`) y el registro que usa la UI (`/auth/register/user`) guardaba `confirm_token = NULL`, dejando la cuenta activa sin verificar correo. Corregido:
+
+| Flujo | Antes | Ahora |
+|---|---|---|
+| `POST /auth/register/user` | cuenta activa, JWT inmediato | con SMTP configurado: `confirm_token` de 32 bytes, `confirm_token_expires` (24 h por defecto), `is_active = FALSE`, correo enviado y respuesta sin token; sin SMTP: activación directa para no bloquear desarrollos locales |
+| `POST /auth/confirm-email` | leía la caducidad de `reset_token_expires` | columna propia `confirm_token_expires` (con compatibilidad hacia atrás); el token se pone a `NULL` tras usarse |
+| `POST /auth/request-reset` | escribía solo `reset_token` | escribe `reset_token` + `reset_token_expires` (1 h por defecto); respuesta genérica, nunca devuelve el token |
+| `POST /auth/reset-password` | aceptaba tokens eternos | comprueba la caducidad (los tokens antiguos sin fecha se rechazan) y limpia ambos campos |
+| `POST /auth/resend-confirmation` | no existía | reenvía un token nuevo con respuesta genérica anti-enumeración |
+
+Los enlaces de los correos usan `FRONTEND_BASE_URL` (nueva variable; por defecto `http://localhost:5173`, en Render se define en el panel) en vez de `localhost` hardcodeado. El frontend alinea la validación de contraseña (8 caracteres + mayúscula/minúscula/número/símbolo) con el backend y ofrece reenvío de confirmación en `ConfirmarEmail.jsx`. Las caducidades se configuran con `RESET_TOKEN_HOURS` y `CONFIRM_TOKEN_HOURS`.
+
+**Evidencia real (BD de desarrollo):** `/auth/request-reset` guardó `reset_token_expires = 2026-11-22 00:09:49`; al forzar la fecha al pasado, `/auth/reset-password` devolvió `400 "El enlace ha expirado. Solicita uno nuevo."`. Un token sin fecha también se rechaza. 61 tests en verde (incluidos 3 nuevos de caducidad).
 
 ---
 
@@ -927,6 +960,20 @@ El script ahora avisa a Uptime Kuma al terminar: `status=up` si el respaldo term
 Huellas antes y después: 20/20 tablas con `COUNT(*)` idéntico (110 filas), `diff` sin diferencias — tabla completa en **§3.5**. Simulacro de desastre: `DROP TABLE usuarios` → recuperación desde el dump con PK, UNIQUE y 4 FK intactas.
 
 **Re-verificación (2026-11-19):** se importó `vet_manager-20261119T221810Z.sql.gz` en una base destino `vet_manager_restore_test` (creada solo para la prueba y borrada después). Resultado: **20/20 tablas con `COUNT(*)` idéntico** entre origen y destino (ej. `usuarios` 14/14, `medicamentos` 15/15, `notificaciones` 17/17, `facturas` 2/2) y restricciones equivalentes: **PRIMARY KEY 21/21, FOREIGN KEY 26/26, UNIQUE 7/7**. La importación devolvió RC=0.
+
+**Restauración automatizada (2026-11-21):** se añadió `scripts/restaurar.sh`, que verifica `gzip -t` y SHA-256, importa en una base destino (por defecto una nueva, nunca sobrescribe producción), compara el número de tablas y comprueba `alembic_version` contra el manifiesto. `scripts/respaldar.sh` genera ahora un `.manifest.txt` al lado del dump con `alembic_head` y el número de tablas. Ejecución real:
+
+```text
+1/6 Verificando integridad gzip...  SHA-256: 7d5ae512...
+2/6 Manifiesto: alembic_head=0002_confirm_token_expiry, tablas=22
+3/6 Base destino: vet_manager_restore_prueba3
+4/6 Importando dump... RC=0
+5/6 Verificando huellas... tablas: origen=22 restaurada=22
+   alembic_version=0002_confirm_token_expiry
+6/6 Resultado: RESTAURACIÓN VERIFICADA
+```
+
+Las bases de prueba se borraron al terminar. **`Alembic` deja de ser decorativo (2026-11-21):** `env.py` usa `target_metadata = Base.metadata` (ya permite `alembic revision --autogenerate`), la revisión `0002_confirm_token_expiry` añade la columna de caducidad de confirmación con `upgrade`/`downgrade` idempotentes, y el arranque ya no se cae si Alembic falla (las migraciones idempotentes de `main.py` dejan el esquema usable). Verificado en la BD de desarrollo: `alembic_version = 0002_confirm_token_expiry`.
 
 Problemas encontrados y cambios aplicados: `vet_user` no puede volcar (`PROCESS`/`SHOW CREATE PROCEDURE`) → el script ahora usa `root` dentro del contenedor; desde el 2026-11-19 el usuario de la API es `vet_app` (§7.3), que tampoco tiene esos privilegios, así que se mantiene `root` para el respaldo de forma intencional.
 
@@ -1146,6 +1193,7 @@ Registro de cambios del plan:
 | 1.0 | 2026-11-04 | Secciones 1–4 y v0 de la 5 |
 | 1.1 | 2026-11-18 | Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma) |
 | **1.2** | **2026-11-19** | **Cierre de semanas 5–9: §6 rotación de logs + F-01/F-02 automatizados (51 tests); §7 roles `vet_owner`/`vet_app` reales + pruebas de privilegios; §3 respaldo re-verificado (20/20 tablas, PK/FK/UNIQUE) + latido Kuma; §8 Quality Gate OK + monitores reales en Uptime Kuma; §9 Dependabot retirado + auditoría manual con decisión por hallazgo + runbooks + guía/FAQ; §10 materiales de aceptación (UAT, acta, registro de simulacro)** |
+| **1.3** | **2026-11-21** | **Cierre funcional y calidad: §7.5 lógica de veterinario (guard `require_veterinario`, endpoint muerto activado, `citas_hoy` corregido, PDFs sin localhost); §7.6 tokens con caducidad real para reset y confirmación de registro + reenvío + URLs configurables; §3 `scripts/restaurar.sh` verificado con manifiesto `alembic_head`, revisión Alembic 0002 con metadata real; SonarCloud 0 issues abiertos y Quality Gate OK. 61 tests en verde y frontend compila** |
 
 ### 10.2 Pruebas de aceptación
 

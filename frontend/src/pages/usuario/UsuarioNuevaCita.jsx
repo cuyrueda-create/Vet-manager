@@ -73,7 +73,6 @@ const UsuarioNuevaCita = () => {
     setError('');
     try {
       const r = await api.post('/api/citas', form);
-      console.log('Cita creada:', r.data);
       setTicket(r.data.ticket || r.data);
       setSuccess('Cita agendada exitosamente');
     } catch (err) {

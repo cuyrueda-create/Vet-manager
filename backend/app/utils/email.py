@@ -2,11 +2,11 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.core.config import EMAIL_CONFIG
+from app.core.config import EMAIL_CONFIG, FRONTEND_BASE_URL
 
 def send_reset_email(to_email, nombre, apellido, reset_token):
     """Envía correo real de recuperación de contraseña"""
-    reset_url = f"http://localhost:5173/reset-password?token={reset_token}"
+    reset_url = f"{FRONTEND_BASE_URL}/reset-password?token={reset_token}"
     
     # Crear mensaje HTML con UTF-8
     html_content = f"""

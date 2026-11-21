@@ -43,6 +43,13 @@ async def require_recepcionista(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de recepcionista")
     return current_user
 
+async def require_veterinario(current_user: dict = Depends(get_current_user)):
+    """Solo veterinarios (los administradores también pueden gestionar)."""
+    if current_user["rol"] not in ("veterinario", "administrador"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de veterinario")
+    return current_user
+
+
 async def require_vet_or_recepcionista(current_user: dict = Depends(get_current_user)):
     if current_user["rol"] not in ("veterinario", "recepcionista", "administrador"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de veterinario o recepcionista")
