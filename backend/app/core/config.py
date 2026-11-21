@@ -41,10 +41,24 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 43200
 
+def _url_publica(valor: str, defecto: str) -> str:
+    """Acepta una URL completa o solo un host (lo que devuelve `fromService`).
+
+    Render `fromService.property: host` devuelve `nombre.onrender.com` sin
+    esquema; el CORS y los enlaces de correo necesitan `https://...`.
+    """
+    valor = (valor or defecto).strip().rstrip("/")
+    if valor and not valor.startswith(("http://", "https://")):
+        valor = f"https://{valor}"
+    return valor
+
+
 # URL publica del frontend, usada para construir los enlaces de los correos
 # (confirmacion de registro y recuperacion de contraseña). En local se mantiene
-# el puerto 5173; en Render se define FRONTEND_BASE_URL en el panel.
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+# el puerto 5173; en Render se referencia el host del static site.
+FRONTEND_BASE_URL = _url_publica(
+    os.getenv("FRONTEND_BASE_URL", ""), "http://localhost:5173"
+)
 
 # Validez de los tokens de un solo uso (horas). El correo de reset anuncia 1 h.
 RESET_TOKEN_HOURS = int(os.getenv("RESET_TOKEN_HOURS", "1"))

@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.3 |
+| Versión del plan | 1.4 |
 | Fecha | 2026-11-21 |
 
 ---
@@ -668,7 +668,9 @@ URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se
 
 #### Evidencia (nube)
 
-**Pendiente:** requiere crear las cuentas en Render y Aiven (decisión del responsable del proyecto). Sin esta evidencia, la rúbrica limita Producto a 60/100. El procedimiento, el blueprint y la prueba de humo están preparados: `deploy/render.yaml` + `scripts/smoke-test.sh`.
+**Estado del blueprint (2026-11-21): validado y listo para un solo despliegue.** Se corrigieron tres bloqueos que habrían fallado en Render: (1) `type: static_site` no existe en la spec → ahora `type: web` + `runtime: static` y sin `plan`; (2) el build usaba `npm ci` pero el repo tiene `pnpm-lock.yaml` → ahora `corepack prepare pnpm@10.30.3 && pnpm install --frozen-lockfile`; (3) `VITE_API_URL=/` hacía que el SPA llamara a su propio origen → ahora `fromService.property: host`, normalizado a `https://` en `axiosConfig.js`. Se añadió `routes: /* → /index.html` para las rutas profundas del router (ej. `/reset-password?token=...`), `generateValue: true` para `SECRET_KEY`/`ADMIN_CREATE_KEY` y self-references para `DB_OWNER_*`, de modo que el usuario solo rellena 5 variables de Aiven. Guía paso a paso: **[`docs/despliegue-render.md`](../docs/despliegue-render.md)**. Validación local: `yaml.safe_load` + `pnpm run build` + 78 tests en verde.
+
+**Pendiente (solo externo):** crear las cuentas en Render y Aiven (decisión del responsable del proyecto). Sin esta evidencia, la rúbrica limita Producto a 60/100. Procedimiento, blueprint y prueba de humo listos: `deploy/render.yaml` + `scripts/smoke-test.sh` + `docs/despliegue-render.md`.
 
 ### 5.4 Estimación de costos
 
@@ -1194,6 +1196,7 @@ Registro de cambios del plan:
 | 1.1 | 2026-11-18 | Cierre de semanas 1–4: evidencias §1.7, §3.5, §4.5; §5 a v1 (starter S04); borradores §6–§10. §1 adaptada al equipo real (§1.3 SO del entorno, §1.4 medición, §1.5 matriz con specs del portátil, §1.6 plataforma) |
 | **1.2** | **2026-11-19** | **Cierre de semanas 5–9: §6 rotación de logs + F-01/F-02 automatizados (51 tests); §7 roles `vet_owner`/`vet_app` reales + pruebas de privilegios; §3 respaldo re-verificado (20/20 tablas, PK/FK/UNIQUE) + latido Kuma; §8 Quality Gate OK + monitores reales en Uptime Kuma; §9 Dependabot retirado + auditoría manual con decisión por hallazgo + runbooks + guía/FAQ; §10 materiales de aceptación (UAT, acta, registro de simulacro)** |
 | **1.3** | **2026-11-21** | **Cierre funcional y calidad: §7.5 lógica de veterinario (guard `require_veterinario`, endpoint muerto activado, `citas_hoy` corregido, PDFs sin localhost); §7.6 tokens con caducidad real para reset y confirmación de registro + reenvío + URLs configurables; §3 `scripts/restaurar.sh` verificado con manifiesto `alembic_head`, revisión Alembic 0002 con metadata real; SonarCloud 0 issues abiertos y Quality Gate OK. 61 tests en verde y frontend compila** |
+| **1.4** | **2026-11-21** | **§5.3 blueprint de Render corregido y validado para despliegue único: `web/static` + pnpm + `fromService.host` normalizado + rewrite SPA + secretos autogenerados; guía `docs/despliegue-render.md`. 78 tests en verde** |
 
 ### 10.2 Pruebas de aceptación
 

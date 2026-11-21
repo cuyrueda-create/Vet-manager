@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+// En Render, VITE_API_URL se rellena con `fromService.property: host`, que
+// devuelve solo el hostname (sin esquema). Lo normalizamos aquí para que el
+// mismo código funcione en local (puerto 5000) y en la nube (https://...).
+const urlApi = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+const baseURL = urlApi && !/^https?:\/\//.test(urlApi)
+  ? `https://${urlApi}`
+  : (urlApi || 'http://localhost:5000');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
