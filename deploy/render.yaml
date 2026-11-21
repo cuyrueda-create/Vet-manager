@@ -97,6 +97,9 @@ services:
     staticPublishPath: frontend/dist
     branch: main
     envVars:
+      # Vite 8 exige Node >= 20.19; se fija para no depender del default de Render.
+      - key: NODE_VERSION
+        value: 22.13.0
       # fromService.host devuelve "vet-manager-api.onrender.com"; axiosConfig.js
       # le añade https://. No hardcodear la URL para que sobreviva a redeploys.
       - key: VITE_API_URL
