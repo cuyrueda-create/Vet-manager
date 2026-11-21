@@ -28,10 +28,13 @@ from app.api.v1.clientes import router as clientes_router
 from app.api.v1.admin import router as admin_router
 
 # ==================== IMPORTAR DEPENDENCIAS ====================
-from app.core.auth import get_current_user, require_admin
+from app.core.auth import get_current_user, require_admin, require_veterinario, require_staff
 
 # ==================== IMPORTAR CONFIGURACIÓN ====================
-from app.core.config import DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.core.config import (
+    DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
+    FRONTEND_BASE_URL, RESET_TOKEN_HOURS, CONFIRM_TOKEN_HOURS,
+)
 from app.core.database import get_db_connection
 from app.utils.email import send_cita_email, send_recordatorio_email
 import threading
@@ -104,6 +107,7 @@ def migrate_usuarios_table():
         "ALTER TABLE usuarios ADD COLUMN telefono VARCHAR(20) NULL",
         "ALTER TABLE usuarios ADD COLUMN direccion VARCHAR(150) NULL",
         "ALTER TABLE usuarios ADD COLUMN confirm_token VARCHAR(255) NULL",
+        "ALTER TABLE usuarios ADD COLUMN confirm_token_expires DATETIME NULL",
         "ALTER TABLE usuarios ADD COLUMN reset_token VARCHAR(255) NULL",
         "ALTER TABLE usuarios ADD COLUMN reset_token_expires DATETIME NULL",
         "ALTER TABLE usuarios ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
@@ -431,7 +435,12 @@ def run_alembic_migrations():
     from alembic.config import Config
 
     config_path = Path(__file__).resolve().parent.parent / "alembic.ini"
-    command.upgrade(Config(str(config_path)), "head")
+    try:
+        command.upgrade(Config(str(config_path)), "head")
+    except Exception as exc:
+        # Las migraciones idempotentes de arriba ya dejaron el esquema usable;
+        # un problema de Alembic no debe impedir que la API arranque.
+        print(f"⚠️ Aviso: fallo al aplicar revisiones de Alembic: {exc}")
 
 # Configurar CORS
 # Orígenes permitidos en variables de entorno (separados por coma) para que el
@@ -575,7 +584,7 @@ def decode_token(token: str):
         return None
 
 def send_reset_email(to_email, nombre, apellido, reset_token):
-    reset_url = f"http://localhost:5173/reset-password?token={reset_token}"
+    reset_url = f"{FRONTEND_BASE_URL}/reset-password?token={reset_token}"
     
     html_content = f"""
     <!DOCTYPE html>
@@ -703,7 +712,7 @@ Vet Manager - Sistema de Gestion Veterinaria
         return False
 
 def send_confirmation_email(to_email, nombre, apellido, confirm_token):
-    confirm_url = f"http://localhost:5173/confirmar-email?token={confirm_token}"
+    confirm_url = f"{FRONTEND_BASE_URL}/confirmar-email?token={confirm_token}"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -1009,18 +1018,18 @@ async def register(user_data: UsuarioCreate):
         # Hashear contraseña
         hashed_password = get_password_hash(user_data.contraseña)
         
-        # Generar token de confirmación (expira en 24h)
+        # Generar token de confirmación de un solo uso con caducidad propia.
         confirm_token = secrets.token_urlsafe(32)
         # NOSONAR: la columna MySQL es DATETIME (naive, en UTC); un valor
         # timezone-aware romperia la comparacion con el valor leido de la BD.
-        confirm_token_expires = datetime.utcnow() + timedelta(hours=24)  # NOSONAR
+        confirm_token_expires = datetime.utcnow() + timedelta(hours=CONFIRM_TOKEN_HOURS)  # NOSONAR
         
         # Insertar usuario - COLUMNA: contrasea (sin ñ y sin tilde)
         # El rol siempre es 'usuario' en el registro público: los roles
         # administrador/veterinario solo se asignan desde el módulo de administración
         cursor.execute("""
-            INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol, tipo_documento, numero_documento, confirm_token, reset_token_expires)
-            VALUES (%s, %s, %s, %s, %s, %s, 'usuario', %s, %s, %s, %s)
+            INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol, tipo_documento, numero_documento, confirm_token, confirm_token_expires, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s, 'usuario', %s, %s, %s, %s, FALSE)
         """, (user_data.nombre, user_data.apellido, user_data.email, user_data.telefono, 
               user_data.direccion, hashed_password, 
               user_data.tipo_documento, 
@@ -1053,15 +1062,16 @@ async def register(user_data: UsuarioCreate):
             )
             if email_sent:
                 return {"message": "Registro exitoso. Revisa tu correo para confirmar tu cuenta.", "user_id": user_id}
-            else:
-                confirm_url = f"http://localhost:5173/confirmar-email?token={confirm_token}"
-                return {"message": f"Registro exitoso. Error al enviar correo. Token: {confirm_url}", "user_id": user_id}
-        else:
-            print("\n" + "="*60)
-            print("⚠️ CORREO NO CONFIGURADO")
-            print(f"🔗 Token de confirmación: {confirm_token}")
-            print("="*60 + "\n")
-            return {"message": "Registro exitoso. Revisa la consola para el token de confirmación.", "user_id": user_id}
+            # NOSONAR: nunca devolver el token aunque falle el envio SMTP (evita fuga de token).
+            return {"message": "Registro exitoso. Revisa tu correo para confirmar tu cuenta.", "user_id": user_id}
+        # Sin SMTP configurado no se puede confirmar por correo: se activa directamente
+        # para no dejar al usuario bloqueado en desarrollos locales.
+        cursor.execute("""
+            UPDATE usuarios SET confirm_token = NULL, confirm_token_expires = NULL, is_active = TRUE
+            WHERE id_usuario = %s
+        """, (user_id,))
+        connection.commit()
+        return {"message": "Registro exitoso (correo no configurado, cuenta activada).", "user_id": user_id}
         
     except HTTPException:
         raise
@@ -1128,23 +1138,50 @@ async def register_user(user_data: UsuarioCreate):
 
         hashed_password = get_password_hash(user_data.contraseña)
 
+        # Confirmación por correo: el registro público deja la cuenta inactiva
+        # hasta que el usuario siga el enlace enviado a su email (§7.3 del plan).
+        confirm_token = secrets.token_urlsafe(32)
+        # NOSONAR: MySQL DATETIME es naive (UTC).
+        confirm_token_expires = datetime.utcnow() + timedelta(hours=CONFIRM_TOKEN_HOURS)  # NOSONAR
+        needs_confirmation = bool(EMAIL_CONFIG.get("user") and EMAIL_CONFIG.get("password"))
+
         cursor.execute("""
             INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol,
-                                  tipo_documento, numero_documento, confirm_token, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s, 'usuario', %s, %s, NULL, TRUE)
+                                  tipo_documento, numero_documento, confirm_token, confirm_token_expires, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s, 'usuario', %s, %s, %s, %s, %s)
         """, (user_data.nombre, user_data.apellido, user_data.email, user_data.telefono,
               user_data.direccion, hashed_password,
-              user_data.tipo_documento, user_data.numero_documento))
+              user_data.tipo_documento, user_data.numero_documento,
+              confirm_token if needs_confirmation else None,
+              confirm_token_expires if needs_confirmation else None,
+              not needs_confirmation))
 
         connection.commit()
         user_id = cursor.lastrowid
+
+        if needs_confirmation:
+            try:
+                send_confirmation_email(
+                    to_email=user_data.email,
+                    nombre=user_data.nombre,
+                    apellido=user_data.apellido,
+                    confirm_token=confirm_token,
+                )
+            except Exception as exc:
+                # El registro no falla, pero se registra el error para poder reenviar.
+                print(f"Aviso: no se pudo enviar el correo de confirmacion: {exc}")
+
+            return {
+                "message": "Registro exitoso. Revisa tu correo para confirmar tu cuenta.",
+                "user_id": user_id,
+                "requires_confirmation": True,
+            }
 
         cursor.execute("""
             SELECT id_usuario, nombre, apellido, email, rol, tipo_documento, numero_documento
             FROM usuarios WHERE id_usuario = %s
         """, (user_id,))
         user = cursor.fetchone()
-
         return build_auth_response(user)
 
     except HTTPException:
@@ -1418,16 +1455,12 @@ async def request_password_reset(request: PasswordResetRequest):
             return generic_message
 
         reset_token = secrets.token_urlsafe(32)
-
-        # Asegurar columna reset_token si no existe
-        try:
-            cursor.execute("ALTER TABLE usuarios ADD COLUMN reset_token VARCHAR(255) NULL")
-        except Exception:
-            pass
+        # NOSONAR: MySQL DATETIME es naive (UTC). El correo anuncia 1 hora.
+        reset_expires = datetime.utcnow() + timedelta(hours=RESET_TOKEN_HOURS)  # NOSONAR
 
         cursor.execute(
-            "UPDATE usuarios SET reset_token = %s WHERE id_usuario = %s",
-            (reset_token, user["id_usuario"])
+            "UPDATE usuarios SET reset_token = %s, reset_token_expires = %s WHERE id_usuario = %s",
+            (reset_token, reset_expires, user["id_usuario"])
         )
         connection.commit()
 
@@ -1466,19 +1499,27 @@ async def confirm_email(data: dict):
     cursor = connection.cursor(dictionary=True)
     
     try:
-        cursor.execute("SELECT id_usuario, reset_token_expires FROM usuarios WHERE confirm_token = %s", (token,))
+        cursor.execute("""
+            SELECT id_usuario, confirm_token_expires, reset_token_expires
+            FROM usuarios WHERE confirm_token = %s
+        """, (token,))
         user = cursor.fetchone()
-        
+
         if not user:
             raise HTTPException(status_code=400, detail="Token inválido o expirado")
-        
-        # Verificar expiración
-        expires = user.get("reset_token_expires")
-        # expires viene de una columna MySQL DATETIME (naive, en UTC).
+
+        # La expiración propia de confirmación manda; si la BD es antigua se
+        # usa reset_token_expires como compatibilidad. NOSONAR: DATETIME naive.
+        expires = user.get("confirm_token_expires") or user.get("reset_token_expires")
         if expires and expires < datetime.utcnow():  # NOSONAR
-            raise HTTPException(status_code=400, detail="El token de confirmación ha expirado. Solicita un nuevo registro.")
-        
-        cursor.execute("UPDATE usuarios SET confirm_token = NULL, reset_token_expires = NULL, is_active = TRUE WHERE id_usuario = %s", (user["id_usuario"],))
+            raise HTTPException(status_code=400, detail="El token de confirmación ha expirado. Solicita uno nuevo.")
+        if not expires:
+            raise HTTPException(status_code=400, detail="Token inválido o expirado")
+
+        cursor.execute("""
+            UPDATE usuarios SET confirm_token = NULL, confirm_token_expires = NULL,
+                                is_active = TRUE WHERE id_usuario = %s
+        """, (user["id_usuario"],))
         connection.commit()
         
         return {"message": "Cuenta confirmada exitosamente. Ya puedes iniciar sesión."}
@@ -1491,6 +1532,42 @@ async def confirm_email(data: dict):
         cursor.close()
         connection.close()
 
+@app.post("/auth/resend-confirmation")
+async def resend_confirmation(request: PasswordResetRequest):
+    """Reenvia el correo de confirmacion con un token nuevo (respuesta generica)."""
+    generic = {"message": "Si la cuenta existe y esta pendiente de confirmar, recibirás un correo."}
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email FROM usuarios
+            WHERE email = %s AND is_active = FALSE AND confirm_token IS NOT NULL
+        """, (request.email,))
+        user = cursor.fetchone()
+        if not user:
+            return generic
+
+        token = secrets.token_urlsafe(32)
+        # NOSONAR: MySQL DATETIME es naive (UTC).
+        expires = datetime.utcnow() + timedelta(hours=CONFIRM_TOKEN_HOURS)  # NOSONAR
+        cursor.execute("""
+            UPDATE usuarios SET confirm_token = %s, confirm_token_expires = %s WHERE id_usuario = %s
+        """, (token, expires, user["id_usuario"]))
+        connection.commit()
+
+        if EMAIL_CONFIG.get("user") and EMAIL_CONFIG.get("password"):
+            try:
+                send_confirmation_email(user["email"], user["nombre"], user["apellido"], token)
+            except Exception as exc:
+                print(f"Aviso: no se pudo reenviar la confirmacion: {exc}")
+        return generic
+    finally:
+        cursor.close()
+        connection.close()
+
+
 @app.post("/auth/reset-password")
 async def reset_password(reset_data: PasswordReset):
     connection = get_db_connection()
@@ -1500,17 +1577,28 @@ async def reset_password(reset_data: PasswordReset):
     cursor = connection.cursor(dictionary=True)
     
     try:
-        cursor.execute("SELECT id_usuario FROM usuarios WHERE reset_token = %s", (reset_data.token,))
+        cursor.execute(
+            "SELECT id_usuario, reset_token_expires FROM usuarios WHERE reset_token = %s",
+            (reset_data.token,)
+        )
         user = cursor.fetchone()
-        
+
         if not user:
             raise HTTPException(status_code=400, detail="Token inválido o expirado")
-        
+
+        # NOSONAR: MySQL DATETIME es naive (UTC). Un token sin fecha (datos
+        # antiguos) se considera caducado para no dejar enlaces eternos.
+        expires = user.get("reset_token_expires")
+        if not expires or expires < datetime.utcnow():  # NOSONAR
+            raise HTTPException(status_code=400, detail="El enlace ha expirado. Solicita uno nuevo.")
+
         validate_password_strength(reset_data.new_password)
-        
+
         hashed_password = get_password_hash(reset_data.new_password)
-        cursor.execute("UPDATE usuarios SET contrasea = %s, reset_token = NULL WHERE id_usuario = %s", 
-                      (hashed_password, user["id_usuario"]))
+        cursor.execute(
+            "UPDATE usuarios SET contrasea = %s, reset_token = NULL, reset_token_expires = NULL WHERE id_usuario = %s",
+            (hashed_password, user["id_usuario"])
+        )
         connection.commit()
         
         return {"message": "Contraseña actualizada exitosamente"}
@@ -1695,7 +1783,7 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
             stats["citas"] = cursor.fetchone()["total"]
             cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario_vet = %s AND estado = 'programada'", (vet_id,))
             stats["citas_pendientes"] = cursor.fetchone()["total"]
-            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario_vet = %s AND estado = 'programada' AND fecha >= CURDATE()", (vet_id,))
+            cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario_vet = %s AND estado = 'programada' AND fecha = CURDATE()", (vet_id,))
             stats["citas_hoy"] = cursor.fetchone()["total"]
             cursor.execute("SELECT COUNT(*) AS total FROM citas WHERE id_usuario_vet = %s AND MONTH(fecha) = MONTH(CURDATE()) AND YEAR(fecha) = YEAR(CURDATE())", (vet_id,))
             stats["citas_mes"] = cursor.fetchone()["total"]
@@ -1783,7 +1871,7 @@ async def get_citas(current_user: dict = Depends(get_current_user)):
 # ==================== ENDPOINTS VETERINARIO ====================
 
 @app.put("/api/vet/citas/{cita_id}/estado")
-async def vet_update_cita_estado(cita_id: int, data: dict, current_user: dict = Depends(get_current_user)):
+async def vet_update_cita_estado(cita_id: int, data: dict, current_user: dict = Depends(require_veterinario)):
     """El veterinario puede cambiar el estado de sus citas asignadas"""
     if current_user["rol"] != "veterinario":
         raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
@@ -1825,7 +1913,7 @@ async def vet_update_cita_estado(cita_id: int, data: dict, current_user: dict = 
         connection.close()
 
 @app.get("/api/vet/mascotas")
-async def vet_get_mascotas(current_user: dict = Depends(get_current_user)):
+async def vet_get_mascotas(current_user: dict = Depends(require_veterinario)):
     """Mascotas que el veterinario ha atendido"""
     if current_user["rol"] != "veterinario":
         raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
@@ -1851,7 +1939,7 @@ async def vet_get_mascotas(current_user: dict = Depends(get_current_user)):
         connection.close()
 
 @app.get("/api/vet/historial/{mascota_id}")
-async def vet_get_historial(mascota_id: int, current_user: dict = Depends(get_current_user)):
+async def vet_get_historial(mascota_id: int, current_user: dict = Depends(require_veterinario)):
     """Historial clínico de una mascota (solo si el veterinario la ha atendido)"""
     if current_user["rol"] != "veterinario":
         raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
@@ -1895,7 +1983,7 @@ async def vet_get_historial(mascota_id: int, current_user: dict = Depends(get_cu
         connection.close()
 
 @app.post("/api/vet/historial", status_code=201)
-async def vet_create_historial(data: dict, current_user: dict = Depends(get_current_user)):
+async def vet_create_historial(data: dict, current_user: dict = Depends(require_veterinario)):
     """Agregar entrada al historial clínico de una mascota"""
     if current_user["rol"] != "veterinario":
         raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
@@ -1929,7 +2017,7 @@ async def vet_create_historial(data: dict, current_user: dict = Depends(get_curr
         connection.close()
 
 @app.get("/api/vet/citas-hoy")
-async def vet_citas_hoy(current_user: dict = Depends(get_current_user)):
+async def vet_citas_hoy(current_user: dict = Depends(require_veterinario)):
     """Citas del día asignadas al veterinario logueado"""
     if current_user["rol"] != "veterinario":
         raise HTTPException(status_code=403, detail="Solo los veterinarios pueden usar esta ruta")
@@ -1964,7 +2052,7 @@ async def vet_citas_hoy(current_user: dict = Depends(get_current_user)):
         connection.close()
 
 @app.post("/api/vet/consulta", status_code=201)
-async def vet_registrar_consulta(data: dict, current_user: dict = Depends(get_current_user)):
+async def vet_registrar_consulta(data: dict, current_user: dict = Depends(require_veterinario)):
     """
     Registra una consulta médica completa:
     1. Crea entrada en historial_clinico con signos vitales, diagnóstico y tratamiento
@@ -4334,7 +4422,8 @@ async def admin_delete_medicamento(medicamento_id: int, current_user: dict = Dep
     finally:
         cursor.close()
         connection.close()
-async def get_medicamentos_historial(historial_id: int, current_user: dict = Depends(get_current_user)):
+@app.get("/api/vet/historial/{historial_id}/medicamentos")
+async def get_medicamentos_historial(historial_id: int, current_user: dict = Depends(require_staff)):
     """Ver medicamentos asignados en un historial clinico"""
     if current_user["rol"] not in ("veterinario", "administrador", "recepcionista"):
         raise HTTPException(status_code=403, detail="Sin permisos para ver medicamentos asignados")
@@ -4496,7 +4585,7 @@ async def get_veterinarios_disponibles(current_user: dict = Depends(get_current_
 # ==================== DISPONIBILIDAD VETERINARIOS ====================
 
 @app.get("/api/vet/disponibilidad")
-async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_user: dict = Depends(get_current_user)):
+async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_user: dict = Depends(require_staff)):
     """
     Retorna la disponibilidad de todos los veterinarios activos para una fecha específica.
     Estados: 'disponible', 'ocupado', 'no_trabaja'
@@ -4579,7 +4668,7 @@ async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_u
 
 
 @app.get("/api/vet/horarios")
-async def get_horarios_vet(id_vet: int, fecha: str, current_user: dict = Depends(get_current_user)):
+async def get_horarios_vet(id_vet: int, fecha: str, current_user: dict = Depends(require_staff)):
     """
     Retorna los horarios disponibles para un veterinario en una fecha específica.
     Cada slot tiene estado: 'disponible' o 'ocupado'.

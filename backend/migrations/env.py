@@ -4,6 +4,11 @@ from sqlalchemy.engine import URL
 from sqlalchemy.pool import NullPool
 
 from app.core.config import DB_OWNER_CONFIG
+from app.models.models import Base
+
+# Con metadata real, `alembic revision --autogenerate` puede detectar cambios
+# del esquema en vez de generar revisiones vacías.
+target_metadata = Base.metadata
 
 config = context.config
 
@@ -23,7 +28,7 @@ def database_url():
 def run_migrations_offline():
     context.configure(
         url=database_url(),
-        target_metadata=None,
+        target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -35,7 +40,7 @@ def run_migrations_offline():
 def run_migrations_online():
     engine = create_engine(database_url(), poolclass=NullPool)
     with engine.connect() as connection:
-        context.configure(connection=connection, target_metadata=None)
+        context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
     engine.dispose()

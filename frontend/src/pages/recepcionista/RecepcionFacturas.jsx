@@ -422,11 +422,8 @@ const RecepcionFacturas = () => {
                 <div style={{ marginTop: 16, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button onClick={async () => {
                     try {
-                      const res = await fetch(`http://localhost:5000/api/facturas/${selectedFactura.id_factura}/pdf`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                      });
-                      if (!res.ok) throw new Error('Error al descargar');
-                      const blob = await res.blob();
+                      const res = await api.get('/api/facturas/${selectedFactura.id_factura}/pdf', { responseType: 'blob' });
+                       const blob = res.data;
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;

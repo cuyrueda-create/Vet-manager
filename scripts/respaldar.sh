@@ -57,9 +57,23 @@ rm -f "$TEMP_SQL"
 find "$BACKUP_DIR" -type f -name "${DATABASE_NAME}-*.sql.gz" \
   -mmin "+$((RETENTION_DAYS * 1440))" -delete
 
+# Manifiesto: versión de Alembic y fecha, para poder verificar una restauración.
+MANIFEST="${BACKUP_FILE%.sql.gz}.manifest.txt"
+{
+  printf 'backup=%s\n' "$(basename "$BACKUP_FILE")"
+  printf 'creado_utc=%s\n' "$TIMESTAMP"
+  printf 'alembic_head='
+  docker compose exec -T "$MYSQL_SERVICE" sh -ec \
+    'MYSQL_PWD="$MYSQL_PASSWORD" mysql -N -u "$MYSQL_USER" "$MYSQL_DATABASE" -e "SELECT version_num FROM alembic_version LIMIT 1"' 2>/dev/null || printf 'desconocida'
+  printf 'tablas=%s\n' "$(docker compose exec -T "$MYSQL_SERVICE" sh -ec \
+    'MYSQL_PWD="$MYSQL_PASSWORD" mysql -N -u "$MYSQL_USER" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()"')"
+} > "$MANIFEST"
+chmod 600 "$MANIFEST"
+
 printf 'Respaldo creado: %s\n' "$BACKUP_FILE"
 printf 'SHA-256: '
 sha256sum "$BACKUP_FILE"
+printf 'Manifiesto (incluye alembic_head): %s\n' "$MANIFEST"
 printf 'Retención aplicada: %s días\n' "$RETENTION_DAYS"
 printf '%s\n' 'Nota: el dump está comprimido, no cifrado; cifra las copias antes de transferirlas o guardarlas fuera del host.'
 

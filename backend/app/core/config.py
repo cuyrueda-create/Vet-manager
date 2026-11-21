@@ -40,3 +40,12 @@ if not SECRET_KEY:
     )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 43200
+
+# URL publica del frontend, usada para construir los enlaces de los correos
+# (confirmacion de registro y recuperacion de contraseña). En local se mantiene
+# el puerto 5173; en Render se define FRONTEND_BASE_URL en el panel.
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+
+# Validez de los tokens de un solo uso (horas). El correo de reset anuncia 1 h.
+RESET_TOKEN_HOURS = int(os.getenv("RESET_TOKEN_HOURS", "1"))
+CONFIRM_TOKEN_HOURS = int(os.getenv("CONFIRM_TOKEN_HOURS", "24"))

@@ -5,6 +5,18 @@ import api from '../api/axiosConfig';
 const ConfirmarEmail = () => {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('loading');
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const reenviar = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    try {
+      await api.post('/auth/resend-confirmation', { email: email.trim() });
+    } finally {
+      setSent(true);
+    }
+  };
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -78,6 +90,28 @@ const ConfirmarEmail = () => {
             <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 24 }}>
               El enlace de confirmación es inválido o ha expirado.
             </p>
+            {sent ? (
+              <p style={{ color: '#16a34a', fontSize: 14, marginBottom: 24 }}>
+                Si la cuenta existe y está pendiente, recibirás un correo nuevo.
+              </p>
+            ) : (
+              <form onSubmit={reenviar} style={{ marginBottom: 24 }}>
+                <input
+                  type="email"
+                  placeholder="tu@correo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 10, marginBottom: 8, borderRadius: 8, border: '1px solid #d1d5db' }}
+                />
+                <button type="submit" style={{
+                  width: '100%', padding: 10, borderRadius: 8, border: 'none',
+                  background: '#0066b3', color: 'white', fontWeight: 600, cursor: 'pointer'
+                }}>
+                  Reenviar confirmación
+                </button>
+              </form>
+            )}
             <Link to="/login" style={{ color: '#0066b3', textDecoration: 'none', fontSize: 14 }}>
               Volver al inicio de sesión
             </Link>
