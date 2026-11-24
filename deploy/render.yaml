@@ -35,8 +35,8 @@ services:
         sync: false
       - key: DB_PORT        # puerto SSL de Aiven (ver panel)
         sync: false
-      - key: DB_NAME        # p. ej. defaultdb
-        sync: false
+      - key: DB_NAME        # nombre exacto de la BD en Aiven (defaultdb por defecto)
+        value: defaultdb
       - key: DB_USER        # p. ej. avnadmin
         sync: false
       - key: DB_PASSWORD
