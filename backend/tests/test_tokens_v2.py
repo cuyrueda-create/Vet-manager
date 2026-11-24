@@ -212,7 +212,10 @@ def test_register_user_con_smtp_y_fallo_de_correo(client_con_bd, conexion_falsa,
     })
 
     assert r.status_code == 201
-    assert r.json().get("requires_confirmation") is True
+    # Si el correo falla, la cuenta se activa y se entrega sesión (no queda
+    # bloqueada sin poder confirmar).
+    assert "access_token" in r.json()
+    assert r.json().get("requires_confirmation") is not True
 
 
 def test_run_alembic_migrations_aplica_head(monkeypatch):
