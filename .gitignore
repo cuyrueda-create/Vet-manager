@@ -9,3 +9,5 @@ backups/
 .coverage
 coverage.xml
 htmlcov/
+
+cov.xml
