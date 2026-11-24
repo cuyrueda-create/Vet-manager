@@ -26,7 +26,7 @@
 | Calidad | 83 pruebas automáticas, CI en verde, SonarCloud Quality Gate OK (cobertura 90.3 % código nuevo, 0 issues abiertos) | ✅ |
 | Respaldo | `scripts/respaldar.sh` diario 03:00, retención 7 días, restauración probada (20/20 tablas) + manifiesto `alembic_head` y `scripts/restaurar.sh` verificado | ✅ |
 | Documentación | Plan de implantación §1–§10, guía rápida, FAQ, runbooks, UAT, guía de despliegue en Render | ✅ |
-| Despliegue en nube | Render + Aiven (§5.3): `vet-manager-api` y `vet-manager-web`, smoke test 6/6 en `https://vet-manager-api.onrender.com` (2026-11-24) | ✅ |
+| Despliegue en nube | Render + Aiven (§5.3): backend `https://vet-manager-api.onrender.com` (smoke test 6/6) y frontend `https://vet-manager-web.onrender.com` (bundle apuntando al backend), 2026-11-24 | ✅ |
 
 ## 3. Niveles de servicio acordados (§9.2)
 

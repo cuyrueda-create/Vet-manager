@@ -7,7 +7,7 @@ Esta guía deja el proyecto **listo para subir completo**: el blueprint ya está
 - `main` y `develop` apuntan al mismo commit; CI verde y Quality Gate OK.
 - `deploy/render.yaml` validado: 2 servicios (`web/docker` + `web/static`), build con **pnpm** (no `npm ci`), `routes` con fallback a `/index.html`.
 - `SECRET_KEY` y `ADMIN_CREATE_KEY` los **genera Render** (`generateValue: true`).
-- `CORS_ORIGINS`, `FRONTEND_BASE_URL` y `VITE_API_URL` se resuelven solos con `fromService`. El backend y el frontend normalizan el hostname a `https://`.
+- `CORS_ORIGINS` y `FRONTEND_BASE_URL` se resuelven solos con `fromService` (el backend normaliza el hostname a `https://`). **`VITE_API_URL` es una URL fija** (`https://vet-manager-api.onrender.com`): `fromService` no se resolvía al compilar con Vite y el bundle quedaba apuntando a `localhost:5000`.
 - Las migraciones de arranque incluyen el DDL de `confirm_token_expires` y la revisión Alembic `0002`.
 
 ## Paso 1 — Aiven (MySQL Free)
@@ -39,6 +39,8 @@ Esta guía deja el proyecto **listo para subir completo**: el blueprint ya está
 
 Los demás campos (`DB_OWNER_USER`, `DB_OWNER_PASSWORD`, `SECRET_KEY`, `ADMIN_CREATE_KEY`, `CORS_ORIGINS`, `FRONTEND_BASE_URL`, `VITE_API_URL`, `EMAIL_*`) ya vienen resueltos o son opcionales. **No los cambies** para que el despliegue sea realmente de una vez.
 
+> **Nota real del despliegue (2026-11-24):** `DB_NAME` se fijó a `defaultdb` en el blueprint porque el valor inicial `Vet_manager` no existía en Aiven. Si ves `Unknown database`, haz *Sync* del blueprint. También se corrigió `COPY . . # NOSONAR` (Docker interpretaba `#` como archivo) y se añadió creación automática del esquema base para BDs vacías.
+
 5. **Apply** y esperar. El backend tarda un poco más (build Docker + migraciones).
 
 ## Paso 3 — Verificación
@@ -65,7 +67,7 @@ Guarda la salida del smoke test en `docs/plan-implantacion.md` §5.3 y actualiza
 | Síntoma | Causa | Arreglo |
 |---|---|---|
 | Backend `unhealthy` | Aiven rechaza la conexión (IP no permitida o SSL) | Revisar `DB_PORT` y el allowlist de Aiven |
-| Frontend carga pero las peticiones dan 404 | `VITE_API_URL` mal resuelto | Confirmar que `fromService` apunta a `vet-manager-api`; no hardcodear la URL |
+| Frontend carga pero las peticiones dan 404 o van a `localhost:5000` | `VITE_API_URL` no se inyectó en el build | Confirmar `VITE_API_URL = https://vet-manager-api.onrender.com` y hacer **Manual Deploy con Clear build cache** (Vite incrusta la variable al compilar) |
 | Rutas `/reset-password?...` dan 404 | Falta el rewrite | Ya está en el blueprint (`routes: /* → /index.html`) |
 | CORS blocked | `CORS_ORIGINS` sin `https://` | Ya se normaliza en `config.py`; no rellenar a mano |
 | El correo no llega | `EMAIL_USER`/`EMAIL_PASSWORD` vacíos | Es opcional: rellénalos en Environment y haz *Manual Deploy* |
