@@ -4,7 +4,8 @@
 def test_health_sin_base_de_datos(client):
     """Sin conexión a MySQL el healthcheck debe reportar unhealthy, no mentir."""
     respuesta = client.get("/health")
-    assert respuesta.status_code == 200
+    # 503 para que Render marque el deploy como fallido (healthCheckPath).
+    assert respuesta.status_code == 503
     datos = respuesta.json()
     assert datos["status"] == "unhealthy"
     assert datos["database"] == "unhealthy"
@@ -38,7 +39,7 @@ def test_cors_permitido_por_defecto(client):
     respuesta = client.get(
         "/health", headers={"Origin": "http://localhost:5173"}
     )
-    assert respuesta.status_code == 200
+    assert respuesta.status_code == 503  # client sin BD; el header CORS sigue aplicando
     assert (
         respuesta.headers.get("access-control-allow-origin")
         == "http://localhost:5173"
