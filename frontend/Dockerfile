@@ -9,7 +9,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # NOSONAR: existe frontend/.dockerignore que excluye node_modules, dist y secretos.
-COPY . . # NOSONAR
+COPY . .
 
 ARG VITE_API_URL=/
 ENV VITE_API_URL=$VITE_API_URL

@@ -33,7 +33,7 @@ RUN pip install --no-cache-dir --only-binary :all: \
     pip==26.3 setuptools==84.1.0 wheel==0.46.3 jaraco.context==6.1.0
 
 # NOSONAR: existe backend/.dockerignore que excluye .env, backups y secretos.
-COPY . . # NOSONAR
+COPY . .
 
 # El runtime corre sin privilegios de root (docker:S6471). La instalación de
 # paquetes se hizo antes como root; solo el proceso de la app cambia de usuario.
