@@ -1,0 +1,12 @@
+[run]
+# SonarCloud necesita rutas relativas a la raíz del repo para poder asociar
+# cada archivo del coverage.xml con su fuente (sonar.sources = .).
+relative_files = true
+source =
+    backend/app
+    backend/migrations
+omit =
+    backend/tests/*
+
+[report]
+show_missing = true
