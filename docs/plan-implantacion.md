@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.4 |
-| Fecha | 2026-11-21 |
+| Versión del plan | 1.5 |
+| Fecha | 2026-11-24 |
 
 ---
 
@@ -1197,6 +1197,7 @@ Registro de cambios del plan:
 | **1.2** | **2026-11-19** | **Cierre de semanas 5–9: §6 rotación de logs + F-01/F-02 automatizados (51 tests); §7 roles `vet_owner`/`vet_app` reales + pruebas de privilegios; §3 respaldo re-verificado (20/20 tablas, PK/FK/UNIQUE) + latido Kuma; §8 Quality Gate OK + monitores reales en Uptime Kuma; §9 Dependabot retirado + auditoría manual con decisión por hallazgo + runbooks + guía/FAQ; §10 materiales de aceptación (UAT, acta, registro de simulacro)** |
 | **1.3** | **2026-11-21** | **Cierre funcional y calidad: §7.5 lógica de veterinario (guard `require_veterinario`, endpoint muerto activado, `citas_hoy` corregido, PDFs sin localhost); §7.6 tokens con caducidad real para reset y confirmación de registro + reenvío + URLs configurables; §3 `scripts/restaurar.sh` verificado con manifiesto `alembic_head`, revisión Alembic 0002 con metadata real; SonarCloud 0 issues abiertos y Quality Gate OK. 61 tests en verde y frontend compila** |
 | **1.4** | **2026-11-21** | **§5.3 blueprint de Render corregido y validado para despliegue único: `web/static` + pnpm + `fromService.host` normalizado + rewrite SPA + secretos autogenerados; guía `docs/despliegue-render.md`. 78 tests en verde** |
+| **1.5** | **2026-11-24** | **CI: `concurrency` por rama con `cancel-in-progress` para evitar que SonarCloud procese reportes de commits obsoletos ("The last analysis has failed"). Análisis más reciente vuelto a lanzar y verificado en SUCCESS** |
 
 ### 10.2 Pruebas de aceptación
 

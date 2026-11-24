@@ -8,6 +8,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Evita que dos runs de la misma rama analicen commits desactualizados:
+# SonarCloud rechaza reportes de commits más antiguos que el último procesado
+# ("a newer report has already been processed") y el panel muestra entonces
+# "The last analysis has failed" aunque el análisis bueno sí pasó.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
