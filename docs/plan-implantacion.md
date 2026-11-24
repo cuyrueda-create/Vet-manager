@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.7 |
+| Versión del plan | 1.8 |
 | Fecha | 2026-11-24 |
 
 ---
@@ -911,7 +911,19 @@ Antes había dos fallos graves: el token de **reset nunca caducaba** (no se escr
 | `POST /auth/reset-password` | aceptaba tokens eternos | comprueba la caducidad (los tokens antiguos sin fecha se rechazan) y limpia ambos campos |
 | `POST /auth/resend-confirmation` | no existía | reenvía un token nuevo con respuesta genérica anti-enumeración |
 
-Los enlaces de los correos usan `FRONTEND_BASE_URL` (nueva variable; por defecto `http://localhost:5173`, en Render se define en el panel) en vez de `localhost` hardcodeado. El frontend alinea la validación de contraseña (8 caracteres + mayúscula/minúscula/número/símbolo) con el backend y ofrece reenvío de confirmación en `ConfirmarEmail.jsx`. Las caducidades se configuran con `RESET_TOKEN_HOURS` y `CONFIRM_TOKEN_HOURS`.
+Los enlaces de los correos usan `FRONTEND_BASE_URL` (nueva variable; en Render se fija a `https://vet-manager-web.onrender.com`) en vez de `localhost` hardcodeado. El frontend alinea la validación de contraseña (8 caracteres + mayúscula/minúscula/número/símbolo) con el backend y ofrece reenvío de confirmación en `ConfirmarEmail.jsx`. Las caducidades se configuran con `RESET_TOKEN_HOURS` y `CONFIRM_TOKEN_HOURS`.
+
+**Verificación en la nube (2026-11-24):** si el SMTP falla (app password de Gmail caducada o no configurada), el registro **no deja la cuenta inactiva sin poder entrar**: activa la cuenta, entrega la sesión y devuelve `message: "Correo de verificación no disponible; cuenta activada directamente."` Para recibir el correo de confirmación hay que **rotar la app password de Gmail** y actualizar `EMAIL_USER`/`EMAIL_PASSWORD` en Render; entonces el registro devuelve `requires_confirmation: true` y la cuenta no se activa hasta seguir el enlace.
+
+### 7.7 Alta de roles: administrador, veterinario y recepcionista (2026-11-24)
+
+El registro público (`/auth/register/user`) crea siempre `rol='usuario'`. El resto de roles se crean desde el **panel de administración**, pero eso planteaba un huevo-huevo: el panel exige estar autenticado como administrador y en una BD nueva no hay ninguno.
+
+- **`POST /auth/bootstrap-admin`** (público, solo la primera vez): crea el primer administrador **activo** si no existe ninguno, exigiendo la clave maestra `ADMIN_CREATE_KEY` (generada por Render). Devuelve JWT. El modal de registro de administrador del frontend pide esa clave y usa este endpoint.
+- Una vez existe el administrador, **`POST /api/v1/admin/usuarios`** (protegido por `require_admin`) crea **veterinario**, **recepcionista** o **administrador adicional**. Para crear otro administrador pide además la clave maestra (`clave_admin`). La pantalla `AdminUsuarios.jsx` ya trae el selector de rol y el formulario.
+- `/auth/register/admin` queda como solicitud de acceso (cuenta inactiva) para entornos donde se requiere aprobación manual.
+
+**Evidencia local:** 86 tests en verde (incluidos 3 nuevos de bootstrap: clave incorrecta → 403, segundo admin → 409, primer admin → 201 con JWT) y `pnpm run build` correcto.
 
 **Evidencia real (BD de desarrollo):** `/auth/request-reset` guardó `reset_token_expires = 2026-11-22 00:09:49`; al forzar la fecha al pasado, `/auth/reset-password` devolvió `400 "El enlace ha expirado. Solicita uno nuevo."`. Un token sin fecha también se rechaza. 61 tests en verde (incluidos 3 nuevos de caducidad).
 
@@ -1222,6 +1234,7 @@ Registro de cambios del plan:
 | **1.5** | **2026-11-24** | **CI: `concurrency` por rama con `cancel-in-progress` para evitar que SonarCloud procese reportes de commits obsoletos ("The last analysis has failed"). Análisis más reciente vuelto a lanzar y verificado en SUCCESS** |
 | **1.6** | **2026-11-24** | **Despliegue real en Render + Aiven: smoke test 6/6 en `https://vet-manager-api.onrender.com` (health DB healthy, versión 1.0.0). Correcciones de cloud: `COPY . .` sin comentario inline, `DB_NAME=defaultdb` en el blueprint, creación automática del esquema base en BD vacía y `/health` con 503 si falla la BD. Cobertura nueva 90.3 %, Quality Gate OK, 0 issues** |
 | **1.7** | **2026-11-24** | **Frontend desplegado y verificado en `https://vet-manager-web.onrender.com`: bundle con la URL real del backend y rewrite SPA. Plan cerrado con las 9 semanas y evidencia de nube completa** |
+| **1.8** | **2026-11-24** | **§7.7 alta de roles: `POST /auth/bootstrap-admin` con clave maestra para el primer administrador y panel para veterinario/recepcionista; §7.6 verificación por correo condicionada a SMTP válido. 86 tests en verde** |
 
 ### 10.2 Pruebas de aceptación
 

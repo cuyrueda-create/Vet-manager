@@ -41,6 +41,11 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 43200
 
+# Clave maestra: permite crear el PRIMER administrador cuando la BD está vacía.
+# Render la genera con generateValue: true; también la usa admin.py para crear
+# administradores adicionales desde el panel.
+ADMIN_CREATE_KEY = os.getenv("ADMIN_CREATE_KEY")
+
 def _url_publica(valor: str, defecto: str) -> str:
     """Acepta una URL completa o solo un host (lo que devuelve `fromService`).
 

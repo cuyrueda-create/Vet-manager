@@ -32,8 +32,9 @@ from app.core.auth import get_current_user, require_admin, require_veterinario, 
 
 # ==================== IMPORTAR CONFIGURACIÓN ====================
 from app.core.config import (
-    DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
-    FRONTEND_BASE_URL, RESET_TOKEN_HOURS, CONFIRM_TOKEN_HOURS, _url_publica,
+    DB_CONFIG, EMAIL_CONFIG, SECRET_KEY, ADMIN_CREATE_KEY, ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES, FRONTEND_BASE_URL, RESET_TOKEN_HOURS,
+    CONFIRM_TOKEN_HOURS, _url_publica,
 )
 from app.core.database import get_db_connection
 from app.utils.email import send_cita_email, send_recordatorio_email
@@ -544,6 +545,79 @@ class AdminCreate(BaseModel):
     direccion_negocio: str = Field(default="", max_length=200)
     especialidad: str = Field(default="Veterinaria", max_length=100)
     anos_experiencia: int = 0
+
+
+class AdminBootstrap(BaseModel):
+    """Alta del primer administrador en una BD recién creada (nube)."""
+    nombre: str = Field(max_length=60)
+    apellido: str = Field(max_length=60)
+    email: EmailStr = Field(max_length=100)
+    contraseña: str
+    telefono: str = Field(default="", max_length=20)
+    numero_documento: Optional[str] = Field(default=None, max_length=30)
+    clave_admin: str
+
+
+@app.post("/auth/bootstrap-admin", status_code=status.HTTP_201_CREATED)
+async def bootstrap_admin(data: AdminBootstrap):
+    """Crea el primer administrador solo si no hay ninguno y con la clave maestra.
+
+    Rompe el huevo-huevo: el panel `/api/v1/admin/usuarios` exige admin, pero en
+    una BD vacía no hay nadie que pueda crear el primero. Una vez creado, los
+    demás roles (veterinario/recepcionista/admin) se dan de alta en ese panel.
+    """
+    if not ADMIN_CREATE_KEY or data.clave_admin != ADMIN_CREATE_KEY:
+        raise HTTPException(status_code=403, detail="Clave maestra incorrecta")
+
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a base de datos")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT COUNT(*) AS total FROM usuarios WHERE rol = 'administrador'")
+        if cursor.fetchone()["total"]:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe un administrador. Crea el resto de roles desde el panel de administración.",
+            )
+
+        validate_password_strength(data.contraseña)
+        cursor.execute("SELECT id_usuario FROM usuarios WHERE email = %s", (data.email,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="El email ya está registrado")
+
+        hashed = get_password_hash(data.contraseña)
+        cursor.execute("""
+            INSERT INTO usuarios (nombre, apellido, email, telefono, contrasea, rol,
+                                  tipo_documento, numero_documento, confirm_token,
+                                  confirm_token_expires, is_active, nombre_negocio,
+                                  direccion_negocio, especialidad, anos_experiencia)
+            VALUES (%s, %s, %s, %s, %s, 'administrador', 'NIT', %s, NULL, NULL, TRUE,
+                    'Vet Manager', '', 'Veterinaria', 0)
+        """, (data.nombre, data.apellido, data.email, data.telefono, hashed,
+              data.numero_documento or ''))
+        connection.commit()
+        user_id = cursor.lastrowid
+
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email, rol, tipo_documento, numero_documento
+            FROM usuarios WHERE id_usuario = %s
+        """, (user_id,))
+        user = cursor.fetchone()
+        return {
+            "message": "Administrador creado. Ya puedes crear veterinarios y recepcionistas desde el panel.",
+            "user_id": user_id,
+            **build_auth_response(user),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al crear administrador: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
 
 class UsuarioResponse(BaseModel):
     id_usuario: int
@@ -1216,6 +1290,7 @@ async def register_user(user_data: UsuarioCreate):
         connection.commit()
         user_id = cursor.lastrowid
 
+        respuesta_activada = False
         if needs_confirmation:
             enviado = False
             try:
@@ -1243,13 +1318,19 @@ async def register_user(user_data: UsuarioCreate):
                                     is_active = TRUE WHERE id_usuario = %s
             """, (user_id,))
             connection.commit()
+            respuesta_activada = True
 
         cursor.execute("""
             SELECT id_usuario, nombre, apellido, email, rol, tipo_documento, numero_documento
             FROM usuarios WHERE id_usuario = %s
         """, (user_id,))
         user = cursor.fetchone()
-        return build_auth_response(user)
+        respuesta = build_auth_response(user)
+        if respuesta_activada:
+            respuesta["message"] = (
+                "Correo de verificación no disponible; cuenta activada directamente."
+            )
+        return respuesta
 
     except HTTPException:
         raise
