@@ -76,7 +76,7 @@ Servicios:
 
 Caddy usa un certificado local `tls internal`. Para el navegador, agrega `127.0.0.1 vet-manager.test` al archivo hosts y confía la CA local de Caddy. Para una prueba con `curl`, exporta esa CA con `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt /tmp/caddy-local-root.crt` y ejecuta `curl --cacert /tmp/caddy-local-root.crt --resolve vet-manager.test:8443:127.0.0.1 https://vet-manager.test:8443/`.
 
-La base de datos se inicializa automáticamente con `database/schema.sql` y el backend ejecuta sus migraciones al arrancar. Caddy enruta las rutas de API al backend y las demás al frontend; MySQL y el backend no se publican como puertos de Internet.
+La base de datos se inicializa automáticamente con `backend/database/schema.sql` y el backend ejecuta sus migraciones al arrancar. Caddy enruta las rutas de API al backend y las demás al frontend; MySQL y el backend no se publican como puertos de Internet.
 
 ### Migraciones de base de datos
 
@@ -122,7 +122,7 @@ corepack pnpm install
 corepack pnpm dev         # http://localhost:5173
 ```
 
-**Base de datos**: levanta MySQL 8 y ejecuta `database/schema.sql`.
+**Base de datos**: levanta MySQL 8 y ejecuta `backend/database/schema.sql`.
 
 ## ⚙️ Variables de entorno
 
@@ -145,11 +145,11 @@ corepack pnpm dev         # http://localhost:5173
 
 ## 🗄 Base de datos
 
-Tablas principales (`database/schema.sql`): `usuarios`, `clientes`, `mascotas`, `citas`, `servicios`, `consultorio`, `historial_clinico`, `medicamentos`, `medicamentos_asignados`, `facturas`, `factura_detalle`, `notificaciones`, `inventario`, `insumos`, `proveedores`, `productos`, `reportes`, `agenda`.
+Tablas principales (`backend/database/schema.sql`): `usuarios`, `clientes`, `mascotas`, `citas`, `servicios`, `consultorio`, `historial_clinico`, `medicamentos`, `medicamentos_asignados`, `facturas`, `factura_detalle`, `notificaciones`, `inventario`, `insumos`, `proveedores`, `productos`, `reportes`, `agenda`.
 
 Archivos disponibles:
 
-- `database/schema.sql` — esquema completo (usado por Docker).
+- `backend/database/schema.sql` — esquema completo (usado por Docker).
 - `database/schema_clean.sql` — versión limpia del esquema.
 - `database/migration_tratamientos_personalizados.sql` — migración adicional.
 
