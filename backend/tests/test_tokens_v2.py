@@ -194,7 +194,13 @@ def test_register_user_con_smtp_y_fallo_de_correo(client_con_bd, conexion_falsa,
     import app.main as main_module
 
     cursor = conexion_falsa.cursor.return_value
-    cursor.fetchone.return_value = None
+    # 1ª consulta: email libre; 2ª: el usuario recién insertado (para la sesión).
+    cursor.fetchone.side_effect = [
+        None,
+        {"id_usuario": 22, "nombre": "Ana", "apellido": "Pérez",
+         "email": "smtpfallo@test.com", "rol": "usuario",
+         "tipo_documento": None, "numero_documento": None},
+    ]
     cursor.lastrowid = 22
     monkeypatch.setattr(
         main_module, "EMAIL_CONFIG",
