@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.6 |
+| Versión del plan | 1.7 |
 | Fecha | 2026-11-24 |
 
 ---
@@ -647,7 +647,7 @@ Estado del servidor: `mysql` y `backend` `healthy` en red interna; MySQL **sin p
 | Web estática | **Render — Static Site (free)** | Por defecto | Build `npm ci && npm run build`, publica `frontend/dist` |
 | Base de datos | **Aiven for MySQL — Free** | No seleccionable en plan gratuito | MySQL 8 gestionado; connection string **solo en el panel de Render** |
 
-URL pública: `https://vet-manager-api.onrender.com` (marcador; el valor real se define al crear el servicio).
+URL pública: **`https://vet-manager-api.onrender.com`** (backend) y **`https://vet-manager-web.onrender.com`** (frontend).
 
 **Procedimiento:**
 
@@ -690,7 +690,9 @@ Fecha: 2026-11-24T20:25:25Z
 RESULTADO: TODAS LAS PRUEBAS PASARON (0 fallos)
 ```
 
-URL pública: **`https://vet-manager-api.onrender.com`**. Con esto se completa la evidencia de nube exigida en la rúbrica (antes limitaba Producto a 60/100). Procedimiento y guía: [`docs/despliegue-render.md`](../docs/despliegue-render.md).
+**Frontend verificado (2026-11-24):** el static site `vet-manager-web` sirve la SPA (`<title>Vet Manager</title>`) y el bundle `index-BMfLcOcc.js` contiene la URL `https://vet-manager-api.onrender.com`. Se corrigió el build: `fromService.host` no se resolvía al compilar con Vite y el bundle apuntaba a `localhost:5000` (fallaba en el navegador del usuario); ahora `VITE_API_URL` es la URL pública fija en el blueprint. Render sirve las rutas profundas del router mediante el rewrite `/* → /index.html`.
+
+URLs públicas: **backend `https://vet-manager-api.onrender.com`** · **frontend `https://vet-manager-web.onrender.com`**. Con esto se completa la evidencia de nube exigida en la rúbrica (antes limitaba Producto a 60/100). Procedimiento y guía: [`docs/despliegue-render.md`](../docs/despliegue-render.md).
 
 ### 5.4 Estimación de costos
 
@@ -1219,6 +1221,7 @@ Registro de cambios del plan:
 | **1.4** | **2026-11-21** | **§5.3 blueprint de Render corregido y validado para despliegue único: `web/static` + pnpm + `fromService.host` normalizado + rewrite SPA + secretos autogenerados; guía `docs/despliegue-render.md`. 78 tests en verde** |
 | **1.5** | **2026-11-24** | **CI: `concurrency` por rama con `cancel-in-progress` para evitar que SonarCloud procese reportes de commits obsoletos ("The last analysis has failed"). Análisis más reciente vuelto a lanzar y verificado en SUCCESS** |
 | **1.6** | **2026-11-24** | **Despliegue real en Render + Aiven: smoke test 6/6 en `https://vet-manager-api.onrender.com` (health DB healthy, versión 1.0.0). Correcciones de cloud: `COPY . .` sin comentario inline, `DB_NAME=defaultdb` en el blueprint, creación automática del esquema base en BD vacía y `/health` con 503 si falla la BD. Cobertura nueva 90.3 %, Quality Gate OK, 0 issues** |
+| **1.7** | **2026-11-24** | **Frontend desplegado y verificado en `https://vet-manager-web.onrender.com`: bundle con la URL real del backend y rewrite SPA. Plan cerrado con las 9 semanas y evidencia de nube completa** |
 
 ### 10.2 Pruebas de aceptación
 

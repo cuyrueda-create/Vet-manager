@@ -16,7 +16,7 @@ Fecha: 2026-11-18
 
 ## Verificación y pendiente
 
-- **Nube (obligatorio para la rúbrica):** `render.yaml` y el procedimiento están listos, pero **falta crear las cuentas en Render y Aiven** para obtener la evidencia (salida de la prueba de humo contra la URL pública). Sin ella, la rúbrica limita Producto a 60/100. *Acción del usuario.*
+- **Nube (obligatorio para la rúbrica): ✅ completado el 2026-11-24.** Desplegados `vet-manager-api` (Docker + Aiven Free MySQL) y `vet-manager-web` (static site) desde `deploy/render.yaml`. Prueba de humo **6/6** en `https://vet-manager-api.onrender.com` y frontend verificado en `https://vet-manager-web.onrender.com` con el bundle apuntando al backend. Evidencia en `docs/plan-implantacion.md` §5.3 y guía en `docs/despliegue-render.md`.
 - **CI:** el workflow de SonarCloud debe ejecutar pytest con cobertura antes del scan y fijar la acción por SHA; `sonar-project.properties` requiere limpieza. *Pendiente.*
 - **Push:** las etiquetas `v1.0.0` y `v1.1.0` y los commits están locales; falta `git push origin cierre-semanas-1-4 --tags` para que se vean en GitHub. *Acción del usuario (o confirmación para hacerlo).*
 - El servidor Linux real (Ubuntu Server 24.04 LTS) repetirá la instalación con estos mismos comandos cuando exista; el simulacro en WSL validó el procedimiento.
