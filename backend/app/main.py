@@ -1,7 +1,7 @@
 # app/main.py
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import mysql.connector
@@ -987,13 +987,20 @@ async def health_check():
     db_status = "healthy" if conn else "unhealthy"
     if conn:
         conn.close()
-    return {
+    cuerpo = {
         "status": "healthy" if db_status == "healthy" else "unhealthy",
         "database": db_status,
         "version": os.getenv("APP_VERSION", "dev"),
         "ambiente": os.getenv("APP_ENV", "desarrollo"),
         "uptime_s": round(time.time() - _ARRANQUE_SEGUNDOS, 1),
     }
+    # Render usa healthCheckPath y solo mira el código HTTP: si la BD no
+    # responde, debe devolver 503 para que el deploy se marque como fallido
+    # en vez de dar un falso positivo (§8.5).
+    return JSONResponse(
+        content=cuerpo,
+        status_code=200 if db_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
 
 # ==================== AUTENTICACIÓN ====================
 
