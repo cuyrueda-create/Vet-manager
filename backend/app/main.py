@@ -96,6 +96,55 @@ def migrate_stored_procedures():
         cursor.close()
         conn.close()
 
+RUTA_SCHEMA_BASE = Path(__file__).resolve().parent.parent / "database" / "schema.sql"
+
+
+def aplicar_schema_base():
+    """Crea el esquema base cuando la BD está vacía.
+
+    Docker inicializa MySQL con database/schema.sql, pero un MySQL externo
+    (Aiven en Render) no ejecuta ese initdb: las migraciones incrementales de
+    abajo fallarían porque `usuarios` no existe. Esta función lo detecta y
+    aplica el mismo DDL una sola vez.
+    """
+    conn = get_db_connection(owner=True)
+    if not conn:
+        print("⚠️ No se pudo conectar a la BD para crear el esquema base")
+        return
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.tables "
+            "WHERE table_schema = DATABASE() AND table_name = 'usuarios'"
+        )
+        if cursor.fetchone()[0]:
+            return  # esquema ya presente: no tocar nada
+
+        sql = RUTA_SCHEMA_BASE.read_text(encoding="utf-8")
+        # El bloque DELIMITER se omite: migrate_stored_procedures() crea la
+        # rutina con SQL directo (mysql-connector no entiende DELIMITER).
+        sql = re.sub(r"DELIMITER\s+//.*?DELIMITER\s*;", "", sql, flags=re.S | re.I)
+        sql = "\n".join(
+            linea for linea in sql.splitlines()
+            if not linea.strip().startswith("--")
+        )
+        fallos = 0
+        for sentencia in sql.split(";"):
+            sentencia = sentencia.strip()
+            if not sentencia:
+                continue
+            try:
+                cursor.execute(sentencia)
+            except Exception as exc:
+                fallos += 1
+                print(f"⚠️ Aviso al aplicar esquema base: {exc}")
+        conn.commit()
+        print(f"✅ Esquema base aplicado ({'sin incidencias' if not fallos else str(fallos) + ' avisos'})")
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def migrate_usuarios_table():
     """Agrega columnas faltantes a la tabla usuarios"""
     conn = get_db_connection(owner=True)
@@ -416,6 +465,7 @@ def migrate_admin_columns():
 @app.on_event("startup")
 def startup():
     print("Ejecutando migraciones...")
+    aplicar_schema_base()
     migrate_usuarios_table()
     migrate_clientes_table()
     migrate_citas_table()
