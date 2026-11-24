@@ -22,6 +22,7 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
     contraseña: '',
     confirmarContraseña: '',
     numeroDocumento: '',
+    claveAdmin: '',
     nombreNegocio: '',
     direccionNegocio: '',
     especialidad: 'Veterinaria',
@@ -93,6 +94,8 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
       telefono: formData.telefono.startsWith('+57') ? formData.telefono : `+57${formData.telefono}`,
       contraseña: formData.contraseña,
       numero_documento: formData.numeroDocumento,
+      apellido: formData.apellido || formData.nombre,
+      clave_admin: formData.claveAdmin,
       nombre_negocio: formData.nombreNegocio,
       direccion_negocio: formData.direccionNegocio,
       especialidad: formData.especialidad,
@@ -224,6 +227,9 @@ const RegisterAdminModal = ({ onClose, onOpenLogin, onOpenUser }) => {
         <div className="form-group">
           <label htmlFor="numeroDocumento">Número de identificación fiscal / RUT / Cédula</label>
           <input id="numeroDocumento" type="text" name="numeroDocumento" placeholder="Ej: 901234567-1" value={formData.numeroDocumento} onChange={handleChange} required />
+          <label htmlFor="claveAdmin">Clave maestra de administración</label>
+          <input id="claveAdmin" type="password" name="claveAdmin" placeholder="Valor de ADMIN_CREATE_KEY en Render" value={formData.claveAdmin} onChange={handleChange} required />
+          <small style={{ color: '#6b7280', fontSize: 12 }}>Solo hace falta para crear el primer administrador.</small>
         </div>
 
         <div className="form-group">
