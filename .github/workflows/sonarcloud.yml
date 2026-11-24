@@ -44,7 +44,7 @@ jobs:
         # coverage.xml use rutas relativas al repo (backend/app/...), que es
         # lo que SonarCloud espera en sonar.python.coverage.reportPaths.
         run: |
-          PYTHONPATH=backend python -m pytest backend/tests --cov=app --cov-report=xml:backend/coverage.xml --cov-report=term
+          PYTHONPATH=backend python -m pytest backend/tests --cov --cov-report=xml:backend/coverage.xml --cov-report=term
       - name: Subir cobertura como artefacto
         uses: actions/upload-artifact@v4
         with:
@@ -78,7 +78,7 @@ jobs:
             pytest==9.2.0 pytest-cov==7.1.0 httpx2==2.16.2
       - name: Generar cobertura para SonarCloud
         run: |
-          PYTHONPATH=backend python -m pytest backend/tests --cov=app --cov-report=xml:backend/coverage.xml --cov-report=term
+          PYTHONPATH=backend python -m pytest backend/tests --cov --cov-report=xml:backend/coverage.xml --cov-report=term
       # Acción fijada por SHA completo por seguridad (regla SonarCloud S7637)
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3.1.0
