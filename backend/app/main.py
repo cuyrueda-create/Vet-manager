@@ -1217,22 +1217,32 @@ async def register_user(user_data: UsuarioCreate):
         user_id = cursor.lastrowid
 
         if needs_confirmation:
+            enviado = False
             try:
-                send_confirmation_email(
+                enviado = bool(send_confirmation_email(
                     to_email=user_data.email,
                     nombre=user_data.nombre,
                     apellido=user_data.apellido,
                     confirm_token=confirm_token,
-                )
+                ))
             except Exception as exc:
-                # El registro no falla, pero se registra el error para poder reenviar.
                 print(f"Aviso: no se pudo enviar el correo de confirmacion: {exc}")
 
-            return {
-                "message": "Registro exitoso. Revisa tu correo para confirmar tu cuenta.",
-                "user_id": user_id,
-                "requires_confirmation": True,
-            }
+            if enviado:
+                return {
+                    "message": "Registro exitoso. Revisa tu correo para confirmar tu cuenta.",
+                    "user_id": user_id,
+                    "requires_confirmation": True,
+                }
+
+            # Si el SMTP falla (p. ej. app password de Gmail caducado en la
+            # nube), no dejar la cuenta inactiva: nadie podría confirmarla ni
+            # iniciar sesión. Se activa directamente y se entrega la sesión.
+            cursor.execute("""
+                UPDATE usuarios SET confirm_token = NULL, confirm_token_expires = NULL,
+                                    is_active = TRUE WHERE id_usuario = %s
+            """, (user_id,))
+            connection.commit()
 
         cursor.execute("""
             SELECT id_usuario, nombre, apellido, email, rol, tipo_documento, numero_documento
