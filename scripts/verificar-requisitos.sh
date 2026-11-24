@@ -84,7 +84,7 @@ fi
 
 printf '\n[Chequeo propio del proyecto: archivos requeridos]\n'
 FILES_OK=1
-for required in docker-compose.yml Caddyfile backend/app/main.py backend/requirements.txt frontend/package.json database/schema.sql scripts/respaldar.sh; do
+for required in docker-compose.yml Caddyfile backend/app/main.py backend/requirements.txt frontend/package.json backend/database/schema.sql scripts/respaldar.sh; do
   if [ -f "$PROJECT_DIR/$required" ]; then
     printf 'OK   %s\n' "$required"
   else

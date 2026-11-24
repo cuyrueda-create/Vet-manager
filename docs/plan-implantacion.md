@@ -144,7 +144,7 @@ OK   Caddyfile
 OK   backend/app/main.py
 OK   backend/requirements.txt
 OK   frontend/package.json
-OK   database/schema.sql
+OK   backend/database/schema.sql
 OK   scripts/respaldar.sh
 
 [Chequeo propio del proyecto: configuración de Compose]
@@ -185,7 +185,7 @@ Trasladar el 100 % de las filas y objetos de la base MySQL `vet_manager` del ent
 | Origen | Formato / volumen | Responsable | Calidad / estado |
 |---|---|---|---|
 | Servicio `mysql` de `docker-compose.yml`, base `vet_manager` | MySQL 8.0; volumen Docker `mysql_data`; volumen y filas actuales por medir | Responsable de la base de datos | No hay un origen externo ni archivos legados identificados en el repositorio; no asumir que `schema.sql` contiene datos reales del cliente |
-| `database/schema.sql` | DDL MySQL, vista, procedimiento y datos iniciales definidos en el archivo | Equipo de desarrollo | Docker lo usa al inicializar un volumen vacío; no reemplaza datos existentes |
+| `backend/database/schema.sql` | DDL MySQL, vista, procedimiento y datos iniciales definidos en el archivo | Equipo de desarrollo | Docker lo usa al inicializar un volumen vacío; no reemplaza datos existentes |
 | Migraciones de arranque de `backend/app/main.py` | Cambios SQL ejecutados por la API | Equipo de desarrollo | Modifican columnas/roles, crean tablas y normalizan contraseñas; ensayar antes del corte |
 
 ### 2.3 Estrategia y ventana
@@ -542,7 +542,7 @@ Alcance: API FastAPI, web React/Vite y MySQL 8. La app móvil se compila/publica
 │       │   ├── Caddyfile         # reverse proxy (dominio real)
 │       │   ├── Caddyfile.local   # pruebas sin dominio (tls internal)
 │       │   └── env.prod.example  # plantilla de variables
-│       ├── database/schema.sql
+│       ├── backend/database/schema.sql
 │       ├── smoke-test.sh         # prueba de humo
 │       └── CHANGELOG.md
 └── respaldos/
