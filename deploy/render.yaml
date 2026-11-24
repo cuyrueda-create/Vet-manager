@@ -63,18 +63,13 @@ services:
       - key: ADMIN_CREATE_KEY
         generateValue: true
 
-      # CORS y URL de los correos apuntan al static site; `host` se normaliza
-      # a https:// en config.py (/health y los enlaces de email funcionan).
+      # Igual que VITE_API_URL: `fromService.host` se resolvió vacío al crear
+      # el servicio y CORS_ORIGINS quedó sin orígenes permitidos (login 400
+      # desde el navegador). Se fijan las URLs públicas reales.
       - key: CORS_ORIGINS
-        fromService:
-          name: vet-manager-web
-          type: web
-          property: host
+        value: https://vet-manager-web.onrender.com
       - key: FRONTEND_BASE_URL
-        fromService:
-          name: vet-manager-web
-          type: web
-          property: host
+        value: https://vet-manager-web.onrender.com
 
       # Opcional: si se dejan vacíos, el registro activa la cuenta directamente
       # (no bloquea el despliegue). Rellénalos para habilitar correos reales.
