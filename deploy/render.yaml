@@ -100,13 +100,11 @@ services:
       # Vite 8 exige Node >= 20.19; se fija para no depender del default de Render.
       - key: NODE_VERSION
         value: 22.13.0
-      # fromService.host devuelve "vet-manager-api.onrender.com"; axiosConfig.js
-      # le añade https://. No hardcodear la URL para que sobreviva a redeploys.
+      # Vite sustituye VITE_API_URL en el BUILD. `fromService` no se resolvió
+      # al compilar y el bundle quedó apuntando a localhost:5000 (rott en el
+      # navegador del usuario). Se fija la URL pública real del Web Service.
       - key: VITE_API_URL
-        fromService:
-          name: vet-manager-api
-          type: web
-          property: host
+        value: https://vet-manager-api.onrender.com
       - key: VITE_APP_NAME
         value: Vet Manager
     routes:
