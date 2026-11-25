@@ -73,7 +73,7 @@ def test_resend_confirmation_respuesta_generica(client_con_bd, conexion_falsa, m
     cursor.fetchone.return_value = {
         "id_usuario": 9, "nombre": "Ana", "apellido": "Pérez", "email": "ana@test.com"
     }
-    monkeypatch.setattr(main_module, "EMAIL_CONFIG", {"user": "", "password": ""})
+    monkeypatch.setattr(main_module, "EMAIL_CONFIG", {"user": "", "password": "", "from": ""})
 
     r = client_con_bd.post("/auth/resend-confirmation", json={"email": "ana@test.com"})
 
@@ -114,7 +114,7 @@ def test_register_no_filtra_el_token_aunque_falle_el_correo(client_con_bd, conex
     cursor.lastrowid = 13
     monkeypatch.setattr(
         main_module, "EMAIL_CONFIG",
-        {"user": "correo@test.com", "password": "clave"},
+        {"user": "correo@test.com", "password": "clave", "from": "correo@test.com"},
     )
 
     def falla(*args, **kwargs):
@@ -141,7 +141,7 @@ def test_reset_email_usa_la_url_base_configurada(monkeypatch):
     monkeypatch.setattr(email_module.smtplib, "SMTP", lambda *a, **k: MagicMock())
     monkeypatch.setattr(email_module, "EMAIL_CONFIG", {
         "host": "smtp.test", "port": 587,
-        "user": "correo@test.com", "password": "clave",
+        "user": "correo@test.com", "password": "clave", "from": "correo@test.com",
     })
 
     capturado = {}
@@ -176,7 +176,7 @@ def test_register_sin_smtp_activa_la_cuenta(client_con_bd, conexion_falsa, monke
     cursor = conexion_falsa.cursor.return_value
     cursor.fetchone.return_value = None
     cursor.lastrowid = 21
-    monkeypatch.setattr(main_module, "EMAIL_CONFIG", {"user": "", "password": ""})
+    monkeypatch.setattr(main_module, "EMAIL_CONFIG", {"user": "", "password": "", "from": ""})
 
     r = client_con_bd.post("/auth/register", json={
         "nombre": "Ana", "apellido": "Pérez", "email": "local@test.com",

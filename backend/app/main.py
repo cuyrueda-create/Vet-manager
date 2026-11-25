@@ -820,7 +820,7 @@ Vet Manager - Sistema de Gestion Veterinaria
     
     message = MIMEMultipart("alternative")
     message["Subject"] = "Recuperacion de contrasena - Vet Manager"
-    message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
+    message["From"] = f"Vet Manager <{EMAIL_CONFIG['from']}>"
     message["To"] = to_email
     
     message.attach(MIMEText(text_content, "plain", "utf-8"))
@@ -939,7 +939,7 @@ Vet Manager - Sistema de Gestion Veterinaria
 
     message = MIMEMultipart("alternative")
     message["Subject"] = "Confirma tu cuenta - Vet Manager"
-    message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
+    message["From"] = f"Vet Manager <{EMAIL_CONFIG['from']}>"
     message["To"] = to_email
 
     message.attach(MIMEText(text_content, "plain", "utf-8"))
@@ -1074,7 +1074,7 @@ Vet Manager - Sistema de Gestion Veterinaria
 
     message = MIMEMultipart("alternative")
     message["Subject"] = f"Factura {factura_data['numero']} - Vet Manager"
-    message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
+    message["From"] = f"Vet Manager <{EMAIL_CONFIG['from']}>"
     message["To"] = to_email
 
     message.attach(MIMEText(text_content, "plain", "utf-8"))
