@@ -92,11 +92,12 @@ useEffect(() => {
   const registerUser = async (userData) => {
     try {
       const response = await api.post('/auth/register/user', userData);
-      if (response.data.requires_confirmation) {
-        // La cuenta queda inactiva hasta confirmar el correo: no hay sesión aún.
+      if (response.data.requires_confirmation || response.data.requires_verification) {
+        // La cuenta queda inactiva hasta verificar el código por correo.
         return {
           success: true,
-          requiresConfirmation: true,
+          requiresVerification: true,
+          email: response.data.email,
           message: response.data.message
         };
       }
@@ -110,6 +111,21 @@ useEffect(() => {
       return {
         success: false,
         message: error.response?.data?.detail || 'Error al registrar usuario'
+      };
+    }
+  };
+
+  const verifyCode = async (email, codigo) => {
+    try {
+      const response = await api.post('/auth/verify-code', { email, codigo });
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      setUser(response.data.user);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Código incorrecto'
       };
     }
   };
@@ -148,6 +164,7 @@ useEffect(() => {
     login,
     register,
     registerUser,
+    verifyCode,
     registerAdmin,
     logout,
     updateUser,

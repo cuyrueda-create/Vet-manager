@@ -3,9 +3,13 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import os
 import re
+import secrets
+from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from app.core.database import get_db_connection
 from app.core.auth import require_admin
+from app.core.config import EMAIL_CONFIG
+from app.utils.email import send_verification_code_email
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -88,15 +92,41 @@ async def create_usuario(data: UserCreate, current_user: dict = Depends(require_
             raise HTTPException(status_code=400, detail="El número de documento ya está registrado")
 
         hashed = get_password_hash(data.contraseña)
+
+        # El nuevo usuario debe verificar su correo con un código de 6 dígitos
+        # antes de poder iniciar sesión (igual que en el registro público).
+        con_correo = bool(EMAIL_CONFIG.get("user") and EMAIL_CONFIG.get("password"))
+        codigo = f"{secrets.randbelow(1000000):06d}" if con_correo else None
+        # NOSONAR: MySQL DATETIME es naive (UTC).
+        expira = (datetime.utcnow() + timedelta(minutes=10)) if con_correo else None  # NOSONAR
+
         cursor.execute("""
             INSERT INTO usuarios (nombre, apellido, email, contrasea, rol, telefono, direccion,
-                                  tipo_documento, numero_documento, created_by, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
+                                  tipo_documento, numero_documento, created_by, is_active,
+                                  codigo_verificacion, codigo_expires)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (data.nombre, data.apellido, data.email, hashed, data.rol,
               data.telefono, data.direccion, data.tipo_documento, data.numero_documento,
-              current_user["id_usuario"]))
+              current_user["id_usuario"], not con_correo, codigo, expira))
         connection.commit()
-        return {"message": "Usuario creado exitosamente", "id_usuario": cursor.lastrowid}
+
+        mensaje = "Usuario creado exitosamente"
+        if con_correo:
+            enviado = send_verification_code_email(data.email, data.nombre, data.apellido, codigo)
+            mensaje = (
+                "Usuario creado. Recibirá un código de 6 dígitos por correo "
+                "para activar su cuenta."
+                if enviado else
+                "Usuario creado (correo no disponible; cuenta activada directamente)."
+            )
+            if not enviado:
+                cursor.execute("""
+                    UPDATE usuarios SET codigo_verificacion = NULL, codigo_expires = NULL,
+                                        is_active = TRUE WHERE email = %s
+                """, (data.email,))
+                connection.commit()
+
+        return {"message": mensaje, "id_usuario": cursor.lastrowid}
     except HTTPException:
         raise
     except Exception as e:

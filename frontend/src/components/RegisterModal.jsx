@@ -26,13 +26,15 @@ const formatTelefono = (value) => {
 };
 
 const RegisterModal = ({ onClose, onOpenLogin }) => {
-  const { registerUser, logout } = useAuth();
+  const { registerUser, verifyCode, logout } = useAuth();
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
     email: '',
     telefono: '',
     direccion: '',
+    tipoDocumento: 'Cédula de ciudadanía',
+    numeroDocumento: '',
     contraseña: '',
     confirmarContraseña: '',
     aceptaTerminos: false,
@@ -40,6 +42,9 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [paso, setPaso] = useState('formulario');
+  const [emailRegistro, setEmailRegistro] = useState('');
+  const [codigo, setCodigo] = useState('');
 
   const strength = useMemo(() => getPasswordStrength(formData.contraseña), [formData.contraseña]);
   const current = strengthConfig[strength];
@@ -71,6 +76,11 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       return;
     }
 
+    if (!formData.numeroDocumento.trim()) {
+      setError('La cédula es requerida');
+      return;
+    }
+
     if (!formData.aceptaTerminos) {
       setError('Debes aceptar los términos y condiciones');
       return;
@@ -83,10 +93,18 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       email: formData.email,
       telefono: formData.telefono.startsWith('+57') ? formData.telefono : `+57${formData.telefono}`,
       direccion: formData.direccion,
+      tipo_documento: formData.tipoDocumento,
+      numero_documento: formData.numeroDocumento,
       contraseña: formData.contraseña,
     });
     setLoading(false);
 
+    if (result.success && result.requiresVerification) {
+      setEmailRegistro(result.email || formData.email);
+      setPaso('codigo');
+      setError('');
+      return;
+    }
     if (result.success) {
       logout();
       setSuccess(result.message || 'Cuenta creada exitosamente.');
@@ -94,6 +112,53 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       setError(result.message || 'Error al registrar usuario');
     }
   };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const result = await verifyCode(emailRegistro, codigo.trim());
+    setLoading(false);
+    if (result.success) {
+      setSuccess('¡Cuenta verificada! Ya puedes usar Vet Manager.');
+    } else {
+      setError(result.message || 'Código incorrecto');
+    }
+  };
+
+  if (paso === 'codigo' && !success) {
+    return (
+      <>
+        <h2 className="auth-modal-title">Verifica tu correo</h2>
+        <p className="auth-modal-subtitle">
+          Enviamos un código de 6 dígitos a <strong>{emailRegistro}</strong>
+        </p>
+        {error && <div className="error-message">{error}</div>}
+        <form onSubmit={handleVerify}>
+          <div className="form-group">
+            <label htmlFor="codigo">Código de verificación</label>
+            <input
+              id="codigo"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder="000000"
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              required
+            />
+          </div>
+          <button type="submit" className="btn-primary modal-btn-primary" disabled={loading || codigo.length !== 6}>
+            {loading ? 'Verificando...' : 'Verificar y entrar'}
+          </button>
+        </form>
+        <div className="modal-auth-links">
+          <button type="button" className="modal-link-btn" onClick={onClose}>Cerrar</button>
+        </div>
+      </>
+    );
+  }
 
   if (success) {
     return (
@@ -153,6 +218,20 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
         <div className="form-group">
           <label htmlFor="direccion">Dirección</label>
           <input id="direccion" type="text" name="direccion" placeholder="Calle, número, ciudad" value={formData.direccion} onChange={handleChange} maxLength={150} required />
+          <div className="form-group">
+            <label htmlFor="tipoDocumento">Tipo de documento</label>
+            <select id="tipoDocumento" name="tipoDocumento" value={formData.tipoDocumento} onChange={handleChange}>
+              <option>Cédula de ciudadanía</option>
+              <option>Tarjeta de identidad</option>
+              <option>Cédula de extranjería</option>
+              <option>Pasaporte</option>
+              <option>NIT</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="numeroDocumento">Número de cédula / documento</label>
+            <input id="numeroDocumento" type="text" name="numeroDocumento" placeholder="Ej: 1.234.567.890" value={formData.numeroDocumento} onChange={handleChange} required />
+          </div>
         </div>
 
         <div className="form-group">

@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
     anos_experiencia INT,
     confirm_token VARCHAR(255),
     confirm_token_expires DATETIME,
+    codigo_verificacion VARCHAR(10),
+    codigo_expires DATETIME,
     reset_token VARCHAR(255),
     reset_token_expires DATETIME,
     is_active BOOLEAN DEFAULT TRUE,
