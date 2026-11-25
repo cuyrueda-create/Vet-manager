@@ -49,7 +49,7 @@ def test_envio_de_codigo_por_smtp(monkeypatch):
     monkeypatch.setattr(email_module.smtplib, "SMTP", clase)
     monkeypatch.setattr(email_module, "EMAIL_CONFIG", {
         "host": "smtp.test", "port": 587,
-        "user": "correo@test.com", "password": "clave",
+        "user": "correo@test.com", "password": "clave", "from": "correo@test.com",
     })
 
     assert email_module.send_verification_code_email(
@@ -67,7 +67,7 @@ def test_envio_de_codigo_falla_sin_lanzar(monkeypatch):
     monkeypatch.setattr(email_module.smtplib, "SMTP", rompe)
     monkeypatch.setattr(email_module, "EMAIL_CONFIG", {
         "host": "smtp.test", "port": 587,
-        "user": "correo@test.com", "password": "clave",
+        "user": "correo@test.com", "password": "clave", "from": "correo@test.com",
     })
 
     assert email_module.send_verification_code_email(

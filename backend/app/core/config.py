@@ -24,10 +24,13 @@ DB_OWNER_CONFIG['password'] = (
 )
 
 EMAIL_CONFIG = {
-    'host': os.getenv("EMAIL_HOST", "smtp.gmail.com"),
-    'port': int(os.getenv("EMAIL_PORT", 587)),
+    # SMTP genérico: Brevo (smtp-relay.brevo.com:587) o Gmail.
+    'host': os.getenv("EMAIL_HOST", "smtp-relay.brevo.com"),
+    'port': int(os.getenv("EMAIL_PORT", "587")),
     'user': os.getenv("EMAIL_USER", ""),
-    'password': os.getenv("EMAIL_PASSWORD", "")
+    'password': os.getenv("EMAIL_PASSWORD", ""),
+    # Brevo exige que el remitente sea una dirección verificada en su cuenta.
+    'from': os.getenv("EMAIL_FROM") or os.getenv("EMAIL_USER", ""),
 }
 
 # Clave para firmar los JWT. Debe definirse en las variables de entorno

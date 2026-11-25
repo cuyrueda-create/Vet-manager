@@ -70,7 +70,29 @@ Guarda la salida del smoke test en `docs/plan-implantacion.md` §5.3 y actualiza
 | Frontend carga pero las peticiones dan 404 o van a `localhost:5000` | `VITE_API_URL` no se inyectó en el build | Confirmar `VITE_API_URL = https://vet-manager-api.onrender.com` y hacer **Manual Deploy con Clear build cache** (Vite incrusta la variable al compilar) |
 | Rutas `/reset-password?...` dan 404 | Falta el rewrite | Ya está en el blueprint (`routes: /* → /index.html`) |
 | CORS blocked | `CORS_ORIGINS` sin `https://` | Ya se normaliza en `config.py`; no rellenar a mano |
-| El correo no llega | `EMAIL_USER`/`EMAIL_PASSWORD` vacíos | Es opcional: rellénalos en Environment y haz *Manual Deploy* |
+| El correo no llega | `EMAIL_USER`/`EMAIL_PASSWORD` de Brevo vacíos o remitente no verificado | Rellénalos en Environment, usa un remitente verificado (`EMAIL_FROM`) y haz *Manual Deploy* |
+
+## Configurar Brevo para el código de verificación
+
+1. Crea cuenta en **https://www.brevo.com** y verifica tu dominio o dirección de remitente (**Senders → Domains/Addresses**). Sin esto Brevo rechaza el correo.
+2. En **SMTP & API → SMTP** copia:
+   - **Server**: `smtp-relay.brevo.com`
+   - **Port**: `587`
+   - **Login**: tu correo de cuenta Brevo
+   - **SMTP key**: pulsa **Generate a new SMTP key** y cópiala (solo se ve una vez).
+3. En Render → `vet-manager-api` → **Environment** rellena:
+
+| Variable | Valor |
+|---|---|
+| `EMAIL_HOST` | `smtp-relay.brevo.com` (ya viene en el blueprint) |
+| `EMAIL_PORT` | `587` (ya viene) |
+| `EMAIL_FROM` | la dirección verificada en Brevo, p. ej. `contacto@vetmanager.app` |
+| `EMAIL_USER` | tu login de Brevo |
+| `EMAIL_PASSWORD` | la SMTP key de Brevo |
+
+4. **Manual Deploy**. Prueba registrando un usuario: debe llegar un correo con un **código de 6 dígitos** y la cuenta no se activa hasta que lo teclees en el modal.
+
+> Si el correo sigue sin llegar, mira los logs del servicio: aparecerá `Aviso: no se pudo enviar el código de verificación: ...` con el motivo exacto (remitente no verificado, clave incorrecta, etc.).
 
 ## Rollback
 

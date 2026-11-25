@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.9 |
+| Versión del plan | 1.10 |
 | Fecha | 2026-11-25 |
 
 ---
@@ -915,7 +915,9 @@ Los enlaces de los correos usan `FRONTEND_BASE_URL` (nueva variable; en Render s
 
 **Verificación por código (2026-11-25):** el registro público y el alta desde el panel de administración envían un **código de 6 dígitos** al correo (`send_verification_code_email`), con caducidad de 10 minutos en `codigo_expires`. La cuenta queda inactiva y el usuario la activa tecleando el código en el propio modal de registro (`POST /auth/verify-code`), que devuelve el JWT. Hay reenvío con `POST /auth/resend-code` (respuesta genérica anti-enumeración). El formulario de registro incorpora **tipo y número de documento (cédula)**.
 
-**Si el SMTP falla** (app password de Gmail caducada o no configurada) no se deja la cuenta inactiva sin código posible: se activa directamente y `message` lo indica. Para recibir el código hay que **rotar la app password de Gmail** y actualizar `EMAIL_USER`/`EMAIL_PASSWORD` en Render. Verificado en la nube el 2026-11-24: sin esos valores el registro devuelve `"Correo de verificación no disponible; cuenta activada directamente."`
+**Proveedor SMTP (2026-11-25): Brevo.** El código usa SMTP genérico (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`); el blueprint fija `smtp-relay.brevo.com:587`, con `EMAIL_FROM` = remitente verificado en Brevo y la SMTP key en `EMAIL_PASSWORD`. La guía completa está en [`docs/despliegue-render.md`](../docs/despliegue-render.md).
+
+**Si el SMTP falla** (clave de Brevo no configurada o remitente no verificado) no se deja la cuenta inactiva sin código posible: se activa directamente y `message` lo indica. Verificado en la nube el 2026-11-24: sin esos valores el registro devuelve `"Correo de verificación no disponible; cuenta activada directamente."`
 
 ### 7.7 Alta de roles: administrador, veterinario y recepcionista (2026-11-24)
 
@@ -1238,6 +1240,7 @@ Registro de cambios del plan:
 | **1.7** | **2026-11-24** | **Frontend desplegado y verificado en `https://vet-manager-web.onrender.com`: bundle con la URL real del backend y rewrite SPA. Plan cerrado con las 9 semanas y evidencia de nube completa** |
 | **1.8** | **2026-11-24** | **§7.7 alta de roles: `POST /auth/bootstrap-admin` con clave maestra para el primer administrador y panel para veterinario/recepcionista; §7.6 verificación por correo condicionada a SMTP válido. 86 tests en verde** |
 | **1.9** | **2026-11-25** | **Verificación con código de 6 dígitos por correo (`/auth/verify-code`, `/auth/resend-code`, 10 min), aplicada al registro público y al alta desde el panel; campo de cédula en el formulario. 92 tests en verde y frontend compila** |
+| **1.10** | **2026-11-25** | **SMTP migrado a Brevo: `EMAIL_FROM` verificable, `smtp-relay.brevo.com:587` en el blueprint, ejemplos `.env` y guía de configuración. 92 tests en verde** |
 
 ### 10.2 Pruebas de aceptación
 

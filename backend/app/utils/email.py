@@ -16,7 +16,7 @@ def send_verification_code_email(to_email, nombre, apellido, codigo):
         "plain", "utf-8",
     )
     mensaje["Subject"] = "Tu código de verificación - Vet Manager"
-    mensaje["From"] = EMAIL_CONFIG["user"]
+    mensaje["From"] = EMAIL_CONFIG["from"]
     mensaje["To"] = to_email
     try:
         with smtplib.SMTP(EMAIL_CONFIG["host"], EMAIL_CONFIG["port"], timeout=15) as servidor:
@@ -150,7 +150,7 @@ Vet Manager - Sistema de Gestion Veterinaria
     # Crear mensaje con UTF-8
     message = MIMEMultipart("alternative")
     message["Subject"] = "Recuperacion de contrasena - Vet Manager"
-    message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
+    message["From"] = f"Vet Manager <{EMAIL_CONFIG['from']}>"
     message["To"] = to_email
     
     message.attach(MIMEText(text_content, "plain", "utf-8"))
@@ -237,7 +237,7 @@ Vet Manager - Sistema de Gestion Veterinaria
 """
     message = MIMEMultipart("alternative")
     message["Subject"] = f"✅ Cita confirmada #{cita_data['id_cita']} - {cita_data['fecha']}"
-    message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
+    message["From"] = f"Vet Manager <{EMAIL_CONFIG['from']}>"
     message["To"] = to_email
     message.attach(MIMEText(text_content, "plain", "utf-8"))
     message.attach(MIMEText(html_content, "html", "utf-8"))
@@ -319,7 +319,7 @@ Vet Manager - Sistema de Gestion Veterinaria
 """
     message = MIMEMultipart("alternative")
     message["Subject"] = f"⏰ Recordatorio: Tu cita es mañana ({cita_data['fecha']})"
-    message["From"] = f"Vet Manager <{EMAIL_CONFIG['user']}>"
+    message["From"] = f"Vet Manager <{EMAIL_CONFIG['from']}>"
     message["To"] = to_email
     message.attach(MIMEText(text_content, "plain", "utf-8"))
     message.attach(MIMEText(html_content, "html", "utf-8"))
