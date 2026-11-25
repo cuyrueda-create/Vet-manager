@@ -4,6 +4,31 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import EMAIL_CONFIG, FRONTEND_BASE_URL
 
+def send_verification_code_email(to_email, nombre, apellido, codigo):
+    """Envía el código de 6 dígitos para activar una cuenta recién creada."""
+    mensaje = MIMEText(
+        f"Hola {nombre} {apellido}:\n\n"
+        f"Tu código de verificación de Vet Manager es:\n\n"
+        f"    {codigo}\n\n"
+        f"Introdúcelo en la pantalla de registro para activar tu cuenta.\n"
+        f"Caduca en 10 minutos.\n\n"
+        f"Si no fuiste tú, ignora este correo.\n",
+        "plain", "utf-8",
+    )
+    mensaje["Subject"] = "Tu código de verificación - Vet Manager"
+    mensaje["From"] = EMAIL_CONFIG["user"]
+    mensaje["To"] = to_email
+    try:
+        with smtplib.SMTP(EMAIL_CONFIG["host"], EMAIL_CONFIG["port"], timeout=15) as servidor:
+            servidor.starttls()
+            servidor.login(EMAIL_CONFIG["user"], EMAIL_CONFIG["password"])
+            servidor.send_message(mensaje)
+        return True
+    except Exception as exc:
+        print(f"Aviso: no se pudo enviar el código de verificación: {exc}")
+        return False
+
+
 def send_reset_email(to_email, nombre, apellido, reset_token):
     """Envía correo real de recuperación de contraseña"""
     reset_url = f"{FRONTEND_BASE_URL}/reset-password?token={reset_token}"

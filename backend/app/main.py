@@ -37,7 +37,7 @@ from app.core.config import (
     CONFIRM_TOKEN_HOURS, _url_publica,
 )
 from app.core.database import get_db_connection
-from app.utils.email import send_cita_email, send_recordatorio_email
+from app.utils.email import send_cita_email, send_recordatorio_email, send_verification_code_email
 import threading
 
 load_dotenv()
@@ -158,6 +158,8 @@ def migrate_usuarios_table():
         "ALTER TABLE usuarios ADD COLUMN direccion VARCHAR(150) NULL",
         "ALTER TABLE usuarios ADD COLUMN confirm_token VARCHAR(255) NULL",
         "ALTER TABLE usuarios ADD COLUMN confirm_token_expires DATETIME NULL",
+        "ALTER TABLE usuarios ADD COLUMN codigo_verificacion VARCHAR(10) NULL",
+        "ALTER TABLE usuarios ADD COLUMN codigo_expires DATETIME NULL",
         "ALTER TABLE usuarios ADD COLUMN reset_token VARCHAR(255) NULL",
         "ALTER TABLE usuarios ADD COLUMN reset_token_expires DATETIME NULL",
         "ALTER TABLE usuarios ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
@@ -1269,23 +1271,21 @@ async def register_user(user_data: UsuarioCreate):
 
         hashed_password = get_password_hash(user_data.contraseña)
 
-        # Confirmación por correo: el registro público deja la cuenta inactiva
-        # hasta que el usuario siga el enlace enviado a su email (§7.3 del plan).
-        confirm_token = secrets.token_urlsafe(32)
-        # NOSONAR: MySQL DATETIME es naive (UTC).
-        confirm_token_expires = datetime.utcnow() + timedelta(hours=CONFIRM_TOKEN_HOURS)  # NOSONAR
+        # Verificación con código de 6 dígitos enviado al correo (§7.6).
         needs_confirmation = bool(EMAIL_CONFIG.get("user") and EMAIL_CONFIG.get("password"))
+        codigo = f"{secrets.randbelow(1000000):06d}" if needs_confirmation else None
+        # NOSONAR: MySQL DATETIME es naive (UTC). El código caduca en 10 min.
+        codigo_expires = (datetime.utcnow() + timedelta(minutes=10)) if needs_confirmation else None  # NOSONAR
 
         cursor.execute("""
             INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol,
-                                  tipo_documento, numero_documento, confirm_token, confirm_token_expires, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s, 'usuario', %s, %s, %s, %s, %s)
+                                  tipo_documento, numero_documento, confirm_token,
+                                  codigo_verificacion, codigo_expires, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s, 'usuario', %s, %s, NULL, %s, %s, %s)
         """, (user_data.nombre, user_data.apellido, user_data.email, user_data.telefono,
               user_data.direccion, hashed_password,
               user_data.tipo_documento, user_data.numero_documento,
-              confirm_token if needs_confirmation else None,
-              confirm_token_expires if needs_confirmation else None,
-              not needs_confirmation))
+              codigo, codigo_expires, not needs_confirmation))
 
         connection.commit()
         user_id = cursor.lastrowid
@@ -1294,27 +1294,26 @@ async def register_user(user_data: UsuarioCreate):
         if needs_confirmation:
             enviado = False
             try:
-                enviado = bool(send_confirmation_email(
+                enviado = send_verification_code_email(
                     to_email=user_data.email,
                     nombre=user_data.nombre,
                     apellido=user_data.apellido,
-                    confirm_token=confirm_token,
-                ))
+                    codigo=codigo,
+                )
             except Exception as exc:
-                print(f"Aviso: no se pudo enviar el correo de confirmacion: {exc}")
+                print(f"Aviso: no se pudo enviar el código de verificación: {exc}")
 
             if enviado:
                 return {
-                    "message": "Registro exitoso. Revisa tu correo para confirmar tu cuenta.",
+                    "message": "Te enviamos un código de 6 dígitos a tu correo.",
                     "user_id": user_id,
-                    "requires_confirmation": True,
+                    "email": user_data.email,
+                    "requires_verification": True,
                 }
 
-            # Si el SMTP falla (p. ej. app password de Gmail caducado en la
-            # nube), no dejar la cuenta inactiva: nadie podría confirmarla ni
-            # iniciar sesión. Se activa directamente y se entrega la sesión.
+            # SMTP no disponible: no dejar la cuenta inactiva sin código posible.
             cursor.execute("""
-                UPDATE usuarios SET confirm_token = NULL, confirm_token_expires = NULL,
+                UPDATE usuarios SET codigo_verificacion = NULL, codigo_expires = NULL,
                                     is_active = TRUE WHERE id_usuario = %s
             """, (user_id,))
             connection.commit()
@@ -1679,6 +1678,86 @@ async def confirm_email(data: dict):
     finally:
         cursor.close()
         connection.close()
+
+class VerificacionCodigo(BaseModel):
+    email: EmailStr
+    codigo: str = Field(min_length=6, max_length=6)
+
+
+@app.post("/auth/verify-code")
+async def verify_code(data: VerificacionCodigo):
+    """Activa la cuenta al teclear el código de 6 dígitos recibido por correo."""
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email, rol, tipo_documento, numero_documento,
+                   codigo_expires, is_active
+            FROM usuarios WHERE email = %s AND codigo_verificacion = %s
+        """, (data.email, data.codigo))
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=400, detail="Código incorrecto")
+
+        if user.get("is_active"):
+            raise HTTPException(status_code=400, detail="Esta cuenta ya está verificada")
+
+        # NOSONAR: MySQL DATETIME es naive (UTC). Sin fecha se considera caducado.
+        expires = user.get("codigo_expires")
+        if not expires or expires < datetime.utcnow():  # NOSONAR
+            raise HTTPException(status_code=400, detail="El código expiró. Solicita uno nuevo.")
+
+        cursor.execute("""
+            UPDATE usuarios SET codigo_verificacion = NULL, codigo_expires = NULL,
+                                confirm_token = NULL, confirm_token_expires = NULL,
+                                is_active = TRUE WHERE id_usuario = %s
+        """, (user["id_usuario"],))
+        connection.commit()
+        return {
+            "message": "Cuenta verificada. ¡Bienvenido!",
+            **build_auth_response(user),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.post("/auth/resend-code")
+async def resend_code(request: PasswordResetRequest):
+    """Genera y envía un código nuevo (respuesta genérica anti-enumeración)."""
+    generic = {"message": "Si la cuenta existe y está pendiente de verificar, recibirás un código nuevo."}
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id_usuario, nombre, apellido, email FROM usuarios
+            WHERE email = %s AND is_active = FALSE AND codigo_verificacion IS NOT NULL
+        """, (request.email,))
+        user = cursor.fetchone()
+        if not user:
+            return generic
+
+        codigo = f"{secrets.randbelow(1000000):06d}"
+        # NOSONAR: MySQL DATETIME es naive (UTC).
+        expires = datetime.utcnow() + timedelta(minutes=10)  # NOSONAR
+        cursor.execute("""
+            UPDATE usuarios SET codigo_verificacion = %s, codigo_expires = %s WHERE id_usuario = %s
+        """, (codigo, expires, user["id_usuario"]))
+        connection.commit()
+        send_verification_code_email(user["email"], user["nombre"], user["apellido"], codigo)
+        return generic
+    finally:
+        cursor.close()
+        connection.close()
+
 
 @app.post("/auth/resend-confirmation")
 async def resend_confirmation(request: PasswordResetRequest):

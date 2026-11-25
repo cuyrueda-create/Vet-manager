@@ -94,7 +94,7 @@ def test_register_user_con_smtp_no_devuelve_jwt(client_con_bd, conexion_falsa, m
         main_module, "EMAIL_CONFIG",
         {"user": "correo@test.com", "password": "clave"},
     )
-    monkeypatch.setattr(main_module, "send_confirmation_email", lambda **kw: True)
+    monkeypatch.setattr(main_module, "send_verification_code_email", lambda **kw: True)
 
     r = client_con_bd.post("/auth/register/user", json={
         "nombre": "Ana", "apellido": "Pérez", "email": "nueva@test.com",
@@ -102,7 +102,7 @@ def test_register_user_con_smtp_no_devuelve_jwt(client_con_bd, conexion_falsa, m
     })
 
     assert r.status_code == 201
-    assert r.json().get("requires_confirmation") is True
+    assert r.json().get("requires_verification") is True
     assert "access_token" not in r.json()
 
 
@@ -120,7 +120,7 @@ def test_register_no_filtra_el_token_aunque_falle_el_correo(client_con_bd, conex
     def falla(*args, **kwargs):
         return False
 
-    monkeypatch.setattr(main_module, "send_confirmation_email", falla)
+    monkeypatch.setattr(main_module, "send_verification_code_email", falla)
 
     r = client_con_bd.post("/auth/register", json={
         "nombre": "Ana", "apellido": "Pérez", "email": "otra@test.com",
@@ -210,7 +210,7 @@ def test_register_user_con_smtp_y_fallo_de_correo(client_con_bd, conexion_falsa,
     def falla(**kwargs):
         raise RuntimeError("SMTP caído")
 
-    monkeypatch.setattr(main_module, "send_confirmation_email", falla)
+    monkeypatch.setattr(main_module, "send_verification_code_email", falla)
 
     r = client_con_bd.post("/auth/register/user", json={
         "nombre": "Ana", "apellido": "Pérez", "email": "smtpfallo@test.com",
