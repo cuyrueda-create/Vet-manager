@@ -152,32 +152,77 @@ def aplicar_schema_base():
 
 MEDICAMENTOS_INICIALES = [
     ("Amoxicilina", "Antibiótico de amplio espectro", "500 mg", 18500, 40),
-    ("Ibuprofeno", "Analgésico y antiinflamatorio", "400 mg", 12000, 60),
-    ("Cefalexina", "Antibiótico para infecciones de piel", "250 mg", 22000, 30),
+    ("Amoxicilina con Clavulánico", "Antibiótico potenciado", "875 mg", 29000, 25),
+    ("Ampicilina", "Antibiótico bactericida", "500 mg", 14000, 30),
+    ("Azitromicina", "Antibiótico macrólido", "250 mg", 24000, 20),
+    ("Cefalexina", "Antibiótico para infecciones de piel", "250 mg", 22000, 35),
+    ("Ceftazidima", "Antibiótico de amplio espectro", "1 g", 48000, 12),
+    ("Ciprofloxacino", "Antibiótico quinolónico", "500 mg", 21000, 28),
+    ("Clindamicina", "Antibiótico anaerobios", "300 mg", 26000, 18),
+    ("Doxiciclina", "Antibiótico tetraciclina", "100 mg", 13000, 40),
+    ("Enrofloxacino", "Antibiótico veterinario", "50 mg", 19500, 32),
+    ("Eritromicina", "Antibiótico macrólido", "250 mg", 16500, 22),
+    ("Gentamicina", "Antibiótico aminoglucósido", "80 mg", 18000, 26),
     ("Metronidazol", "Antiparasitario y antibacteriano", "250 mg", 15000, 35),
-    ("Pirantel", "Antihelmíntico", "50 mg", 9000, 50),
+    ("Neomicina", "Antibiótico tópico", "5 g", 11000, 30),
+    ("Penicilina G", "Antibiótico bactericida", "1.000.000 UI", 16000, 25),
+    ("Tetraciclina", "Antibiótico tetraciclina", "250 mg", 12000, 38),
+    ("Ibuprofeno", "Analgésico y antiinflamatorio", "400 mg", 12000, 60),
+    ("Carprofeno", "AINE para dolor articular", "75 mg", 38000, 24),
+    ("Meloxicam", "AINE antiinflamatorio", "5 mg", 27000, 30),
     ("Prednisolona", "Corticoide", "5 mg", 17000, 25),
+    ("Dexametasona", "Corticoide potente", "0,5 mg", 15000, 28),
+    ("Triamcinolona", "Corticoide dermatológico", "10 mg", 22000, 16),
+    ("Paracetamol", "Analgésico y antipirético", "500 mg", 8000, 70),
+    ("Pirantel", "Antihelmíntico", "50 mg", 9000, 50),
+    ("Albendazol", "Antihelmíntico de amplio espectro", "200 mg", 10500, 45),
+    ("Ivermectina", "Antiparasitario externo e interno", "1 %", 32000, 30),
+    ("Fenbendazol", "Antihelmíntico", "50 mg", 12500, 40),
+    ("Praziquantel", "Antihelmíntico para tenias", "50 mg", 26000, 22),
+    ("Nistatina", "Antifúngico", "100.000 UI", 14000, 26),
+    ("Ketoconazol", "Antifúngico", "200 mg", 19000, 20),
+    ("Miconazol", "Antifúngico tópico", "2 %", 13000, 34),
+    ("Clorhexidina", "Antiséptico y desinfectante", "4 %", 9500, 60),
+    ("Povidona Yodada", "Antiséptico tópico", "10 %", 7500, 55),
+    ("Alcohol Isopropílico", "Desinfectante", "70 %", 6000, 80),
+    ("Suero Fisiológico", "Rehidratación y lavado", "500 ml", 4500, 90),
+    ("Lactato de Ringer", "Solución rehidratante", "500 ml", 6500, 50),
+    ("Glucosa 5 %", "Solución intravenosa", "500 ml", 7000, 40),
+    ("Vitamina C", "Suplemento vitamínico", "500 mg", 9000, 60),
+    ("Vitamina E", "Suplemento vitamínico", "400 UI", 11000, 35),
+    ("Complejo B", "Suplemento vitamínico", "1 ml", 8500, 48),
+    ("Calcio D3", "Suplemento óseo", "500 mg", 12000, 32),
+    ("Omeprazol", "Protector gástrico", "20 mg", 15000, 30),
+    ("Ranitidina", "Antiácido", "150 mg", 10000, 28),
+    ("Metoclopramida", "Antiemético", "10 mg", 11500, 34),
+    ("Loperamida", "Antidiarreico", "2 mg", 8000, 40),
+    ("Furosemida", "Diurético", "40 mg", 13000, 24),
+    ("Enalapril", "Antihipertensivo", "10 mg", 17500, 20),
+    ("Insulina", "Control de glucosa", "100 UI/ml", 42000, 15),
 ]
 
 
 def seed_medicamentos():
-    """Carga el catálogo inicial solo si la tabla está vacía (BD nueva)."""
+    """Completa el catálogo: inserta los medicamentos que falten por nombre."""
     conn = get_db_connection(owner=True)
     if not conn:
         return
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT COUNT(*) FROM medicamentos")
-        if cursor.fetchone()[0]:
-            return
+        insertados = 0
         for nombre, descripcion, dosis, precio, stock in MEDICAMENTOS_INICIALES:
+            cursor.execute("SELECT COUNT(*) FROM medicamentos WHERE nombre = %s", (nombre,))
+            if cursor.fetchone()[0]:
+                continue
             cursor.execute(
                 "INSERT INTO medicamentos (nombre, descripcion, dosis, precio, stock) "
                 "VALUES (%s, %s, %s, %s, %s)",
                 (nombre, descripcion, dosis, precio, stock),
             )
-        conn.commit()
-        print("✅ Catálogo inicial de medicamentos cargado")
+            insertados += 1
+        if insertados:
+            conn.commit()
+            print(f"✅ Catálogo de medicamentos completado (+{insertados})")
     except Exception as exc:
         print(f"⚠️ Aviso: no se pudo cargar el catálogo de medicamentos: {exc}")
     finally:
