@@ -26,7 +26,7 @@ const formatTelefono = (value) => {
 };
 
 const DOCUMENTOS_POR_ROL = {
-  usuario: ['Cédula de ciudadanía'],
+  usuario: ['Cédula de ciudadanía', 'Cédula de extranjería', 'Pasaporte'],
   recepcionista: ['Cédula de ciudadanía', 'Cédula de extranjería', 'Pasaporte'],
   veterinario: ['Cédula de ciudadanía', 'Cédula de extranjería', 'Pasaporte'],
 };
@@ -336,23 +336,10 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
 
         <div className="form-group">
           <label htmlFor="tipoDocumento">Tipo de documento</label>
-          {formData.rol === 'usuario' ? (
-            <input
-              id="tipoDocumento"
-              type="text"
-              value="Cédula de ciudadanía"
-              readOnly
-              aria-readonly="true"
-              className="documento-fijo"
-            />
-          ) : (
-            <select id="tipoDocumento" name="tipoDocumento" value={formData.tipoDocumento} onChange={handleChange}>
-              {DOCUMENTOS_POR_ROL[formData.rol].map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          )}
-          {formData.rol === 'usuario' && (
-            <small style={{ color: '#6b7280', fontSize: 12 }}>Para pacientes se usa cédula de ciudadanía.</small>
-          )}
+          <select id="tipoDocumento" name="tipoDocumento" value={formData.tipoDocumento} onChange={handleChange}>
+            {DOCUMENTOS_POR_ROL[formData.rol].map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <small style={{ color: '#6b7280', fontSize: 12 }}>Documento de identidad del paciente.</small>
         </div>
 
         <div className="form-group">

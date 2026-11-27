@@ -358,13 +358,6 @@
   text-decoration: underline;
 }
 
-.documento-fijo {
-  background: #f8fafc;
-  color: #475569;
-  cursor: default;
-  font-weight: 500;
-}
-
 /* Phone input */
 .phone-input {
   display: flex;
