@@ -524,7 +524,8 @@ const RecepcionNuevaCita = () => {
                 Cancelar
               </button>
               <button type="submit" disabled={submitting} style={{ ...btnPrimary, opacity: submitting ? 0.7 : 1 }}>
-                {submitting ? 'Creando...' : 'Crear Cita'}
+                <span style={{ display: submitting ? 'none' : 'inline' }}>Crear Cita</span>
+                <span style={{ display: submitting ? 'inline' : 'none' }}>Creando...</span>
               </button>
             </div>
           </form>

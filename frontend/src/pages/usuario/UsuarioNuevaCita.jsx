@@ -291,7 +291,10 @@ const UsuarioNuevaCita = () => {
                     boxShadow: saving ? 'none' : '0 2px 8px rgba(37,99,235,0.3)',
                     transition: 'all 0.2s'
                   }}>
-                  {saving ? 'Agendando...' : <><Icon name="calendar" size={16} /> Agendar Cita</>}
+                  <span style={{ display: saving ? 'none' : 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="calendar" size={16} /> Agendar Cita
+                  </span>
+                  <span style={{ display: saving ? 'inline' : 'none' }}>Agendando...</span>
                 </button>
               </div>
             </form>
