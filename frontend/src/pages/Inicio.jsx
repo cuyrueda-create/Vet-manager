@@ -4,9 +4,11 @@ import LoginModal from '../components/LoginModal';
 import RegisterModal from '../components/RegisterModal';
 import RecuperarPasswordModal from '../components/RecuperarPasswordModal';
 import CONTACTO from '../config/contacto';
+import { useAuth } from '../contexts/AuthContext';
 
 const Inicio = () => {
   const [modal, setModal] = useState(null);
+  const { user } = useAuth();
 
   const openLogin = () => setModal('login');
   const openRegister = () => setModal('register');
@@ -92,8 +94,10 @@ const Inicio = () => {
 
           <div className="footer-col">
             <h4>Portales</h4>
-            <a href="/admin" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Administrador</a>
-            <button onClick={openLogin} className="footer-link-btn">Iniciar sesión de cliente</button>
+            {user?.rol === 'administrador' && (
+              <a href="/admin" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Administrador</a>
+            )}
+            <button onClick={openLogin} className="footer-link-btn">Iniciar sesión</button>
           </div>
 
           <div className="footer-col">

@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.11 |
-| Fecha | 2026-11-26 |
+| Versión del plan | 1.12 |
+| Fecha | 2026-11-27 |
 
 ---
 
@@ -919,6 +919,15 @@ Los enlaces de los correos usan `FRONTEND_BASE_URL` (nueva variable; en Render s
 
 **Si el SMTP falla** (clave de Brevo no configurada o remitente no verificado) no se deja la cuenta inactiva sin código posible: se activa directamente y `message` lo indica. Verificado en la nube el 2026-11-24: sin esos valores el registro devuelve `"Correo de verificación no disponible; cuenta activada directamente."`
 
+### 7.8 Cierre de control de acceso y flujos de correo (2026-11-27)
+
+- **Footer**: el enlace "Portal Administrador" solo se muestra si `user.rol === 'administrador'`. Las rutas `/admin/*` ya estaban protegidas por `AdminRoute`; `/admin` sin sesión muestra la landing de acceso.
+- **Registro con rol**: el formulario público ofrece **Cliente / Recepcionista / Veterinario**. Los roles de personal crean la cuenta **inactiva**, notifican a los administradores y requieren aprobación (`requires_approval: true`). El administrador la aprueba desde **Usuarios** con el botón "Activar" (`PUT /api/v1/admin/usuarios/{id} {"is_active": true}`); el listado del panel incluye ahora el personal pendiente.
+- **Inventario**: la pantalla de admin mostraba servicios vacíos; ahora consulta `GET /api/admin/medicamentos` (nombre, descripción, dosis, precio, stock) y se carga un catálogo inicial de 6 medicamentos en BDs vacías (`seed_medicamentos()`). El menú del admin incluye el enlace "Medicamentos".
+- **Correos**: el adaptador `app/utils/brevo_smtp.py` sustituye `smtplib.SMTP` por la API de Brevo cuando hay `BREVO_API_KEY`, de modo que **todos** los correos (confirmación de cita al creador/veterinario/cliente, recordatorios, facturas, reset y verificación) salen por HTTPS en Render. En local se mantiene SMTP. Esto era necesario porque Render Free bloquea los puertos 25/465/587.
+
+Verificado: 99 tests en verde, `pnpm run build` correcto, Quality Gate OK.
+
 ### 7.7 Alta de roles: administrador, veterinario y recepcionista (2026-11-24)
 
 El registro público (`/auth/register/user`) crea siempre `rol='usuario'`. El resto de roles se crean desde el **panel de administración**, pero eso planteaba un huevo-huevo: el panel exige estar autenticado como administrador y en una BD nueva no hay ninguno.
@@ -1242,6 +1251,7 @@ Registro de cambios del plan:
 | **1.9** | **2026-11-25** | **Verificación con código de 6 dígitos por correo (`/auth/verify-code`, `/auth/resend-code`, 10 min), aplicada al registro público y al alta desde el panel; campo de cédula en el formulario. 92 tests en verde y frontend compila** |
 | **1.10** | **2026-11-25** | **SMTP migrado a Brevo: `EMAIL_FROM` verificable, `smtp-relay.brevo.com:587` en el blueprint, ejemplos `.env` y guía de configuración. 92 tests en verde** |
 | **1.11** | **2026-11-26** | **Render Free bloquea SMTP (25/465/587): el código de verificación se envía por la API HTTPS de Brevo (`BREVO_API_KEY`), con fallback SMTP en local. 93 tests en verde** |
+| **1.12** | **2026-11-27** | **Todos los correos (citas, facturas, reset, recordatorios) pasan por la API de Brevo mediante el adaptador `brevo_smtp`; registro con rol y aprobación admin; oculto "Portal Administrador" para no-admins; inventario admin muestra medicamentos con catálogo inicial. 99 tests en verde** |
 
 ### 10.2 Pruebas de aceptación
 

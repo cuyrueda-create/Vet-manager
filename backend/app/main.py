@@ -38,6 +38,10 @@ from app.core.config import (
 )
 from app.core.database import get_db_connection
 from app.utils.email import send_cita_email, send_recordatorio_email, send_verification_code_email
+from app.utils.brevo_smtp import instalar as instalar_brevo
+
+# Brevo por HTTPS en la nube; SMTP en local si no hay BREVO_API_KEY.
+instalar_brevo()
 import threading
 
 load_dotenv()
@@ -141,6 +145,41 @@ def aplicar_schema_base():
                 print(f"⚠️ Aviso al aplicar esquema base: {exc}")
         conn.commit()
         print(f"✅ Esquema base aplicado ({'sin incidencias' if not fallos else str(fallos) + ' avisos'})")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+MEDICAMENTOS_INICIALES = [
+    ("Amoxicilina", "Antibiótico de amplio espectro", "500 mg", 18500, 40),
+    ("Ibuprofeno", "Analgésico y antiinflamatorio", "400 mg", 12000, 60),
+    ("Cefalexina", "Antibiótico para infecciones de piel", "250 mg", 22000, 30),
+    ("Metronidazol", "Antiparasitario y antibacteriano", "250 mg", 15000, 35),
+    ("Pirantel", "Antihelmíntico", "50 mg", 9000, 50),
+    ("Prednisolona", "Corticoide", "5 mg", 17000, 25),
+]
+
+
+def seed_medicamentos():
+    """Carga el catálogo inicial solo si la tabla está vacía (BD nueva)."""
+    conn = get_db_connection(owner=True)
+    if not conn:
+        return
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM medicamentos")
+        if cursor.fetchone()[0]:
+            return
+        for nombre, descripcion, dosis, precio, stock in MEDICAMENTOS_INICIALES:
+            cursor.execute(
+                "INSERT INTO medicamentos (nombre, descripcion, dosis, precio, stock) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (nombre, descripcion, dosis, precio, stock),
+            )
+        conn.commit()
+        print("✅ Catálogo inicial de medicamentos cargado")
+    except Exception as exc:
+        print(f"⚠️ Aviso: no se pudo cargar el catálogo de medicamentos: {exc}")
     finally:
         cursor.close()
         conn.close()
@@ -469,6 +508,7 @@ def migrate_admin_columns():
 def startup():
     print("Ejecutando migraciones...")
     aplicar_schema_base()
+    seed_medicamentos()
     migrate_usuarios_table()
     migrate_clientes_table()
     migrate_citas_table()
@@ -1270,6 +1310,40 @@ async def register_user(user_data: UsuarioCreate):
         validate_password_strength(user_data.contraseña)
 
         hashed_password = get_password_hash(user_data.contraseña)
+
+        # El registro público permite elegir entre cliente y personal. El
+        # personal (recepcionista/veterinario) NO se activa solo: queda
+        # pendiente de que un administrador lo apruebe en el panel.
+        rol = user_data.rol if user_data.rol in ("usuario", "recepcionista", "veterinario") else "usuario"
+        if rol in ("recepcionista", "veterinario"):
+            cursor.execute("""
+                INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol,
+                                      tipo_documento, numero_documento, confirm_token, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, FALSE)
+            """, (user_data.nombre, user_data.apellido, user_data.email, user_data.telefono,
+                  user_data.direccion, hashed_password, rol,
+                  user_data.tipo_documento, user_data.numero_documento))
+            connection.commit()
+            solicitante_id = cursor.lastrowid
+
+            try:
+                cursor.execute("SELECT id_usuario FROM usuarios WHERE rol = 'administrador' AND is_active = 1")
+                for admin in cursor.fetchall():
+                    cursor.execute("""
+                        INSERT INTO notificaciones (id_usuario, titulo, mensaje, tipo, enlace)
+                        VALUES (%s, %s, %s, 'registro', '/admin/usuarios')
+                    """, (admin["id_usuario"], "Solicitud de personal pendiente",
+                          f"{user_data.nombre} {user_data.apellido} se registró como {rol} y espera aprobación."))
+                connection.commit()
+            except Exception as exc:
+                print(f"Aviso: no se pudo notificar la solicitud: {exc}")
+
+            return {
+                "message": f"Solicitud de {rol} enviada. Un administrador debe aprobarla.",
+                "user_id": solicitante_id,
+                "rol": rol,
+                "requires_approval": True,
+            }
 
         # Verificación con código de 6 dígitos enviado al correo (§7.6).
         needs_confirmation = bool(EMAIL_CONFIG.get("user") and EMAIL_CONFIG.get("password"))

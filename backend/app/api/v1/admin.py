@@ -149,7 +149,8 @@ async def get_usuarios(current_user: dict = Depends(require_admin)):
                    nombre_negocio, direccion_negocio, especialidad, anos_experiencia, created_at
             FROM usuarios
             WHERE rol = 'usuario'
-            ORDER BY nombre, apellido
+               OR (rol IN ('recepcionista', 'veterinario') AND is_active = FALSE)
+            ORDER BY is_active, nombre, apellido
         """)
         rows = cursor.fetchall()
         for row in rows:

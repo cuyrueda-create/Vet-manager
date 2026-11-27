@@ -28,6 +28,7 @@ const formatTelefono = (value) => {
 const RegisterModal = ({ onClose, onOpenLogin }) => {
   const { registerUser, verifyCode, logout } = useAuth();
   const [formData, setFormData] = useState({
+    rol: 'usuario',
     nombre: '',
     apellido: '',
     email: '',
@@ -88,6 +89,7 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
 
     setLoading(true);
     const result = await registerUser({
+      rol: formData.rol,
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
@@ -103,6 +105,11 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       setEmailRegistro(result.email || formData.email);
       setPaso('codigo');
       setError('');
+      return;
+    }
+    if (result.success && result.requiresApproval) {
+      logout();
+      setSuccess(result.message || 'Solicitud enviada. Un administrador debe aprobarla.');
       return;
     }
     if (result.success) {
@@ -191,6 +198,19 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       {error && <div className="modal-error">{error}</div>}
 
       <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="rol">Tipo de cuenta</label>
+          <select id="rol" name="rol" value={formData.rol} onChange={handleChange}>
+            <option value="usuario">Cliente (paciente)</option>
+            <option value="recepcionista">Recepcionista (requiere aprobación)</option>
+            <option value="veterinario">Veterinario (requiere aprobación)</option>
+          </select>
+          {formData.rol !== 'usuario' && (
+            <small style={{ color: '#6b7280', fontSize: 12 }}>
+              Un administrador debe aprobar tu solicitud antes de que puedas entrar.
+            </small>
+          )}
+        </div>
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="nombre">Nombre</label>

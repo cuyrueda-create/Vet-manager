@@ -92,6 +92,13 @@ useEffect(() => {
   const registerUser = async (userData) => {
     try {
       const response = await api.post('/auth/register/user', userData);
+      if (response.data.requires_approval) {
+        return {
+          success: true,
+          requiresApproval: true,
+          message: response.data.message
+        };
+      }
       if (response.data.requires_confirmation || response.data.requires_verification) {
         // La cuenta queda inactiva hasta verificar el código por correo.
         return {

@@ -6,6 +6,10 @@ import urllib.request
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import EMAIL_CONFIG, FRONTEND_BASE_URL
+from app.utils.brevo_smtp import instalar
+
+# En la nube (BREVO_API_KEY definida) todos los correos salen por HTTPS.
+instalar()
 
 def send_verification_code_email(to_email, nombre, apellido, codigo):
     """Envía el código de 6 dígitos para activar una cuenta recién creada.
