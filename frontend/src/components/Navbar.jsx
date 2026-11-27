@@ -98,6 +98,7 @@ const Navbar = () => {
         { to: '/admin/usuarios', label: 'Usuarios', icon: 'user' },
         { to: '/admin/bloc', label: 'Bloc', icon: 'book' },
         { to: '/admin/inventario', label: 'Inventario', icon: 'clipboard' },
+        { to: '/admin/servicios', label: 'Servicios', icon: 'pill' },
         { to: '/admin/medicamentos', label: 'Medicamentos', icon: 'pill' },
         { to: '/admin/reportes', label: 'Reportes', icon: 'chart' },
         { to: '/perfil', label: 'Mi Perfil', icon: 'settings' },

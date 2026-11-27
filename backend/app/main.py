@@ -202,6 +202,43 @@ MEDICAMENTOS_INICIALES = [
 ]
 
 
+SERVICIOS_INICIALES = [
+    ("Consulta médica general", "Evaluación y diagnóstico inicial", 45000, 30),
+    ("Vacunación", "Aplicación de vacuna y registro en cartilla", 35000, 15),
+    ("Desparasitación", "Tratamiento antiparasitario interno y externo", 28000, 15),
+    ("Baño y peluquería", "Higiene y cuidado estético", 55000, 60),
+    ("Control de seguimiento", "Revisión posterior al tratamiento", 30000, 20),
+]
+
+
+def seed_servicios():
+    """Catálogo inicial de servicios: inserta solo los que falten."""
+    conn = get_db_connection(owner=True)
+    if not conn:
+        return
+    cursor = conn.cursor()
+    try:
+        insertados = 0
+        for nombre, descripcion, precio, duracion in SERVICIOS_INICIALES:
+            cursor.execute("SELECT COUNT(*) FROM servicios WHERE nombre = %s", (nombre,))
+            if cursor.fetchone()[0]:
+                continue
+            cursor.execute(
+                "INSERT INTO servicios (nombre, descripcion, precio, duracion, activo) "
+                "VALUES (%s, %s, %s, %s, TRUE)",
+                (nombre, descripcion, precio, duracion),
+            )
+            insertados += 1
+        if insertados:
+            conn.commit()
+            print(f"✅ Catálogo de servicios completado (+{insertados})")
+    except Exception as exc:
+        print(f"⚠️ Aviso: no se pudo cargar el catálogo de servicios: {exc}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def seed_medicamentos():
     """Completa el catálogo: inserta los medicamentos que falten por nombre."""
     conn = get_db_connection(owner=True)
@@ -251,6 +288,9 @@ def migrate_usuarios_table():
         "ALTER TABLE usuarios ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
         "ALTER TABLE usuarios ADD COLUMN created_by INT NULL",
         "ALTER TABLE mascotas ADD COLUMN id_usuario INT NULL",
+        "ALTER TABLE servicios ADD COLUMN duracion INT NULL",
+        "ALTER TABLE servicios ADD COLUMN activo BOOLEAN DEFAULT TRUE",
+        "UPDATE servicios SET activo = TRUE WHERE activo IS NULL",
     ]
     for sql in migrations:
         try:
@@ -553,6 +593,7 @@ def migrate_admin_columns():
 def startup():
     print("Ejecutando migraciones...")
     aplicar_schema_base()
+    seed_servicios()
     seed_medicamentos()
     migrate_usuarios_table()
     migrate_clientes_table()
@@ -3797,7 +3838,7 @@ async def get_servicios(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Error de conexión")
     cursor = connection.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM servicios ORDER BY nombre")
+        cursor.execute("SELECT * FROM servicios WHERE activo = TRUE ORDER BY nombre")
         return cursor.fetchall()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

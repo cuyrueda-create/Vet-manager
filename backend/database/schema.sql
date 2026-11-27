@@ -77,7 +77,9 @@ CREATE TABLE IF NOT EXISTS servicios (
     id_servicio INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(80) NOT NULL,
     descripcion TEXT,
-    precio DECIMAL(10,2) NOT NULL
+    precio DECIMAL(10,2) NOT NULL,
+    duracion INT NULL,
+    activo BOOLEAN DEFAULT TRUE
 );
 
 -- ==============================================
