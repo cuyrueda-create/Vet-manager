@@ -6,6 +6,29 @@ body {
   color: var(--text-color, #1e293b);
 }
 
+/* Fondo de huellitas solo cuando hay sesión iniciada */
+.app-con-sesion {
+  position: relative;
+  min-height: 100vh;
+}
+
+.app-con-sesion::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('/images/huellas.png');
+  background-repeat: repeat;
+  background-size: 340px auto;
+  opacity: 0.10;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-con-sesion > * {
+  position: relative;
+  z-index: 1;
+}
+
 .login-card {
   background: white;
   padding: 48px 40px;
