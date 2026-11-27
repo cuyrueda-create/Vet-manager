@@ -9,8 +9,11 @@ const UsuarioNuevaCita = () => {
   const navigate = useNavigate();
   const [mascotas, setMascotas] = useState([]);
   const [servicios, setServicios] = useState([]);
+  const [veterinarios, setVeterinarios] = useState([]);
+  const [horarios, setHorarios] = useState([]);
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
   const [form, setForm] = useState({
-    id_mascota: '', id_servicio: '', fecha: '', hora: '', notas: ''
+    id_mascota: '', id_servicio: '', id_usuario_vet: '', fecha: '', hora: '', notas: ''
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -25,20 +28,6 @@ const UsuarioNuevaCita = () => {
   const isToday = form.fecha === today;
   const minTime = isToday ? currentHHMM : '';
 
-  const availableHours = (() => {
-    const start = 7;
-    const end = 20;
-    const slots = [];
-    for (let h = start; h <= end; h++) {
-      for (let m = 0; m < 60; m += 30) {
-        const hhmm = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        if (isToday && hhmm <= currentHHMM) continue;
-        slots.push(hhmm);
-      }
-    }
-    return slots;
-  })();
-
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -49,7 +38,6 @@ const UsuarioNuevaCita = () => {
         setMascotas(m.data || []);
         setServicios(s.data || []);
       } catch (err) {
-        console.error('Error loading data:', err);
         setError(err.response?.data?.detail || 'Error al cargar los datos');
       } finally {
         setLoading(false);
@@ -58,10 +46,32 @@ const UsuarioNuevaCita = () => {
     void loadData();
   }, []);
 
+  // Veterinarios disponibles para la fecha elegida (con su especialidad).
+  useEffect(() => {
+    if (!form.fecha) return;
+    api.get(`/api/vet/disponibilidad?fecha=${form.fecha}`)
+      .then(r => {
+        setVeterinarios((r.data || []).filter(v => v.estado !== 'no_trabaja'));
+      })
+      .catch(() => setVeterinarios([]));
+  }, [form.fecha]);
+
+  // Solo los bloques horarios libres del veterinario seleccionado.
+  useEffect(() => {
+    if (!form.id_usuario_vet || !form.fecha) { setHorarios([]); return; }
+    setLoadingHorarios(true);
+    api.get(`/api/vet/horarios?id_vet=${form.id_usuario_vet}&fecha=${form.fecha}`)
+      .then(r => setHorarios((r.data?.horarios || []).filter(h => h.estado === 'disponible').map(h => h.hora)))
+      .catch(() => setHorarios([]))
+      .finally(() => setLoadingHorarios(false));
+  }, [form.id_usuario_vet, form.fecha]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'fecha') {
-      setForm({ ...form, fecha: value, hora: '' });
+      setForm({ ...form, fecha: value, id_usuario_vet: '', hora: '' });
+    } else if (name === 'id_usuario_vet') {
+      setForm({ ...form, id_usuario_vet: value, hora: '' });
     } else {
       setForm({ ...form, [name]: value });
     }
@@ -237,24 +247,55 @@ const UsuarioNuevaCita = () => {
                     }} />
                 </div>
 
+                {/* Veterinario */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                    <Icon name="user" size={14} style={{ color: '#8b5cf6' }} /> Veterinario *
+                  </label>
+                  <select name="id_usuario_vet" value={form.id_usuario_vet} onChange={handleChange} required
+                    style={{
+                      width: '100%', padding: '12px 14px', borderRadius: 10,
+                      border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none',
+                      boxSizing: 'border-box',
+                      borderColor: form.id_usuario_vet ? '#10b981' : undefined
+                    }}>
+                    <option value="">Seleccionar veterinario...</option>
+                    {veterinarios.map(v => (
+                      <option key={v.id_usuario} value={v.id_usuario}>
+                        {v.nombre}{v.especialidad ? ` — ${v.especialidad}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {veterinarios.length === 0 && (
+                    <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>
+                      No hay veterinarios disponibles para esta fecha
+                    </p>
+                  )}
+                </div>
+
                 {/* Hora */}
                 <div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
                     <Icon name="clock" size={14} style={{ color: '#06b6d4' }} /> Hora *
                   </label>
                   <select name="hora" value={form.hora} onChange={handleChange} required
+                    disabled={!form.id_usuario_vet || loadingHorarios}
                     style={{
                       width: '100%', padding: '12px 14px', borderRadius: 10,
                       border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none',
                       boxSizing: 'border-box',
                       borderColor: form.hora ? '#10b981' : undefined
                     }}>
-                    <option value="">Seleccionar hora...</option>
-                    {availableHours.map(h => (
+                    <option value="">{loadingHorarios ? 'Cargando horarios...' : 'Seleccionar hora...'}</option>
+                    {horarios.map(h => (
                       <option key={h} value={h}>{h}</option>
                     ))}
                   </select>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>Horario: 07:00 - 20:00 (bloques de 30 min)</p>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>
+                    {form.id_usuario_vet
+                      ? 'Solo horarios libres del veterinario seleccionado'
+                      : 'Elige un veterinario para ver sus horarios'}
+                  </p>
                 </div>
 
                 {/* Notas */}
@@ -280,11 +321,11 @@ const UsuarioNuevaCita = () => {
                 }}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={saving || !form.id_mascota || !form.id_servicio || !form.fecha || !form.hora}
+                <button type="submit" disabled={saving || !form.id_mascota || !form.id_servicio || !form.id_usuario_vet || !form.fecha || !form.hora}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '12px 28px', borderRadius: 10, border: 'none',
-                    background: saving || !form.id_mascota || !form.id_servicio || !form.fecha || !form.hora
+                    background: saving || !form.id_mascota || !form.id_servicio || !form.id_usuario_vet || !form.fecha || !form.hora
                       ? '#94a3b8' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                     color: 'white', fontWeight: 600, fontSize: 14,
                     cursor: saving ? 'not-allowed' : 'pointer',
@@ -345,7 +386,6 @@ const UsuarioNuevaCita = () => {
                     { label: 'Veterinario', value: `Dr. ${ticket.vet_nombre} ${ticket.vet_apellido}`, icon: 'user', color: '#3b82f6' },
                     { label: 'Fecha', value: ticket.fecha, icon: 'calendar', color: '#f59e0b' },
                     { label: 'Hora', value: ticket.hora, icon: 'clock', color: '#06b6d4' },
-                    { label: 'Consultorio', value: ticket.consultorio, icon: 'home', color: '#10b981' },
                     ...(ticket.notas ? [{ label: 'Notas', value: ticket.notas, icon: 'file', color: '#64748b' }] : [])
                   ].map((row, i) => (
                     <div key={i} style={{

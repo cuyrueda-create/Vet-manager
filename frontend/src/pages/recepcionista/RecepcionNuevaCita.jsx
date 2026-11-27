@@ -38,6 +38,7 @@ const RecepcionNuevaCita = () => {
   const [loadingDisponibilidad, setLoadingDisponibilidad] = useState(false);
   const [horarios, setHorarios] = useState([]);
   const [loadingHorarios, setLoadingHorarios] = useState(false);
+  const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
 
   const [showNewCliente, setShowNewCliente] = useState(false);
   const [newCliente, setNewCliente] = useState({ nombre: '', apellido: '', telefono: '', email: '', direccion: '' });
@@ -437,13 +438,24 @@ const RecepcionNuevaCita = () => {
               {form.fecha && (
                 <div style={{ marginBottom: 20 }}>
                   <div style={labelStyle}>3. Veterinario *</div>
+                  <select
+                    aria-label="Filtrar por especialidad"
+                    value={filtroEspecialidad}
+                    onChange={(e) => setFiltroEspecialidad(e.target.value)}
+                    style={{ width: '100%', marginBottom: 12, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13 }}
+                  >
+                    <option value="">Todas las especialidades</option>
+                    {[...new Set(disponibilidad.map(v => v.especialidad).filter(Boolean))].map(e => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
                   {loadingDisponibilidad ? (
                     <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Cargando disponibilidad...</div>
                   ) : disponibilidad.length === 0 ? (
                     <div style={{ padding: 16, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No hay veterinarios registrados</div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-                      {disponibilidad.map(v => {
+                      {disponibilidad.filter(v => !filtroEspecialidad || v.especialidad === filtroEspecialidad).map(v => {
                         const isSelected = form.id_usuario_vet == v.id_usuario;
                         const isDisabled = v.estado !== 'disponible';
                         const estadoColor = v.estado === 'disponible' ? '#10b981' : v.estado === 'ocupado' ? '#f59e0b' : '#94a3b8';

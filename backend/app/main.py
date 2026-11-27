@@ -348,6 +348,12 @@ def migrate_citas_table():
         print("✅ ENUM de estado actualizado: en_proceso agregado")
     except:
         pass
+    # Los consultorios ya no son obligatorios para agendar una cita.
+    try:
+        cursor.execute("ALTER TABLE citas MODIFY COLUMN id_consultorio INT NULL")
+        print("✅ id_consultorio ahora opcional en citas")
+    except:
+        pass
     conn.commit()
     cursor.close()
     conn.close()
@@ -2238,7 +2244,7 @@ async def get_citas(current_user: dict = Depends(get_current_user)):
             INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
             INNER JOIN servicios s ON c.id_servicio = s.id_servicio
             INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-            INNER JOIN consultorio con ON c.id_consultorio = con.id_consultorio
+            LEFT JOIN consultorio con ON c.id_consultorio = con.id_consultorio
             LEFT JOIN usuarios uc ON c.id_usuario = uc.id_usuario
         """
         if current_user["rol"] in ("administrador", "recepcionista"):
@@ -2429,7 +2435,7 @@ async def vet_citas_hoy(current_user: dict = Depends(require_veterinario)):
             FROM citas c
             INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
             INNER JOIN servicios s ON c.id_servicio = s.id_servicio
-            INNER JOIN consultorio co ON c.id_consultorio = co.id_consultorio
+            LEFT JOIN consultorio co ON c.id_consultorio = co.id_consultorio
             INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
             WHERE c.id_usuario_vet = %s AND c.fecha = CURDATE()
             ORDER BY c.hora ASC
@@ -2987,18 +2993,9 @@ async def create_cita(data: dict, current_user: dict = Depends(get_current_user)
                     raise HTTPException(status_code=400, detail="No hay veterinarios disponibles")
                 id_usuario_vet = row["id_usuario"]
 
-        # Consultorio: el primero activo si no se especifica
-        id_consultorio = data.get("id_consultorio")
-        if not id_consultorio:
-            cursor.execute("""
-                SELECT id_consultorio FROM consultorio
-                WHERE estado = 'activo'
-                ORDER BY id_consultorio LIMIT 1
-            """)
-            row = cursor.fetchone()
-            if not row:
-                raise HTTPException(status_code=400, detail="No hay consultorios disponibles")
-            id_consultorio = row["id_consultorio"]
+        # Los consultorios ya no se usan: la cita se asigna solo al veterinario.
+        # Si llega un id_consultorio por compatibilidad se guarda, si no, NULL.
+        id_consultorio = data.get("id_consultorio") or None
 
         notas = data.get("notas")
 
@@ -3013,19 +3010,6 @@ async def create_cita(data: dict, current_user: dict = Depends(get_current_user)
             raise HTTPException(
                 status_code=409, 
                 detail="El veterinario ya tiene una cita en ese horario (ventana de 30 minutos)"
-            )
-
-        # Validar que no haya doble reserva de consultorio (ventana de 30 min)
-        cursor.execute("""
-            SELECT COUNT(*) AS conflictos FROM citas
-            WHERE id_consultorio = %s AND fecha = %s AND estado = 'programada'
-            AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(fecha, ' ', hora), CONCAT(%s, ' ', %s))) < 30
-        """, (id_consultorio, data["fecha"], data["fecha"], data["hora"]))
-        conflicto_consultorio = cursor.fetchone()
-        if conflicto_consultorio and conflicto_consultorio["conflictos"] > 0:
-            raise HTTPException(
-                status_code=409, 
-                detail="El consultorio ya esta ocupado en ese horario (ventana de 30 minutos)"
             )
 
         cursor.execute("""
@@ -3110,7 +3094,7 @@ async def create_cita(data: dict, current_user: dict = Depends(get_current_user)
             INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
             INNER JOIN servicios s ON c.id_servicio = s.id_servicio
             INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-            INNER JOIN consultorio co ON c.id_consultorio = co.id_consultorio
+            LEFT JOIN consultorio co ON c.id_consultorio = co.id_consultorio
             WHERE c.id_cita = %s
         """, (cita_id,))
         cita_completa = cursor.fetchone()
@@ -3171,7 +3155,7 @@ async def create_cita(data: dict, current_user: dict = Depends(get_current_user)
     except mysql.connector.Error as e:
         connection.rollback()
         if e.errno == 1452:
-            raise HTTPException(status_code=400, detail="Datos inválidos: verifica que la mascota, el veterinario, el servicio y el consultorio existan")
+            raise HTTPException(status_code=400, detail="Datos inválidos: verifica que la mascota, el veterinario y el servicio existan")
         raise HTTPException(status_code=400, detail=f"Error en la base de datos: {e.msg}")
     except Exception as e:
         connection.rollback()
@@ -3198,7 +3182,7 @@ async def enviar_recordatorios(current_user: dict = Depends(require_admin)):
             INNER JOIN mascotas m ON c.id_mascota = m.id_mascota
             INNER JOIN servicios s ON c.id_servicio = s.id_servicio
             INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-            INNER JOIN consultorio co ON c.id_consultorio = co.id_consultorio
+            LEFT JOIN consultorio co ON c.id_consultorio = co.id_consultorio
             INNER JOIN clientes cl ON m.id_cliente = cl.id_cliente
             INNER JOIN usuarios uc ON cl.id_usuario = uc.id_usuario
             WHERE c.estado = 'programada'
@@ -3251,24 +3235,23 @@ async def update_cita(cita_id: int, data: dict, current_user: dict = Depends(get
 
         fields = []
         values = []
-        for key in ["fecha", "hora", "estado", "id_servicio", "id_consultorio", "notas"]:
+        for key in ["fecha", "hora", "estado", "id_servicio", "notas"]:
             if key in data:
                 fields.append(f"{key} = %s")
                 values.append(data[key])
         if not fields:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
         
-        # Validar doble reserva si se cambia fecha, hora, veterinario o consultorio
-        if any(key in data for key in ["fecha", "hora", "id_usuario_vet", "id_consultorio"]):
+        # Validar doble reserva si se cambia fecha, hora o veterinario
+        if any(key in data for key in ["fecha", "hora", "id_usuario_vet"]):
             # Obtener valores actuales de la cita
-            cursor.execute("SELECT fecha, hora, id_usuario_vet, id_consultorio FROM citas WHERE id_cita = %s", (cita_id,))
+            cursor.execute("SELECT fecha, hora, id_usuario_vet FROM citas WHERE id_cita = %s", (cita_id,))
             cita_actual = cursor.fetchone()
             
             # Usar nuevos valores o los actuales
             fecha_check = data.get("fecha", cita_actual["fecha"])
             hora_check = data.get("hora", cita_actual["hora"])
             vet_check = data.get("id_usuario_vet", cita_actual["id_usuario_vet"])
-            consultorio_check = data.get("id_consultorio", cita_actual["id_consultorio"])
             
             # Verificar conflicto de veterinario (excluyendo la cita actual, ventana de 30 min)
             cursor.execute("""
@@ -3284,20 +3267,6 @@ async def update_cita(cita_id: int, data: dict, current_user: dict = Depends(get
                     detail="El veterinario ya tiene otra cita en ese horario (ventana de 30 minutos)"
                 )
             
-            # Verificar conflicto de consultorio (excluyendo la cita actual, ventana de 30 min)
-            cursor.execute("""
-                SELECT COUNT(*) AS conflictos FROM citas
-                WHERE id_consultorio = %s AND fecha = %s AND estado = 'programada'
-                AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(fecha, ' ', hora), CONCAT(%s, ' ', %s))) < 30
-                AND id_cita != %s
-            """, (consultorio_check, fecha_check, fecha_check, hora_check, cita_id))
-            conflicto_consultorio = cursor.fetchone()
-            if conflicto_consultorio and conflicto_consultorio["conflictos"] > 0:
-                raise HTTPException(
-                    status_code=409, 
-                    detail="El consultorio ya esta ocupado en ese horario (ventana de 30 minutos)"
-                )
-
         values.append(cita_id)
         cursor.execute(f"UPDATE citas SET {', '.join(fields)} WHERE id_cita = %s", values)
         connection.commit()
@@ -3678,7 +3647,7 @@ async def get_perfil_cliente(cliente_id: int, current_user: dict = Depends(get_c
                 FROM citas c
                 INNER JOIN servicios s ON c.id_servicio = s.id_servicio
                 INNER JOIN usuarios u ON c.id_usuario_vet = u.id_usuario
-                INNER JOIN consultorio co ON c.id_consultorio = co.id_consultorio
+                LEFT JOIN consultorio co ON c.id_consultorio = co.id_consultorio
                 WHERE c.id_mascota = %s
                 ORDER BY c.fecha DESC, c.hora DESC
                 LIMIT 10
@@ -4975,7 +4944,7 @@ async def get_veterinarios_disponibles(current_user: dict = Depends(get_current_
 # ==================== DISPONIBILIDAD VETERINARIOS ====================
 
 @app.get("/api/vet/disponibilidad")
-async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_user: dict = Depends(require_staff)):
+async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_user: dict = Depends(get_current_user)):
     """
     Retorna la disponibilidad de todos los veterinarios activos para una fecha específica.
     Estados: 'disponible', 'ocupado', 'no_trabaja'
@@ -5018,27 +4987,32 @@ async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_u
             vet_ids = [v["id_usuario"] for v in vets]
             placeholders = ",".join(["%s"] * len(vet_ids))
             cursor.execute(f"""
-                SELECT id_usuario_vet, COUNT(*) AS total_citas
+                SELECT id_usuario_vet, hora
                 FROM citas
                 WHERE fecha = %s AND estado IN ('programada', 'en_proceso')
                     AND id_usuario_vet IN ({placeholders})
-                GROUP BY id_usuario_vet
             """, [fecha] + vet_ids)
-            citas_count = {r["id_usuario_vet"]: r["total_citas"] for r in cursor.fetchall()}
+            ocupados_por_vet = {}
+            for r in cursor.fetchall():
+                hh, mm = map(int, time_to_str(r["hora"]).split(":"))
+                ocupados_por_vet.setdefault(r["id_usuario_vet"], []).append(hh * 60 + mm)
         else:
-            citas_count = {}
+            ocupados_por_vet = {}
         
         resultado = []
         for v in vets:
             if v["hora_inicio"] is None:
                 estado = "no_trabaja"
             else:
-                total_citas = citas_count.get(v["id_usuario"], 0)
                 hi = time_to_minutes(v["hora_inicio"])
                 hf = time_to_minutes(v["hora_fin"])
-                total_slots = (hf - hi) // 30
-                estado = "disponible" if total_citas < total_slots else "ocupado"
-            
+                ocupados = ocupados_por_vet.get(v["id_usuario"], [])
+                libres = sum(
+                    1 for t in range(hi, hf, 30)
+                    if all(abs(t - o) >= 30 for o in ocupados)
+                )
+                estado = "disponible" if libres > 0 else "ocupado"
+
             resultado.append({
                 "id_usuario": v["id_usuario"],
                 "nombre": f"{v['nombre']} {v['apellido']}",
@@ -5046,7 +5020,7 @@ async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_u
                 "estado": estado,
                 "hora_inicio": time_to_str(v["hora_inicio"]),
                 "hora_fin": time_to_str(v["hora_fin"]),
-                "citas_existentes": citas_count.get(v["id_usuario"], 0)
+                "citas_existentes": len(ocupados_por_vet.get(v["id_usuario"], []))
             })
         
         return resultado
@@ -5058,7 +5032,7 @@ async def get_disponibilidad_vets(fecha: str, id_servicio: int = None, current_u
 
 
 @app.get("/api/vet/horarios")
-async def get_horarios_vet(id_vet: int, fecha: str, current_user: dict = Depends(require_staff)):
+async def get_horarios_vet(id_vet: int, fecha: str, current_user: dict = Depends(get_current_user)):
     """
     Retorna los horarios disponibles para un veterinario en una fecha específica.
     Cada slot tiene estado: 'disponible' o 'ocupado'.
@@ -5112,19 +5086,23 @@ async def get_horarios_vet(id_vet: int, fecha: str, current_user: dict = Depends
             SELECT hora FROM citas
             WHERE id_usuario_vet = %s AND fecha = %s AND estado IN ('programada', 'en_proceso')
         """, (id_vet, fecha))
-        horas_ocupadas = set()
+        # Minutos ocupados con la misma ventana de 30 min que valida el POST,
+        # para que el selector solo ofrezca horarios realmente libres del vet.
+        ocupados_min = []
         for r in cursor.fetchall():
-            horas_ocupadas.add(time_to_str(r["hora"]))
-        
+            hh, mm = map(int, time_to_str(r["hora"]).split(":"))
+            ocupados_min.append(hh * 60 + mm)
+
         horarios = []
         for slot in slots:
-            if es_hoy:
-                slot_h, slot_m = map(int, slot.split(":"))
-                if slot_h * 60 + slot_m <= now.hour * 60 + now.minute:
-                    continue
-            estado = "ocupado" if slot in horas_ocupadas else "disponible"
-            horarios.append({"hora": slot, "estado": estado})
-        
+            slot_h, slot_m = map(int, slot.split(":"))
+            minutos = slot_h * 60 + slot_m
+            if es_hoy and minutos <= now.hour * 60 + now.minute:
+                continue
+            if any(abs(minutos - o) < 30 for o in ocupados_min):
+                continue
+            horarios.append({"hora": slot, "estado": "disponible"})
+
         return {"trabaja": True, "hora_inicio": time_to_str(horario["hora_inicio"]), "hora_fin": time_to_str(horario["hora_fin"]), "horarios": horarios}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

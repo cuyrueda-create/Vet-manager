@@ -249,7 +249,6 @@ def send_cita_email(to_email, nombre, apellido, cita_data):
                     <div class="ticket-row"><span class="ticket-label">Veterinario</span><span class="ticket-value">Dr. {cita_data['vet_nombre']} {cita_data['vet_apellido']}</span></div>
                     <div class="ticket-row"><span class="ticket-label">Fecha</span><span class="ticket-value">{cita_data['fecha']}</span></div>
                     <div class="ticket-row"><span class="ticket-label">Hora</span><span class="ticket-value">{cita_data['hora']}</span></div>
-                    <div class="ticket-row"><span class="ticket-label">Consultorio</span><span class="ticket-value">{cita_data.get('consultorio', 'N/A')}</span></div>
                     {f'<div class="ticket-row"><span class="ticket-label">Notas</span><span class="ticket-value">{cita_data["notas"]}</span></div>' if cita_data.get('notas') else ''}
                 </div>
                 <p style="color:#64748b;font-size:13px">Recuerda llegar 10 minutos antes de tu cita. Si necesitas cancelar o reprogramar, hazlo con al menos 24 horas de anticipacion.</p>
@@ -269,7 +268,6 @@ Servicio: {cita_data['servicio_nombre']}
 Veterinario: Dr. {cita_data['vet_nombre']} {cita_data['vet_apellido']}
 Fecha: {cita_data['fecha']}
 Hora: {cita_data['hora']}
-Consultorio: {cita_data.get('consultorio', 'N/A')}
 {f'Notas: {cita_data["notas"]}' if cita_data.get('notas') else ''}
 
 Tu cita ha sido confirmada. Guarda este ticket como comprobante.
