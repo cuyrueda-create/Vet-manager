@@ -84,6 +84,10 @@ services:
         sync: false
       - key: EMAIL_PASSWORD
         sync: false
+      # Render Free bloquea SMTP (25/465/587): el código se envía por la API
+      # HTTPS de Brevo (443) cuando esta clave está definida.
+      - key: BREVO_API_KEY
+        sync: false
 
   # ==================== FRONTEND (SPA React) ====================
   # OJO: el tipo válido es `web` con runtime `static`; `static_site` no existe

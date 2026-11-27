@@ -41,9 +41,39 @@ def test_verify_code_rechaza_codigo_incorrecto(client_con_bd, conexion_falsa):
     assert r.status_code == 400
 
 
+def test_envio_de_codigo_por_api_brevo(monkeypatch):
+    """Con BREVO_API_KEY se usa HTTPS (443), no SMTP (bloqueado en Render)."""
+    from app.utils import email as email_module
+
+    monkeypatch.setenv("BREVO_API_KEY", "clave-api")
+    monkeypatch.setattr(email_module, "EMAIL_CONFIG", {
+        "host": "smtp-relay.brevo.com", "port": 587,
+        "user": "login@smtp-brevo.com", "password": "x",
+        "from": "cuyrueda@gmail.com",
+    })
+
+    respuesta = MagicMock()
+    respuesta.status = 202
+    contexto = MagicMock()
+    contexto.__enter__.return_value = respuesta
+    urlopen = MagicMock(return_value=contexto)
+    monkeypatch.setattr(email_module.urllib.request, "urlopen", urlopen)
+    smtp = MagicMock()
+    monkeypatch.setattr(email_module.smtplib, "SMTP", smtp)
+
+    assert email_module.send_verification_code_email(
+        "ana@test.com", "Ana", "Pérez", "123456"
+    ) is True
+    req = urlopen.call_args.args[0]
+    assert req.full_url == "https://api.brevo.com/v3/smtp/email"
+    assert req.get_header("Api-key") == "clave-api"
+    smtp.assert_not_called()
+
+
 def test_envio_de_codigo_por_smtp(monkeypatch):
     from app.utils import email as email_module
 
+    monkeypatch.delenv("BREVO_API_KEY", raising=False)
     clase = MagicMock()
     instancia = clase.return_value.__enter__.return_value
     monkeypatch.setattr(email_module.smtplib, "SMTP", clase)
