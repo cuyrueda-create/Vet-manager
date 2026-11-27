@@ -301,6 +301,102 @@ async def delete_usuario(usuario_id: int, current_user: dict = Depends(require_a
         connection.close()
 
 
+class ServicioCreate(BaseModel):
+    nombre: str = Field(max_length=80)
+    descripcion: str = Field(default="", max_length=500)
+    precio: float = Field(gt=0)
+    duracion: Optional[int] = Field(default=None, ge=1, le=480)
+
+
+class ServicioUpdate(BaseModel):
+    nombre: Optional[str] = Field(default=None, max_length=80)
+    descripcion: Optional[str] = Field(default=None, max_length=500)
+    precio: Optional[float] = Field(default=None, gt=0)
+    duracion: Optional[int] = Field(default=None, ge=1, le=480)
+    activo: Optional[bool] = None
+
+
+@router.get("/servicios")
+async def get_servicios(current_user: dict = Depends(require_admin)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a BD")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM servicios ORDER BY activo DESC, nombre")
+        return cursor.fetchall()
+    finally:
+        cursor.close(); connection.close()
+
+
+@router.post("/servicios", status_code=status.HTTP_201_CREATED)
+async def create_servicio(data: ServicioCreate, current_user: dict = Depends(require_admin)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a BD")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id_servicio FROM servicios WHERE nombre = %s", (data.nombre,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Ya existe un servicio con ese nombre")
+        cursor.execute(
+            "INSERT INTO servicios (nombre, descripcion, precio, duracion, activo) "
+            "VALUES (%s, %s, %s, %s, TRUE)",
+            (data.nombre, data.descripcion, data.precio, data.duracion),
+        )
+        connection.commit()
+        return {"message": "Servicio creado exitosamente", "id_servicio": cursor.lastrowid}
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close(); connection.close()
+
+
+@router.put("/servicios/{servicio_id}")
+async def update_servicio(servicio_id: int, data: ServicioUpdate, current_user: dict = Depends(require_admin)):
+    cambios = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
+    if not cambios:
+        raise HTTPException(status_code=400, detail="No se enviaron campos para actualizar")
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a BD")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id_servicio FROM servicios WHERE id_servicio = %s", (servicio_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Servicio no encontrado")
+        sql = "UPDATE servicios SET " + ", ".join(f"{c} = %s" for c in cambios) + " WHERE id_servicio = %s"
+        cursor.execute(sql, (*cambios.values(), servicio_id))
+        connection.commit()
+        return {"message": "Servicio actualizado exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    finally:
+        cursor.close(); connection.close()
+
+
+@router.delete("/servicios/{servicio_id}")
+async def desactivar_servicio(servicio_id: int, current_user: dict = Depends(require_admin)):
+    connection = get_db_connection()
+    if not connection:
+        raise HTTPException(status_code=500, detail="Error de conexión a BD")
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute("UPDATE servicios SET activo = FALSE WHERE id_servicio = %s", (servicio_id,))
+        if not cursor.rowcount:
+            raise HTTPException(status_code=404, detail="Servicio no encontrado")
+        connection.commit()
+        return {"message": "Servicio desactivado"}
+    finally:
+        cursor.close(); connection.close()
+
+
 @router.get("/informes")
 async def get_informes(current_user: dict = Depends(require_admin)):
     connection = get_db_connection()

@@ -11,3 +11,5 @@ coverage.xml
 htmlcov/
 
 cov.xml
+
+coverage.json

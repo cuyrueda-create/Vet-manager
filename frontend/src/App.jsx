@@ -18,6 +18,7 @@ import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminEquipo from './pages/admin/AdminEquipo';
 import AdminBloc from './pages/admin/AdminBloc';
 import AdminInventario from './pages/admin/AdminInventario';
+import AdminServicios from './pages/admin/AdminServicios';
 import AdminMedicamentos from './pages/admin/AdminMedicamentos';
 import AdminReportes from './pages/admin/AdminReportes';
 import UsuarioMisCitas from './pages/usuario/UsuarioMisCitas';
@@ -108,6 +109,7 @@ function AppRoutes() {
       <Route path="/admin/personal" element={<AdminRoute><AdminEquipo /></AdminRoute>} />
       <Route path="/admin/bloc" element={<AdminRoute><AdminBloc /></AdminRoute>} />
       <Route path="/admin/inventario" element={<AdminRoute><AdminInventario /></AdminRoute>} />
+      <Route path="/admin/servicios" element={<AdminRoute><AdminServicios /></AdminRoute>} />
       <Route path="/admin/medicamentos" element={<AdminRoute><AdminMedicamentos /></AdminRoute>} />
       <Route path="/admin/reportes" element={<AdminRoute><AdminReportes /></AdminRoute>} />
 
