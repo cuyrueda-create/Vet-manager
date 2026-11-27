@@ -45,10 +45,15 @@ const UsuarioMisCitas = () => {
   };
 
   const stats = [
-    { label: 'Pendientes', value: pendientes, color: '#f59e0b', bg: '#fef3c7', icon: 'clock' },
-    { label: 'Realizadas', value: realizadas, color: '#10b981', bg: '#d1fae5', icon: 'check' },
-    { label: 'Canceladas', value: canceladas, color: '#ef4444', bg: '#fee2e2', icon: 'x' }
+    { label: 'Pendientes', value: pendientes, color: '#b45309', bg: '#fffbeb', border: '#fde68a', icon: 'clock' },
+    { label: 'Realizadas', value: realizadas, color: '#047857', bg: '#ecfdf5', border: '#a7f3d0', icon: 'check' },
+    { label: 'Canceladas', value: canceladas, color: '#b91c1c', bg: '#fef2f2', border: '#fecaca', icon: 'x' }
   ];
+
+  const nombreCapitalizado = (user?.nombre || 'Usuario')
+    .split(' ')
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(' ');
 
   return (
     <div>
@@ -57,70 +62,81 @@ const UsuarioMisCitas = () => {
 
         {/* Header */}
         <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-          flexWrap: 'wrap', gap: 16, marginBottom: 28
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 20, marginBottom: 28
         }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              Bienvenido, {user?.nombre || 'Usuario'}
+            <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: '#0f172a', margin: 0 }}>
+              Bienvenido, {nombreCapitalizado}
             </h1>
-            <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
-              Panel de control · estas son tus citas
+            <p style={{ color: '#64748b', marginTop: 6, fontSize: 14 }}>
+              Panel de control · Estas son tus citas
             </p>
           </div>
           <Link to="/usuario/nueva-cita" style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 20px', borderRadius: 10, border: 'none',
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            color: 'white', fontWeight: 600, fontSize: 14,
-            cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
-            textDecoration: 'none', transition: 'all 0.2s'
+            display: 'inline-flex', alignItems: 'center', gap: 9,
+            padding: '12px 22px', borderRadius: 12,
+            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            color: '#ffffff', fontWeight: 600, fontSize: 14, letterSpacing: '0.01em',
+            boxShadow: '0 4px 14px rgba(37,99,235,0.25)',
+            textDecoration: 'none', transition: 'transform 0.2s, box-shadow 0.2s'
           }}>
             <Icon name="calendar" size={18} /> Agendar Cita
           </Link>
         </div>
 
-        {/* Banner de bienvenida con imagen */}
+        {/* Banner de bienvenida */}
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 20, background: 'linear-gradient(135deg, #eff6ff, #e0f2fe)',
-          border: '1px solid #bfdbfe', borderRadius: 16, padding: '18px 24px',
-          marginBottom: 24, overflow: 'hidden'
+          display: 'flex', alignItems: 'center', gap: 28,
+          background: 'linear-gradient(120deg, #f8fbff 0%, #eef5ff 55%, #e6f2ff 100%)',
+          border: '1px solid #e2e8f0', borderRadius: 18, padding: '20px 28px',
+          marginBottom: 24, boxShadow: '0 2px 10px rgba(15,23,42,0.04)'
         }}>
-          <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1e3a8a', margin: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{
+              display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#2563eb', marginBottom: 8
+            }}>Tu espacio</span>
+            <h2 style={{ fontSize: 21, fontWeight: 700, color: '#0f172a', margin: 0 }}>
               Tu clínica, en tus manos
             </h2>
-            <p style={{ color: '#475569', fontSize: 14, margin: '6px 0 0' }}>
+            <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, margin: '8px 0 0' }}>
               Agenda, consulta y gestiona las citas de tus mascotas cuando quieras.
             </p>
           </div>
-          <img src="/images/perroygato.png" alt="Mascotas" style={{
-            width: 150, height: 100, objectFit: 'cover', borderRadius: 12, flexShrink: 0
-          }} />
+          <div style={{
+            width: 190, height: 120, borderRadius: 14, overflow: 'hidden',
+            border: '1px solid #e2e8f0', flexShrink: 0, background: '#fff'
+          }}>
+            <img src="/images/perroygato.png" alt="Mascotas" style={{
+              width: '100%', height: '100%', objectFit: 'cover', display: 'block'
+            }} />
+          </div>
         </div>
 
         {/* Stats */}
         {!loading && (
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 12, marginBottom: 24
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 14, marginBottom: 24
           }}>
             {stats.map((stat, i) => (
               <div key={i} style={{
-                background: stat.bg, borderRadius: 12, padding: '16px 18px',
-                display: 'flex', alignItems: 'center', gap: 14
+                background: '#ffffff', border: `1px solid ${stat.border}`,
+                borderRadius: 14, padding: '14px 16px',
+                display: 'flex', alignItems: 'center', gap: 14,
+                boxShadow: '0 1px 3px rgba(15,23,42,0.04)'
               }}>
                 <div style={{
-                  width: 42, height: 42, borderRadius: 10,
-                  background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                  width: 40, height: 40, borderRadius: 10,
+                  background: stat.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0
                 }}>
-                  <Icon name={stat.icon} size={20} style={{ color: stat.color }} />
+                  <Icon name={stat.icon} size={19} style={{ color: stat.color }} />
                 </div>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{stat.value}</div>
-                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{stat.label}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 21, fontWeight: 700, color: '#0f172a', lineHeight: 1.1 }}>{stat.value}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginTop: 2 }}>{stat.label}</div>
                 </div>
               </div>
             ))}
