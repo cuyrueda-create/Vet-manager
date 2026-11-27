@@ -86,7 +86,9 @@ const AdminLandingRoute = () => {
 };
 
 function AppRoutes() {
+  const { user } = useAuth();
   return (
+    <div className={user ? 'app-con-sesion' : 'app-publica'}>
     <Routes>
       {/* Públicas */}
       <Route path="/" element={<HomeLanding />} />
@@ -151,6 +153,7 @@ function AppRoutes() {
       <Route path="/citas" element={<Navigate to="/inicio" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
   );
 }
 
