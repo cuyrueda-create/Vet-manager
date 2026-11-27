@@ -613,6 +613,8 @@ class UsuarioCreate(BaseModel):
     rol: str = "usuario"
     tipo_documento: Optional[str] = Field(default=None, max_length=20)
     numero_documento: Optional[str] = Field(default=None, max_length=30)
+    especialidad: Optional[str] = Field(default=None, max_length=50)
+    sede: Optional[str] = Field(default=None, max_length=150)
 
 class UsuarioLogin(BaseModel):
     email: EmailStr
@@ -1363,11 +1365,12 @@ async def register_user(user_data: UsuarioCreate):
         if rol in ("recepcionista", "veterinario"):
             cursor.execute("""
                 INSERT INTO usuarios (nombre, apellido, email, telefono, direccion, contrasea, rol,
-                                      tipo_documento, numero_documento, confirm_token, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, FALSE)
+                                      tipo_documento, numero_documento, especialidad,
+                                      confirm_token, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, FALSE)
             """, (user_data.nombre, user_data.apellido, user_data.email, user_data.telefono,
-                  user_data.direccion, hashed_password, rol,
-                  user_data.tipo_documento, user_data.numero_documento))
+                  user_data.sede or user_data.direccion, hashed_password, rol,
+                  user_data.tipo_documento, user_data.numero_documento, user_data.especialidad))
             connection.commit()
             solicitante_id = cursor.lastrowid
 
