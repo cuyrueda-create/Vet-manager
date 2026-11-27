@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import LoginModal from '../components/LoginModal';
 import RegisterModal from '../components/RegisterModal';
 import RecuperarPasswordModal from '../components/RecuperarPasswordModal';
 import CONTACTO from '../config/contacto';
-import { useAuth } from '../contexts/AuthContext';
+
+// Rotación de mascotas. Puedes añadir mas archivos en frontend/public/images
+// y agregarlos a esta lista; se muestran de 5 en 5 segundos.
+const HERO_IMAGENES = [
+  '/images/mascota-1.png',
+  '/images/mascota-2.png',
+  '/images/mascota-3.png',
+  '/images/perro.png',
+];
 
 const Inicio = () => {
   const [modal, setModal] = useState(null);
-  const { user } = useAuth();
+  const [imagenActual, setImagenActual] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setImagenActual((i) => (i + 1) % HERO_IMAGENES.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const openLogin = () => setModal('login');
   const openRegister = () => setModal('register');
@@ -41,32 +56,11 @@ const Inicio = () => {
           </div>
           <div className="landing-hero-image">
             <div className="hero-img-wrap">
-              <img src="/images/perro.png" alt="Mascota" className="hero-pet-img"
+              <img key={HERO_IMAGENES[imagenActual]} src={HERO_IMAGENES[imagenActual]} alt="Mascota" className="hero-pet-img"
                 onError={e => { e.target.style.display = 'none'; e.target.parentNode.classList.add('img-failed'); }}
               />
-              <span className="hero-fallback-emojis">🐶</span>
+              <span className="hero-fallback-emojis">🐾</span>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="landing-features">
-        <div className="landing-features-inner">
-          <h2>Todo lo que necesitas para tu clínica</h2>
-          <p className="features-sub">Gestiona tu clínica de forma inteligente con nuestras herramientas todo-en-uno.</p>
-          <div className="features-grid">
-            {[
-              { icon: '📅', title: 'Agenda de Citas', desc: 'Organiza y programa citas de forma sencilla con recordatorios automáticos.' },
-              { icon: '🐾', title: 'Gestión de Pacientes', desc: 'Historial clínico completo de cada mascota con diagnósticos y tratamientos.' },
-              { icon: '👥', title: 'Control de Clientes', desc: 'Administra la información de los dueños y su historial de servicios.' },
-              { icon: '📊', title: 'Reportes y Estadísticas', desc: 'Visualiza el rendimiento de tu clínica con reportes detallados.' },
-            ].map((f, i) => (
-              <div key={i} className="feature-card">
-                <div className="feature-icon">{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.desc}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -90,14 +84,6 @@ const Inicio = () => {
               <p>🕐 Lun - Vie: 8:00 - 18:00</p>
               <p>🕐 Sáb: 8:00 - 14:00</p>
             </div>
-          </div>
-
-          <div className="footer-col">
-            <h4>Portales</h4>
-            {user?.rol === 'administrador' && (
-              <a href="/admin" className="footer-link-btn" style={{ display: 'block', marginBottom: 4 }}>Portal Administrador</a>
-            )}
-            <button onClick={openLogin} className="footer-link-btn">Iniciar sesión</button>
           </div>
 
           <div className="footer-col">

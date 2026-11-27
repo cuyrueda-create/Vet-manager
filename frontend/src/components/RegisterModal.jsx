@@ -27,6 +27,7 @@ const formatTelefono = (value) => {
 
 const RegisterModal = ({ onClose, onOpenLogin }) => {
   const { registerUser, verifyCode, logout } = useAuth();
+  const [codigoPais, setCodigoPais] = useState('+57');
   const [formData, setFormData] = useState({
     rol: 'usuario',
     nombre: '',
@@ -93,7 +94,7 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
-      telefono: formData.telefono.startsWith('+57') ? formData.telefono : `+57${formData.telefono}`,
+      telefono: `${codigoPais}${formData.telefono}`,
       direccion: formData.direccion,
       tipo_documento: formData.tipoDocumento,
       numero_documento: formData.numeroDocumento,
@@ -202,8 +203,8 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
           <label htmlFor="rol">Tipo de cuenta</label>
           <select id="rol" name="rol" value={formData.rol} onChange={handleChange}>
             <option value="usuario">Cliente (paciente)</option>
-            <option value="recepcionista">Recepcionista (requiere aprobación)</option>
-            <option value="veterinario">Veterinario (requiere aprobación)</option>
+            <option value="recepcionista">Recepcionista</option>
+            <option value="veterinario">Veterinario</option>
           </select>
           {formData.rol !== 'usuario' && (
             <small style={{ color: '#6b7280', fontSize: 12 }}>
@@ -230,7 +231,20 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
         <div className="form-group">
           <label htmlFor="telefono">Teléfono</label>
           <div className="phone-input">
-            <span className="phone-prefix">+57</span>
+            <select
+              className="phone-country"
+              aria-label="Código de país"
+              value={codigoPais}
+              onChange={(e) => setCodigoPais(e.target.value)}
+            >
+              <option value="+57">🇨🇴 +57</option>
+              <option value="+52">🇲🇽 +52</option>
+              <option value="+34">🇪🇸 +34</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+51">🇵🇪 +51</option>
+              <option value="+54">🇦🇷 +54</option>
+              <option value="+56">🇨🇱 +56</option>
+            </select>
             <input id="telefono" type="tel" name="telefono" placeholder="300 123 4567" value={formData.telefono} onChange={handleChange} maxLength={20} required />
           </div>
         </div>

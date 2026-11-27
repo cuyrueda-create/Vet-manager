@@ -335,17 +335,16 @@
   gap: 8px;
 }
 
-.phone-prefix {
-  padding: 12px 12px;
-  border: 1.5px solid #e5e7eb;
+.phone-country {
+  width: 104px;
+  flex: 0 0 104px;
+  padding: 12px 8px;
+  border: 1.5px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 15px;
-  background: #f3f4f6;
-  color: #6b7280;
-  font-weight: 600;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
+  font-size: 14px;
+  background: white;
+  color: #334155;
+  outline: none;
 }
 
 .phone-input input {
