@@ -16,7 +16,6 @@ const AdminCitas = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [servicios, setServicios] = useState([]);
-  const [consultorios, setConsultorios] = useState([]);
   const [editando, setEditando] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -30,13 +29,9 @@ const AdminCitas = () => {
   };
 
   const loadCatalogos = () => {
-    Promise.all([
-      api.get('/api/servicios'),
-      api.get('/api/consultorios')
-    ]).then(([s, c]) => {
-      setServicios(s.data || []);
-      setConsultorios(c.data || []);
-    }).catch(() => {});
+    api.get('/api/servicios')
+      .then(s => setServicios(s.data || []))
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -51,7 +46,6 @@ const AdminCitas = () => {
       hora: cita.hora?.slice(0, 5) || cita.hora,
       estado: cita.estado,
       id_servicio: cita.id_servicio || '',
-      id_consultorio: cita.id_consultorio || '',
       notas: cita.notas || ''
     });
   };
@@ -308,18 +302,6 @@ const AdminCitas = () => {
                     <option value="">Seleccionar...</option>
                     {servicios.map(s => (
                       <option key={s.id_servicio} value={s.id_servicio}>{s.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="id_consultorio" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>Consultorio</label>
-                  <select id="id_consultorio" name="id_consultorio" value={editForm.id_consultorio || ''} onChange={handleChange} style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0',
-                    fontSize: 14, outline: 'none', background: 'white', boxSizing: 'border-box'
-                  }}>
-                    <option value="">Seleccionar...</option>
-                    {consultorios.map(con => (
-                      <option key={con.id_consultorio} value={con.id_consultorio}>{con.nombre}</option>
                     ))}
                   </select>
                 </div>

@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS citas (
     id_mascota INT NOT NULL,
     id_usuario_vet INT NOT NULL,
     id_servicio INT NOT NULL,
-    id_consultorio INT NOT NULL,
+    id_consultorio INT NULL,
     fecha DATE NOT NULL,
     hora TIME NOT NULL,
     estado ENUM('programada','realizada','cancelada') DEFAULT 'programada',
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS citas (
     FOREIGN KEY (id_mascota) REFERENCES mascotas(id_mascota),
     FOREIGN KEY (id_usuario_vet) REFERENCES usuarios(id_usuario),
     FOREIGN KEY (id_servicio) REFERENCES servicios(id_servicio),
-    FOREIGN KEY (id_consultorio) REFERENCES consultorio(id_consultorio)
+    FOREIGN KEY (id_consultorio) REFERENCES consultorio(id_consultorio) ON DELETE SET NULL
 );
 
 -- ==============================================
