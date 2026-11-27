@@ -70,9 +70,19 @@ Guarda la salida del smoke test en `docs/plan-implantacion.md` §5.3 y actualiza
 | Frontend carga pero las peticiones dan 404 o van a `localhost:5000` | `VITE_API_URL` no se inyectó en el build | Confirmar `VITE_API_URL = https://vet-manager-api.onrender.com` y hacer **Manual Deploy con Clear build cache** (Vite incrusta la variable al compilar) |
 | Rutas `/reset-password?...` dan 404 | Falta el rewrite | Ya está en el blueprint (`routes: /* → /index.html`) |
 | CORS blocked | `CORS_ORIGINS` sin `https://` | Ya se normaliza en `config.py`; no rellenar a mano |
-| El correo no llega | `EMAIL_USER`/`EMAIL_PASSWORD` de Brevo vacíos o remitente no verificado | Rellénalos en Environment, usa un remitente verificado (`EMAIL_FROM`) y haz *Manual Deploy* |
+| El correo no llega | **Render Free bloquea SMTP (25/465/587)** | Usa la API HTTPS de Brevo: genera una *API key* en **SMTP & API → Claves API** y ponla en `BREVO_API_KEY`. El código sale por puerto 443 |
 
-## Configurar Brevo para el código de verificación
+## ⚠️ Render Free y SMTP
+
+Render bloquea el **tráfico SMTP saliente en puertos 25, 465 y 587** en los planes gratuitos (cambio de sept 2025). Aunque Brevo esté bien configurado, el correo fallará con `Correo de verificación no disponible`. La solución es enviar por **HTTPS (puerto 443)** con la API de Brevo:
+
+1. Brevo → **Configuración → SMTP y API → pestaña "Claves API y MCP"** → **Generar una nueva clave API** → copiarla.
+2. Render → `vet-manager-api` → **Environment** → `BREVO_API_KEY` = esa clave API.
+3. **Manual Deploy**. El backend detecta la clave y envía el código por `https://api.brevo.com/v3/smtp/email` sin usar SMTP.
+
+Si más adelante pasas a un plan de pago de Render, SMTP volvería a funcionar y la API sigue funcionando igual.
+
+## Configurar Brevo para el código de verificación (SMTP local)
 
 1. Crea cuenta en **https://www.brevo.com** y verifica tu dominio o dirección de remitente (**Senders → Domains/Addresses**). Sin esto Brevo rechaza el correo.
 2. En **SMTP & API → SMTP** copia:

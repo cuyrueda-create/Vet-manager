@@ -1,11 +1,48 @@
 # app/utils/email.py
+import json
+import os
 import smtplib
+import urllib.request
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import EMAIL_CONFIG, FRONTEND_BASE_URL
 
 def send_verification_code_email(to_email, nombre, apellido, codigo):
-    """Envía el código de 6 dígitos para activar una cuenta recién creada."""
+    """Envía el código de 6 dígitos para activar una cuenta recién creada.
+
+    Render Free bloquea el SMTP saliente (25/465/587), así que se prefiere la
+    API HTTPS de Brevo (443). Si no hay BREVO_API_KEY, se usa SMTP (local).
+    """
+    api_key = os.getenv("BREVO_API_KEY", "")
+    texto = (
+        f"Hola {nombre} {apellido}:\n\n"
+        f"Tu código de verificación de Vet Manager es:\n\n"
+        f"    {codigo}\n\n"
+        f"Introdúcelo en la pantalla de registro para activar tu cuenta.\n"
+        f"Caduca en 10 minutos.\n\n"
+        f"Si no fuiste tú, ignora este correo.\n"
+    )
+    asunto = "Tu código de verificación - Vet Manager"
+    if api_key:
+        payload = {
+            "sender": {"name": "Vet Manager", "email": EMAIL_CONFIG["from"]},
+            "to": [{"email": to_email, "name": f"{nombre} {apellido}"}],
+            "subject": asunto,
+            "textContent": texto,
+        }
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"api-key": api_key, "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as respuesta:
+                return 200 <= respuesta.status < 300
+        except Exception as exc:
+            print(f"Aviso: no se pudo enviar el código por la API de Brevo: {exc}")
+            return False
+
     mensaje = MIMEText(
         f"Hola {nombre} {apellido}:\n\n"
         f"Tu código de verificación de Vet Manager es:\n\n"

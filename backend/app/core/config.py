@@ -49,6 +49,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 43200
 # administradores adicionales desde el panel.
 ADMIN_CREATE_KEY = os.getenv("ADMIN_CREATE_KEY")
 
+# Brevo API (HTTPS, puerto 443). Render Free bloquea SMTP en 25/465/587,
+# así que el correo se envía por la API REST cuando hay clave disponible.
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+
 def _url_publica(valor: str, defecto: str) -> str:
     """Acepta una URL completa o solo un host (lo que devuelve `fromService`).
 

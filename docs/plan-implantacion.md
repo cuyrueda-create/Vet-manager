@@ -4,8 +4,8 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.10 |
-| Fecha | 2026-11-25 |
+| Versión del plan | 1.11 |
+| Fecha | 2026-11-26 |
 
 ---
 
@@ -915,7 +915,7 @@ Los enlaces de los correos usan `FRONTEND_BASE_URL` (nueva variable; en Render s
 
 **Verificación por código (2026-11-25):** el registro público y el alta desde el panel de administración envían un **código de 6 dígitos** al correo (`send_verification_code_email`), con caducidad de 10 minutos en `codigo_expires`. La cuenta queda inactiva y el usuario la activa tecleando el código en el propio modal de registro (`POST /auth/verify-code`), que devuelve el JWT. Hay reenvío con `POST /auth/resend-code` (respuesta genérica anti-enumeración). El formulario de registro incorpora **tipo y número de documento (cédula)**.
 
-**Proveedor SMTP (2026-11-25): Brevo.** El código usa SMTP genérico (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`); el blueprint fija `smtp-relay.brevo.com:587`, con `EMAIL_FROM` = remitente verificado en Brevo y la SMTP key en `EMAIL_PASSWORD`. La guía completa está en [`docs/despliegue-render.md`](../docs/despliegue-render.md).
+**Proveedor de correo (2026-11-25/26): Brevo.** En local se usa SMTP genérico (`smtp-relay.brevo.com:587`, `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`). En Render Free **los puertos SMTP 25/465/587 están bloqueados**, así que el código se envía por la **API HTTPS de Brevo** (puerto 443) cuando se define `BREVO_API_KEY`: `POST https://api.brevo.com/v3/smtp/email`. Sin esa clave se mantieneSMTP para el entorno local. Es obligatorio verificar el remitente en Brevo (*Remitentes, dominio, IP*) y desactivar el bloqueo de IPs desconocidas para SMTP si se usa SMTP. La guía completa está en [`docs/despliegue-render.md`](../docs/despliegue-render.md).
 
 **Si el SMTP falla** (clave de Brevo no configurada o remitente no verificado) no se deja la cuenta inactiva sin código posible: se activa directamente y `message` lo indica. Verificado en la nube el 2026-11-24: sin esos valores el registro devuelve `"Correo de verificación no disponible; cuenta activada directamente."`
 
@@ -1241,6 +1241,7 @@ Registro de cambios del plan:
 | **1.8** | **2026-11-24** | **§7.7 alta de roles: `POST /auth/bootstrap-admin` con clave maestra para el primer administrador y panel para veterinario/recepcionista; §7.6 verificación por correo condicionada a SMTP válido. 86 tests en verde** |
 | **1.9** | **2026-11-25** | **Verificación con código de 6 dígitos por correo (`/auth/verify-code`, `/auth/resend-code`, 10 min), aplicada al registro público y al alta desde el panel; campo de cédula en el formulario. 92 tests en verde y frontend compila** |
 | **1.10** | **2026-11-25** | **SMTP migrado a Brevo: `EMAIL_FROM` verificable, `smtp-relay.brevo.com:587` en el blueprint, ejemplos `.env` y guía de configuración. 92 tests en verde** |
+| **1.11** | **2026-11-26** | **Render Free bloquea SMTP (25/465/587): el código de verificación se envía por la API HTTPS de Brevo (`BREVO_API_KEY`), con fallback SMTP en local. 93 tests en verde** |
 
 ### 10.2 Pruebas de aceptación
 
