@@ -8,9 +8,9 @@ import CONTACTO from '../config/contacto';
 // Rotación de mascotas. Puedes añadir mas archivos en frontend/public/images
 // y agregarlos a esta lista; se muestran de 5 en 5 segundos.
 const HERO_IMAGENES = [
-  '/images/mascota-1.png',
-  '/images/mascota-2.png',
-  '/images/mascota-3.png',
+  '/images/doog.png',
+  '/images/cuty.png',
+  '/images/catydog.png',
   '/images/perro.png',
 ];
 
@@ -61,6 +61,27 @@ const Inicio = () => {
               />
               <span className="hero-fallback-emojis">🐾</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-features">
+        <div className="landing-features-inner">
+          <h2>Todo lo que necesitas para tu clínica</h2>
+          <p className="features-sub">Gestiona tu clínica de forma inteligente con nuestras herramientas todo-en-uno.</p>
+          <div className="features-grid">
+            {[
+              { icon: '📅', title: 'Agenda de Citas', desc: 'Organiza y programa citas de forma sencilla con recordatorios automáticos.' },
+              { icon: '🐾', title: 'Gestión de Pacientes', desc: 'Historial clínico completo de cada mascota con diagnósticos y tratamientos.' },
+              { icon: '👥', title: 'Control de Clientes', desc: 'Administra la información de los dueños y su historial de servicios.' },
+              { icon: '📊', title: 'Reportes y Estadísticas', desc: 'Visualiza el rendimiento de tu clínica con reportes detallados.' },
+            ].map((f, i) => (
+              <div key={i} className="feature-card">
+                <div className="feature-icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
