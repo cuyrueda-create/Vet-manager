@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | Vet Manager — sistema de gestión veterinaria |
 | Equipo | Equipo de desarrollo del proyecto |
-| Versión del plan | 1.12 |
+| Versión del plan | 1.13 |
 | Fecha | 2026-11-27 |
 
 ---
@@ -1252,6 +1252,7 @@ Registro de cambios del plan:
 | **1.10** | **2026-11-25** | **SMTP migrado a Brevo: `EMAIL_FROM` verificable, `smtp-relay.brevo.com:587` en el blueprint, ejemplos `.env` y guía de configuración. 92 tests en verde** |
 | **1.11** | **2026-11-26** | **Render Free bloquea SMTP (25/465/587): el código de verificación se envía por la API HTTPS de Brevo (`BREVO_API_KEY`), con fallback SMTP en local. 93 tests en verde** |
 | **1.12** | **2026-11-27** | **Todos los correos (citas, facturas, reset, recordatorios) pasan por la API de Brevo mediante el adaptador `brevo_smtp`; registro con rol y aprobación admin; oculto "Portal Administrador" para no-admins; inventario admin muestra medicamentos con catálogo inicial. 99 tests en verde** |
+| **1.13** | **2026-11-27** | **Catálogo ampliado a 48 medicamentos; `seed_medicamentos` completa los que falten por nombre en cada arranque. Verificado en la nube: `GET /api/admin/medicamentos` devuelve 48. Quality Gate OK, 0 issues** |
 
 ### 10.2 Pruebas de aceptación
 
