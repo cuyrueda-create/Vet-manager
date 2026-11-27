@@ -711,7 +711,7 @@ const FacturasPage = () => {
                   )}
                   <button onClick={async () => {
                     try {
-                      const res = await api.get('/api/facturas/${verFactura.id_factura}/pdf', { responseType: 'blob' });
+                      const res = await api.get(`/api/facturas/${verFactura.id_factura}/pdf`, { responseType: 'blob' });
                        const blob = res.data;
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
