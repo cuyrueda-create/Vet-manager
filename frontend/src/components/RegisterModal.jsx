@@ -25,6 +25,23 @@ const formatTelefono = (value) => {
   return value.replace(/\D/g, '').slice(0, 20);
 };
 
+const DOCUMENTOS_POR_ROL = {
+  usuario: ['Cédula de ciudadanía'],
+  recepcionista: ['Cédula de ciudadanía', 'Cédula de extranjería', 'Pasaporte'],
+  veterinario: ['Cédula de ciudadanía', 'Cédula de extranjería', 'Pasaporte'],
+};
+
+const ETIQUETA_DOCUMENTO = {
+  usuario: 'Número de cédula',
+  recepcionista: 'Número de documento',
+  veterinario: 'Tarjeta profesional',
+};
+
+const ESPECIALIDADES = [
+  'Medicina general', 'Cirugía', 'Dermatología', 'Cardiología',
+  'Odontología veterinaria', 'Oftalmología', 'Anestesiología',
+];
+
 const RegisterModal = ({ onClose, onOpenLogin }) => {
   const { registerUser, verifyCode, logout } = useAuth();
   const [codigoPais, setCodigoPais] = useState('+57');
@@ -37,6 +54,8 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
     direccion: '',
     tipoDocumento: 'Cédula de ciudadanía',
     numeroDocumento: '',
+    especialidad: '',
+    sede: '',
     contraseña: '',
     confirmarContraseña: '',
     aceptaTerminos: false,
@@ -55,6 +74,16 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === 'rol') {
+      setFormData({
+        ...formData,
+        rol: value,
+        tipoDocumento: DOCUMENTOS_POR_ROL[value][0],
+        especialidad: '',
+        sede: '',
+      });
+      return;
+    }
     if (type === 'checkbox') {
       setFormData({ ...formData, [name]: checked });
     } else if (name === 'telefono') {
@@ -98,6 +127,8 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       direccion: formData.direccion,
       tipo_documento: formData.tipoDocumento,
       numero_documento: formData.numeroDocumento,
+      especialidad: formData.especialidad,
+      sede: formData.sede,
       contraseña: formData.contraseña,
     });
     setLoading(false);
@@ -249,23 +280,42 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
           </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="direccion">Dirección</label>
-          <input id="direccion" type="text" name="direccion" placeholder="Calle, número, ciudad" value={formData.direccion} onChange={handleChange} maxLength={150} required />
+        {/* Datos específicos según el tipo de cuenta */}
+        {formData.rol === 'usuario' ? (
           <div className="form-group">
-            <label htmlFor="tipoDocumento">Tipo de documento</label>
-            <select id="tipoDocumento" name="tipoDocumento" value={formData.tipoDocumento} onChange={handleChange}>
-              <option>Cédula de ciudadanía</option>
-              <option>Tarjeta de identidad</option>
-              <option>Cédula de extranjería</option>
-              <option>Pasaporte</option>
-              <option>NIT</option>
+            <label htmlFor="direccion">Dirección</label>
+            <input id="direccion" type="text" name="direccion" placeholder="Calle, número, ciudad" value={formData.direccion} onChange={handleChange} maxLength={150} required />
+          </div>
+        ) : formData.rol === 'veterinario' ? (
+          <div className="form-group">
+            <label htmlFor="especialidad">Especialidad</label>
+            <select id="especialidad" name="especialidad" value={formData.especialidad} onChange={handleChange} required>
+              <option value="">Selecciona tu especialidad</option>
+              {ESPECIALIDADES.map(e => <option key={e} value={e}>{e}</option>)}
             </select>
           </div>
+        ) : (
           <div className="form-group">
-            <label htmlFor="numeroDocumento">Número de cédula / documento</label>
-            <input id="numeroDocumento" type="text" name="numeroDocumento" placeholder="Ej: 1.234.567.890" value={formData.numeroDocumento} onChange={handleChange} required />
+            <label htmlFor="sede">Sede / consultorio asignado</label>
+            <input id="sede" type="text" name="sede" placeholder="Ej: Sede principal · Consultorio 2" value={formData.sede} onChange={handleChange} maxLength={150} required />
           </div>
+        )}
+
+        <div className="form-group">
+          <label htmlFor="tipoDocumento">Tipo de documento</label>
+          <select id="tipoDocumento" name="tipoDocumento" value={formData.tipoDocumento} onChange={handleChange} disabled={formData.rol === 'usuario'}>
+            {DOCUMENTOS_POR_ROL[formData.rol].map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          {formData.rol === 'usuario' && (
+            <small style={{ color: '#6b7280', fontSize: 12 }}>Para pacientes se usa cédula de ciudadanía.</small>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="numeroDocumento">{ETIQUETA_DOCUMENTO[formData.rol]}</label>
+          <input id="numeroDocumento" type="text" name="numeroDocumento"
+            placeholder={formData.rol === 'veterinario' ? 'Ej: TP-123456' : 'Ej: 1.234.567.890'}
+            value={formData.numeroDocumento} onChange={handleChange} required />
         </div>
 
         <div className="form-group">
