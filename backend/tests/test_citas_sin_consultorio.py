@@ -46,8 +46,9 @@ def test_disponibilidad_marca_vet_con_slots_libres(monkeypatch):
 
 
 def test_no_queda_validacion_de_consultorios():
-    codigo = open(
-        "/app/app/main.py", encoding="utf-8"
-    ).read()
+    from pathlib import Path
+
+    ruta = Path(__file__).resolve().parents[1] / "app" / "main.py"
+    codigo = ruta.read_text(encoding="utf-8")
     assert "No hay consultorios disponibles" not in codigo
     assert "El consultorio ya esta ocupado" not in codigo
