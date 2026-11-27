@@ -45,6 +45,7 @@ const ESPECIALIDADES = [
 const RegisterModal = ({ onClose, onOpenLogin }) => {
   const { registerUser, verifyCode, logout } = useAuth();
   const [codigoPais, setCodigoPais] = useState('+57');
+  const [categoria, setCategoria] = useState('usuario');
   const [formData, setFormData] = useState({
     rol: 'usuario',
     nombre: '',
@@ -71,6 +72,18 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
   const current = strengthConfig[strength];
   const passwordsMatch = formData.contraseña === formData.confirmarContraseña;
   const canSubmit = formData.contraseña && formData.confirmarContraseña && passwordsMatch && strength >= 3 && formData.aceptaTerminos && !loading;
+
+  const seleccionarCategoria = (nueva) => {
+    setCategoria(nueva);
+    setFormData(f => ({
+      ...f,
+      rol: nueva === 'usuario' ? 'usuario' : 'veterinario',
+      tipoDocumento: DOCUMENTOS_POR_ROL[nueva === 'usuario' ? 'usuario' : 'veterinario'][0],
+      especialidad: '',
+      sede: '',
+    }));
+    setError('');
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -227,22 +240,42 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       <h2 className="auth-modal-title">Crear Cuenta</h2>
       <p className="auth-modal-subtitle">Regístrate para empezar</p>
 
+      <div className="register-tabs" role="tablist" aria-label="Tipo de registro">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={categoria === 'usuario'}
+          className={`register-tab ${categoria === 'usuario' ? 'activa' : ''}`}
+          onClick={() => seleccionarCategoria('usuario')}
+        >
+          👤 Usuario
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={categoria === 'clinica'}
+          className={`register-tab ${categoria === 'clinica' ? 'activa' : ''}`}
+          onClick={() => seleccionarCategoria('clinica')}
+        >
+          🏥 Clínica / Empresarial
+        </button>
+      </div>
+
       {error && <div className="modal-error">{error}</div>}
 
       <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="rol">Tipo de cuenta</label>
-          <select id="rol" name="rol" value={formData.rol} onChange={handleChange}>
-            <option value="usuario">Cliente (paciente)</option>
-            <option value="recepcionista">Recepcionista</option>
-            <option value="veterinario">Veterinario</option>
-          </select>
-          {formData.rol !== 'usuario' && (
+        {categoria === 'clinica' && (
+          <div className="form-group">
+            <label htmlFor="rol">Tipo de personal</label>
+            <select id="rol" name="rol" value={formData.rol} onChange={handleChange}>
+              <option value="veterinario">Veterinario</option>
+              <option value="recepcionista">Recepcionista</option>
+            </select>
             <small style={{ color: '#6b7280', fontSize: 12 }}>
               Un administrador debe aprobar tu solicitud antes de que puedas entrar.
             </small>
-          )}
-        </div>
+          </div>
+        )}
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="nombre">Nombre</label>
