@@ -47,6 +47,7 @@ class UserCreate(BaseModel):
     direccion: str = Field(max_length=150)
     tipo_documento: str = Field(max_length=20)
     numero_documento: str = Field(max_length=30)
+    especialidad: Optional[str] = Field(default=None, max_length=50)
     clave_admin: Optional[str] = None
 
 class UserUpdate(BaseModel):
@@ -56,6 +57,7 @@ class UserUpdate(BaseModel):
     telefono: Optional[str] = Field(default=None, max_length=20)
     direccion: Optional[str] = Field(default=None, max_length=150)
     rol: Optional[str] = None
+    especialidad: Optional[str] = Field(default=None, max_length=50)
     tipo_documento: Optional[str] = Field(default=None, max_length=20)
     numero_documento: Optional[str] = Field(default=None, max_length=30)
     is_active: Optional[bool] = None
@@ -102,12 +104,12 @@ async def create_usuario(data: UserCreate, current_user: dict = Depends(require_
 
         cursor.execute("""
             INSERT INTO usuarios (nombre, apellido, email, contrasea, rol, telefono, direccion,
-                                  tipo_documento, numero_documento, created_by, is_active,
+                                  tipo_documento, numero_documento, especialidad, created_by, is_active,
                                   codigo_verificacion, codigo_expires)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (data.nombre, data.apellido, data.email, hashed, data.rol,
               data.telefono, data.direccion, data.tipo_documento, data.numero_documento,
-              current_user["id_usuario"], not con_correo, codigo, expira))
+              data.especialidad, current_user["id_usuario"], not con_correo, codigo, expira))
         connection.commit()
 
         mensaje = "Usuario creado exitosamente"

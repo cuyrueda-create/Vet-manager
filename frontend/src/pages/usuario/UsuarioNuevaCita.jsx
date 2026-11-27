@@ -51,7 +51,7 @@ const UsuarioNuevaCita = () => {
     if (!form.fecha) return;
     api.get(`/api/vet/disponibilidad?fecha=${form.fecha}`)
       .then(r => {
-        setVeterinarios((r.data || []).filter(v => v.estado !== 'no_trabaja'));
+        setVeterinarios(r.data || []);
       })
       .catch(() => setVeterinarios([]));
   }, [form.fecha]);
@@ -261,8 +261,11 @@ const UsuarioNuevaCita = () => {
                     }}>
                     <option value="">Seleccionar veterinario...</option>
                     {veterinarios.map(v => (
-                      <option key={v.id_usuario} value={v.id_usuario}>
+                      <option key={v.id_usuario} value={v.id_usuario}
+                        disabled={v.estado !== 'disponible'}>
                         {v.nombre}{v.especialidad ? ` — ${v.especialidad}` : ''}
+                        {v.estado === 'no_trabaja' ? ' (no atiende este día)' : ''}
+                        {v.estado === 'ocupado' ? ' (sin horarios libres)' : ''}
                       </option>
                     ))}
                   </select>
