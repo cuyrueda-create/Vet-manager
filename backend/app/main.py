@@ -3979,10 +3979,11 @@ async def create_factura(data: FacturaCreate, current_user: dict = Depends(get_c
                           "subtotal": round(d.cantidad * d.precio_unitario, 2)} for d in data.detalles]
         }
 
+        correo_enviado = False
         if correo_destino:
-            threading.Thread(target=send_invoice_email,
-                           args=(correo_destino, nombre_cliente, apellido_cliente, factura_completa),
-                           daemon=True).start()
+            correo_enviado = send_invoice_email(
+                correo_destino, nombre_cliente, apellido_cliente, factura_completa,
+            )
 
             # Crear notificacion para el usuario dueño del cliente
             cursor.execute("SELECT id_usuario FROM clientes WHERE id_cliente = %s", (data.id_cliente,))
@@ -4028,11 +4029,17 @@ async def create_factura(data: FacturaCreate, current_user: dict = Depends(get_c
                            args=(vet_info["email"], vet_info["nombre"], vet_info["apellido"], factura_completa),
                            daemon=True).start()
 
-        # Marcar como enviado
-        cursor.execute("UPDATE facturas SET enviado = TRUE WHERE id_factura = %s", (factura_id,))
-        connection.commit()
+        # Solo se marca como enviada si el correo al cliente fue aceptado.
+        if correo_enviado:
+            cursor.execute("UPDATE facturas SET enviado = TRUE WHERE id_factura = %s", (factura_id,))
+            connection.commit()
 
-        return {"message": "Factura generada exitosamente", "id_factura": factura_id, "numero": numero}
+        return {
+            "message": "Factura generada exitosamente",
+            "id_factura": factura_id,
+            "numero": numero,
+            "correo_enviado": correo_enviado,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -4478,15 +4485,23 @@ async def enviar_factura(factura_id: int, current_user: dict = Depends(get_curre
                           "subtotal": float(d["subtotal"])} for d in detalles]
         }
 
-        import threading
-        threading.Thread(target=send_invoice_email,
-                       args=(factura["cliente_email"], factura["cliente_nombre"], factura["cliente_apellido"], factura_completa),
-                       daemon=True).start()
+        # Envío síncrono: solo se marca como enviada si el proveedor la aceptó.
+        enviada = send_invoice_email(
+            factura["cliente_email"], factura["cliente_nombre"],
+            factura["cliente_apellido"], factura_completa,
+        )
+        if enviada:
+            cursor.execute("UPDATE facturas SET enviado = TRUE WHERE id_factura = %s", (factura_id,))
+            connection.commit()
+            return {"message": f"Factura enviada a {factura['cliente_email']}"}
 
-        cursor.execute("UPDATE facturas SET enviado = TRUE WHERE id_factura = %s", (factura_id,))
-        connection.commit()
-
-        return {"message": f"Factura enviada a {factura['cliente_email']}"}
+        return {
+            "message": (
+                f"No se pudo enviar la factura a {factura['cliente_email']}. "
+                "Revisa EMAIL_FROM y la SMTP key en Render."
+            ),
+            "enviada": False,
+        }
     except HTTPException:
         raise
     except Exception as e:
