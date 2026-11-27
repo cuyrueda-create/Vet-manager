@@ -80,6 +80,26 @@ const UsuarioMisCitas = () => {
           </Link>
         </div>
 
+        {/* Banner de bienvenida con imagen */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 20, background: 'linear-gradient(135deg, #eff6ff, #e0f2fe)',
+          border: '1px solid #bfdbfe', borderRadius: 16, padding: '18px 24px',
+          marginBottom: 24, overflow: 'hidden'
+        }}>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1e3a8a', margin: 0 }}>
+              Tu clínica, en tus manos
+            </h2>
+            <p style={{ color: '#475569', fontSize: 14, margin: '6px 0 0' }}>
+              Agenda, consulta y gestiona las citas de tus mascotas cuando quieras.
+            </p>
+          </div>
+          <img src="/images/perroygato.png" alt="Mascotas" style={{
+            width: 150, height: 100, objectFit: 'cover', borderRadius: 12, flexShrink: 0
+          }} />
+        </div>
+
         {/* Stats */}
         {!loading && (
           <div style={{
